@@ -33,19 +33,19 @@ Traditional data warehouse projects are **time-consuming, error-prone, and lack 
 flowchart TD
     subgraph Owner["👑 Owner Workflow"]
         A[Signup / Login]
-        B[Upload Data (CSV / Parquet / SQL)]
+        B[Upload Data - CSV / Parquet / SQL]
         C[Generate Schema]
         D[Edit Schema]
-        E[AI Enhancements <br/> (Confirm Required)]
-        F[Confirm DW Schema]
-        G[Manage Dashboards <br/> (Auto / Custom)]
-        H[Manage Departments & Access]
+        E[AI Enhancements - Confirm Required]
+        F[Confirm Data Warehouse Schema]
+        G[Manage Dashboards - Auto or Custom]
+        H[Manage Departments and Access]
     end
 
     subgraph Employee["👤 Employee Workflow"]
         I[Login with Department ID]
         J[View Allowed Columns]
-        K[Create Auto/Custom Dashboards <br/> (Private)]
+        K[Create Auto or Custom Dashboards - Private]
     end
 
     A --> B --> C --> D --> E --> F --> G --> H
