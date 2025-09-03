@@ -1,4 +1,4 @@
-# 🌐 GEN Data — Intelligent Data Warehouse & Analytics SaaS
+#  GEN Data — Intelligent Data Warehouse & Analytics SaaS
 
 **GEN Data** is a modern **Data Warehouse & Analytics SaaS platform** designed for teams that want to seamlessly **ingest, model, orchestrate, and analyze data at scale**.  
 
@@ -11,7 +11,7 @@ It bridges the gap between raw datasets and actionable insights by combining:
 
 ---
 
-## 🚀 Why GEN Data?
+##  Why GEN Data?
 
 Traditional data warehouse projects are **time-consuming, error-prone, and lack flexibility**:  
 - Schema design is manual and brittle.  
@@ -27,7 +27,7 @@ Traditional data warehouse projects are **time-consuming, error-prone, and lack 
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```mermaid
 flowchart TD
