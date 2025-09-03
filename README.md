@@ -1,23 +1,52 @@
+# 🌐 GEN Data — Intelligent Data Warehouse & Analytics SaaS
+
+**GEN Data** is a modern **Data Warehouse & Analytics SaaS platform** designed for teams that want to seamlessly **ingest, model, orchestrate, and analyze data at scale**.  
+
+It bridges the gap between raw datasets and actionable insights by combining:
+- **AI-assisted schema modeling**
+- **Automated transformations (dbt + Airflow)**
+- **Scalable processing (Spark)**
+- **Fine-grained access control**
+- **Self-service dashboards (auto/custom/Power BI)**
+
+---
+
+## 🚀 Why GEN Data?
+
+Traditional data warehouse projects are **time-consuming, error-prone, and lack flexibility**:  
+- Schema design is manual and brittle.  
+- Engineers are bottlenecks for transformations.  
+- Access control is coarse-grained.  
+- Business teams wait for IT to build dashboards.  
+
+**GEN Data solves this by**:
+- Automating schema generation & evolution with **AI suggestions**.  
+- Enabling **owners** to approve/modify models before deployment.  
+- Allowing **employees** to work with data safely through **department-based permissions**.  
+- Embedding **Power BI dashboards** for a no-code analytics experience.  
+
+---
+
+## 🏗️ System Architecture
+
 ```mermaid
 flowchart TD
+    subgraph Owner["👑 Owner Workflow"]
+        A[Signup / Login]
+        B[Upload Data (CSV, Parquet, SQL)]
+        C[Generate Schema]
+        D[Edit Schema]
+        E[AI Enhancements (Confirm Required)]
+        F[Confirm DW Schema]
+        G[Manage Dashboards (Auto / Custom)]
+        H[Manage Departments & Access]
+    end
 
-    %% Owner side
-    A[Owner Signup or Login]
-    B[Upload Data CSV or Parquet or SQL]
-    C[Select Data Domain]
-    D[Generate Data Warehouse Schema]
-    E[Edit Schema Add Delete Modify Columns]
-    F[AI Enhancement Owner must Confirm]
-    G[Confirm Data Warehouse Schema]
-    H[Dashboard Options Auto Standard OR Custom Columns and Charts]
-    I[Manage Departments Assign Access]
+    subgraph Employee["👤 Employee Workflow"]
+        I[Login with Department ID]
+        J[View Allowed Columns]
+        K[Create Auto/Custom Dashboards (Private)]
+    end
 
-    %% Employee side
-    J[Employee Login with Department ID]
-    K[Employee Sees Allowed Columns]
-    L[Employee Dashboard Options Auto Standard OR Custom Private Dashboards]
-
-    %% Flow connections
-    A --> B --> C --> D --> E --> F --> G --> H --> I
-    I -->|Department ID Assigned| J --> K --> L
-```
+    A --> B --> C --> D --> E --> F --> G --> H
+    H -->|Department ID Assigned| I --> J --> K
