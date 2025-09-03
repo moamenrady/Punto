@@ -31,7 +31,7 @@ Traditional data warehouse projects are **time-consuming, error-prone, and lack 
 
 ```mermaid
 flowchart TD
-    subgraph Owner["👑 Owner Workflow"]
+    subgraph Owner[" Owner Workflow"]
         A[Signup / Login]
         B[Upload Data - CSV / Parquet / SQL]
         C[Generate Schema]
@@ -42,7 +42,7 @@ flowchart TD
         H[Manage Departments and Access]
     end
 
-    subgraph Employee["👤 Employee Workflow"]
+    subgraph Employee[" Employee Workflow"]
         I[Login with Department ID]
         J[View Allowed Columns]
         K[Create Auto or Custom Dashboards - Private]
