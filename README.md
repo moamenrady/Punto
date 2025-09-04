@@ -1,6 +1,6 @@
-#  GEN Data — Intelligent Data Warehouse & Analytics SaaS
+#  Data Flux — Intelligent Data Warehouse & Analytics SaaS
 
-**GEN Data** is a modern **Data Warehouse & Analytics SaaS platform** designed for teams that want to seamlessly **ingest, model, orchestrate, and analyze data at scale**.  
+**Data Flux** is a modern **Data Warehouse & Analytics SaaS platform** designed for teams that want to seamlessly **ingest, model, orchestrate, and analyze data at scale**.  
 
 It bridges the gap between raw datasets and actionable insights by combining:
 - **AI-assisted schema modeling**
@@ -11,7 +11,7 @@ It bridges the gap between raw datasets and actionable insights by combining:
 
 ---
 
-##  Why GEN Data?
+##  Why Data Flux?
 
 Traditional data warehouse projects are **time-consuming, error-prone, and lack flexibility**:  
 - Schema design is manual and brittle.  
@@ -19,7 +19,7 @@ Traditional data warehouse projects are **time-consuming, error-prone, and lack 
 - Access control is coarse-grained.  
 - Business teams wait for IT to build dashboards.  
 
-**GEN Data solves this by**:
+**Data Flux solves this by**:
 - Automating schema generation & evolution with **AI suggestions**.  
 - Enabling **owners** to approve/modify models before deployment.  
 - Allowing **employees** to work with data safely through **department-based permissions**.  
