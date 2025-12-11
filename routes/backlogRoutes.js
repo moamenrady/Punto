@@ -1,12 +1,12 @@
 const express = require("express");
 const backlogController = require("../controllers/backlogController");
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router
   .route("/")
   .get(backlogController.getAllBacklogs)
-  .post(backlogController.createBacklog);
+  .post(backlogController.setProjectId, backlogController.createBacklog);
 
 router
   .route("/:id")

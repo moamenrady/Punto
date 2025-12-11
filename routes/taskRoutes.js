@@ -1,12 +1,12 @@
 const express = require("express");
 const taskController = require("../controllers/taskController");
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router
   .route("/")
   .get(taskController.getAllTasks)
-  .post(taskController.createTask);
+  .post(taskController.setBacklogOrSprintId, taskController.createTask);
 
 router
   .route("/:id")

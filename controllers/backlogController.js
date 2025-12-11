@@ -2,6 +2,13 @@ const Backlog = require("../models/backlogModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 
+exports.setProjectId = (req, res, next) => {
+  if (!req.body.project_id) {
+    req.body.project_id = req.params.projectId;
+  }
+  next();
+};
+
 exports.createBacklog = catchAsync(async (req, res, next) => {
   const backlog = await Backlog.create(req.body);
 
