@@ -29,9 +29,9 @@ const taskSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// taskSchema.pre(/^find/, function (next) {
-//   this.populate("backlog_id", "name").populate("sprint_id", "name status");
-//   next();
-// });
+taskSchema.pre(/^find/, function (next) {
+  this.populate("backlog_id", "name").populate("sprint_id", "name status");
+  // next();
+});
 
 module.exports = mongoose.model("Task", taskSchema);

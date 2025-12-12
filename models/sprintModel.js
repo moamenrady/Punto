@@ -29,10 +29,10 @@ const sprintSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// sprintSchema.pre(/^find/, function (next) {
-//   this.populate("project_id", "name");
-//   next();
-// });
+sprintSchema.pre(/^find/, function (next) {
+  this.populate("project_id", "name");
+  // next();
+});
 
 // you add next line if you want to auto populate tasks in sprint
 // sprintSchema.pre(/^find/, function (next) {

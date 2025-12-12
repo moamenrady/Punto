@@ -20,9 +20,9 @@ const backlogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// backlogSchema.pre(/^find/, function (next) {
-//   this.populate("project_id", "name");
-//   next();
-// });
+backlogSchema.pre(/^find/, function (next) {
+  this.populate("project_id", "name");
+  // next();
+});
 
 module.exports = mongoose.model("Backlog", backlogSchema);
