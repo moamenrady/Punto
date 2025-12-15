@@ -21,19 +21,15 @@ const ticketSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["open", "in-progress", "pending", "closed"],
+      enum: ["open", "in_progress", "resolved", "closed"],
       default: "open",
     },
 
-    attachment: {
-      type: String,
+    created_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
-
-    // created_by: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "User",
-    //   required: true,
-    // },
 
     assign_to: {
       type: mongoose.Schema.Types.ObjectId,
@@ -44,18 +40,18 @@ const ticketSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Chat",
     },
+    attachments: String,
   },
   {
     timestamps: true, // adds createdAt + updatedAt automatically
   }
 );
 
-// Auto populate   give error next is not a function
-// ticketSchema.pre(/^find/, function (next) {
-//   this.populate("created_by", "name email")
-//     .populate("assign_to", "name email")
-//     .populate("chat_id", "name");
-//   next();
-// });
+// Auto populate
+ticketSchema.pre(/^find/, function () {
+  this.populate("created_by", "name email role")
+    .populate("assign_to", "name email role")
+    .populate("chat_id", "name");
+});
 
 module.exports = mongoose.model("Ticket", ticketSchema);

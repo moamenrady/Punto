@@ -8,7 +8,6 @@ const app = express();
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 // const httpStatusCode = require("./utils/httpStatusCode");
-//
 
 // const authRoutes = require("./routes/auth");
 const ticketRoutes = require("./routes/ticketRoutes");
@@ -16,7 +15,7 @@ const projectRoutes = require("./routes/projectRoutes");
 const backlogRoutes = require("./routes/backlogRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const sprintRoutes = require("./routes/sprintRoutes");
-
+const userRoutes = require("./routes/userRoutes");
 // Middleware
 app.use(express.json());
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
@@ -43,6 +42,8 @@ app.use("/api/v1/projects/:projectId/sprints", sprintRoutes);
 // app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/backlogs/:backlogId/tasks", taskRoutes);
 app.use("/api/v1/sprints/:sprintId/tasks", taskRoutes);
+
+app.use("/api/v1/users", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("OmniSuite Backend is running! 🚀");

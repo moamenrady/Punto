@@ -17,17 +17,15 @@ const projectSchema = new mongoose.Schema(
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      // لحد ما نعمل user/auth هنسيبها اختيارية
-      // required: true
+      required: true,
     },
   },
   { timestamps: true }
 );
 
 // auto populate created_by later
-// projectSchema.pre(/^find/, function (next) {
-//   this.populate("created_by", "name email");
-//   next();
-// });
+projectSchema.pre(/^find/, function () {
+  this.populate("created_by", "name email role");
+});
 
 module.exports = mongoose.model("Project", projectSchema);

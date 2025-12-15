@@ -24,20 +24,22 @@ const sprintSchema = new mongoose.Schema(
     },
 
     // created_by → علّقناه لحد الـ user/auth
-    // created_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    created_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-sprintSchema.pre(/^find/, function (next) {
+sprintSchema.pre(/^find/, function () {
   this.populate("project_id", "name");
   // next();
 });
 
-// you add next line if you want to auto populate tasks in sprint
-// sprintSchema.pre(/^find/, function (next) {
-//   this.populate("task_id", "name");
-//   next();
-// });
+sprintSchema.pre(/^find/, function () {
+  this.populate("created_by", "name email role");
+});
 
 module.exports = mongoose.model("Sprint", sprintSchema);

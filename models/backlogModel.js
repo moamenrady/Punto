@@ -15,14 +15,22 @@ const backlogSchema = new mongoose.Schema(
     },
 
     // لحد ما نعمل user/auth هنسيبه فاضي
-    // created_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    created_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-backlogSchema.pre(/^find/, function (next) {
+backlogSchema.pre(/^find/, function () {
   this.populate("project_id", "name");
   // next();
+});
+
+backlogSchema.pre(/^find/, function () {
+  this.populate("created_by", "name email role");
 });
 
 module.exports = mongoose.model("Backlog", backlogSchema);
