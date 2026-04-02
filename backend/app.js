@@ -1,10 +1,17 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 // const { pool } = require("./db");
 
 const morgan = require("morgan");
 const app = express();
 
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 // const httpStatusCode = require("./utils/httpStatusCode");

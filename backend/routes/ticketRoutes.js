@@ -22,7 +22,7 @@ router
 router.patch(
   "/:id/assign",
   authController.restrictTo("admin", "manager"),
-  ticketController.assignTicket
+  ticketController.assignTicket,
 );
 
 module.exports = router;

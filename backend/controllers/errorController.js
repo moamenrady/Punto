@@ -29,6 +29,8 @@ module.exports = (err, req, res, next) => {
 
   if (process.env.NODE_ENV === "development") {
     sendErrorDev(err, res);
+    // don't remember to remove this line it's for debugging to see errors in the console
+    console.error("ERROR 💥", err);
   } else if (process.env.NODE_ENV === "production") {
     sendErrorProd(err, res);
   }

@@ -55,6 +55,14 @@ exports.login = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     token,
+    data: {
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    },
   });
 });
 
@@ -71,7 +79,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   if (!token) {
     return next(
-      new AppError("You are not logged in. Please log in to get access.", 401)
+      new AppError("You are not logged in. Please log in to get access.", 401),
     );
   }
 
@@ -82,14 +90,14 @@ exports.protect = catchAsync(async (req, res, next) => {
   const currentUser = await User.findById(decoded.id);
   if (!currentUser) {
     return next(
-      new AppError("The user belonging to this token no longer exists.", 401)
+      new AppError("The user belonging to this token no longer exists.", 401),
     );
   }
 
   // 4) check password changed after token
   if (currentUser.changedPasswordAfter(decoded.iat)) {
     return next(
-      new AppError("User recently changed password. Please log in again.", 401)
+      new AppError("User recently changed password. Please log in again.", 401),
     );
   }
 
