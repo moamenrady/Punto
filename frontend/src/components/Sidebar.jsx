@@ -1,10 +1,9 @@
 import React from "react";
+import { NavLink } from "react-router-dom";
 import useAuth from "../context/useAuth";
 
 const Sidebar = () => {
-  const { user, logout } = useAuth();
-
-  const displayName = user?.name || "User";
+  const { logout } = useAuth();
 
   return (
     <aside className="sidebar">
@@ -48,7 +47,10 @@ const Sidebar = () => {
       </div>
 
       <nav className="sidebar-menu">
-        <div className="menu-item">
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -63,8 +65,12 @@ const Sidebar = () => {
             <rect x="3" y="14" width="7" height="7"></rect>
           </svg>
           Project Management
-        </div>
-        <div className="menu-item">
+        </NavLink>
+
+        <NavLink
+          to="/tasks"
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -80,9 +86,13 @@ const Sidebar = () => {
             <polyline points="10 9 9 9 8 9"></polyline>
           </svg>
           My Tasks
-        </div>
+        </NavLink>
 
-        <div className="menu-item active">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -97,7 +107,7 @@ const Sidebar = () => {
             <path d="M17 8v8"></path>
           </svg>
           Ticketing System
-        </div>
+        </NavLink>
 
         <div className="menu-group">
           <div
@@ -132,7 +142,10 @@ const Sidebar = () => {
           </div>
         </div>
 
-        <div className="menu-item">
+        <NavLink
+          to="/stock"
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -146,8 +159,12 @@ const Sidebar = () => {
             <line x1="12" y1="22.08" x2="12" y2="12"></line>
           </svg>
           Stock Management
-        </div>
-        <div className="menu-item">
+        </NavLink>
+
+        <NavLink
+          to="/chat"
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -159,8 +176,12 @@ const Sidebar = () => {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
           Group Chat
-        </div>
-        <div className="menu-item">
+        </NavLink>
+
+        <NavLink
+          to="/reports"
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -174,8 +195,12 @@ const Sidebar = () => {
             <line x1="6" y1="20" x2="6" y2="14"></line>
           </svg>
           Reports & Analytics
-        </div>
-        <div className="menu-item">
+        </NavLink>
+
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -188,7 +213,7 @@ const Sidebar = () => {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
           Settings
-        </div>
+        </NavLink>
       </nav>
 
       <div className="sidebar-bottom">
