@@ -1,6 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const session = require("express-session");
+const passport = require("./config/passport");
 // const { pool } = require("./db");
 
 const morgan = require("morgan");
@@ -26,6 +28,15 @@ const userRoutes = require("./routes/userRoutes");
 // Middleware
 app.use(express.json());
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
+app.use(
+  session({
+    secret: "secret",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+app.use(passport.initialize());
 
 // Attach pool to every request sql server
 
@@ -51,6 +62,7 @@ app.use("/api/v1/backlogs/:backlogId/tasks", taskRoutes);
 app.use("/api/v1/sprints/:sprintId/tasks", taskRoutes);
 
 app.use("/api/v1/users", userRoutes);
+app.use("/api/auth", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("OmniSuite Backend is running! 🚀");
