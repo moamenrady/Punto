@@ -1,34 +1,45 @@
-import { Routes, Route } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import TicketsPage from "./pages/TicketsPage";
-import Dashboard from "./components/Dashboard";
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from './pages/LoginPage';
+import SignUpRole from './pages/SignUpRole';
+import UserRegister from './pages/UserRegister';
 
-export default function App() {
+function App() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const theme = isDarkMode ? {
+    bg: 'bg-[#12102A]',
+    textP: 'text-[#E2E0FF]',
+    textM: 'text-[#8480B8]',
+    border: 'border-[#2E2B5A]',
+    input: 'bg-[#1E1B3A]',
+    primary: '#7F6FF5',
+    accent: '#3ECFAA',
+    btn: 'from-[#7F6FF5] to-[#3ECFAA]'
+  } : {
+    bg: 'bg-[#F5F4FF]',
+    textP: 'text-[#1E1B3A]',
+    textM: 'text-[#7F77DD]',
+    border: 'border-[#DDD9FF]',
+    input: 'bg-white',
+    primary: '#534AB7',
+    accent: '#0F6E56',
+    btn: 'from-[#534AB7] to-[#7F77DD]'
+  };
+
+  const commonProps = { isDarkMode, setIsDarkMode, theme };
+
   return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-wrapper">
-        <Header />
-        <Routes>
-          <Route path="/" element={<TicketsPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-        </Routes>
-
-        <div className="fab" title="Support Chat">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-          </svg>
-        </div>
-      </main>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/login" element={<LoginPage {...commonProps} />} />
+        <Route path="/signup" element={<SignUpRole {...commonProps} />} />
+        <Route path="/signup/user" element={<UserRegister {...commonProps} />} />
+        
+      </Routes>
+    </Router>
   );
 }
+
+export default App;
