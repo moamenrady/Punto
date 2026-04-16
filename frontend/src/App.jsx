@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import SignUpRole from './pages/SignUpRole';
 import UserRegister from './pages/UserRegister';
 import AdminRegister from './pages/AdminRegister';
+import SetupEnvironment from './pages/SetupEnvironment';
 
 // Main app
 import Sidebar from './components/Sidebar';
@@ -115,17 +116,15 @@ function AppContent() {
 
   return (
     <Routes>
-      {!token ? (
-        <>
-          <Route path="/login"        element={<LoginPage     {...commonProps} />} />
-          <Route path="/signup"       element={<SignUpRole    {...commonProps} />} />
-          <Route path="/signup/user"  element={<UserRegister  {...commonProps} />} />
-          <Route path="/signup/admin" element={<AdminRegister {...commonProps} />} />
-          <Route path="*"             element={<Navigate to="/login" replace />} />
-        </>
-      ) : (
-        <Route path="/*" element={<MainApp />} />
-      )}
+      {/* Auth pages always accessible */}
+      <Route path="/login"        element={<LoginPage        {...commonProps} />} />
+      <Route path="/signup"       element={<SignUpRole       {...commonProps} />} />
+      <Route path="/signup/user"  element={<UserRegister     {...commonProps} />} />
+      <Route path="/signup/admin" element={<AdminRegister    {...commonProps} />} />
+      <Route path="/setup"        element={<SetupEnvironment {...commonProps} />} />
+
+      {/* Main app — shown directly (auth integration ready when backend is live) */}
+      <Route path="/*" element={<MainApp />} />
     </Routes>
   );
 }
