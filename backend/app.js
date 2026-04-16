@@ -25,6 +25,7 @@ const backlogRoutes = require("./routes/backlogRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const sprintRoutes = require("./routes/sprintRoutes");
 const userRoutes = require("./routes/userRoutes");
+const stockRoutes = require("./routes/stockRoutes");
 // Middleware
 app.use(express.json());
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
@@ -61,6 +62,7 @@ app.use("/api/v1/projects/:projectId/sprints", sprintRoutes);
 app.use("/api/v1/backlogs/:backlogId/tasks", taskRoutes);
 app.use("/api/v1/sprints/:sprintId/tasks", taskRoutes);
 
+app.use("/api/v1/stock", stockRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/auth", userRoutes);
 

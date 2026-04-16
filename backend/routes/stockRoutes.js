@@ -1,0 +1,20 @@
+const express = require('express');
+const stockController = require('../controllers/stockController');
+
+const router = express.Router();
+
+router
+  .route('/')
+  .get(stockController.getAllStock)
+  .post(stockController.createStock);
+router
+  .route('/')
+  .post(stockController.createStock);
+
+router
+  .route('/:id')
+  .get(stockController.getOneStock)
+  .patch(stockController.updateStock)
+  .delete(stockController.deleteStock);
+
+module.exports = router;
