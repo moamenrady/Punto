@@ -39,7 +39,11 @@ const TicketList = ({
 
   const handleUserClick = (createdBy) => {
     const fullUser = users?.find((u) => u.name === createdBy.name) ?? createdBy;
+  if (createdBy.role?.toLowerCase() === "admin") {
+    setSelectedUser({ ...fullUser, _forcePanel: true });
+  } else {
     setSelectedUser(fullUser);
+  }
   };
 
   const isMe = selectedUser?.name === currentUser?.name;

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import useAuth from "./context/useAuth";
 
 import LoginPage from "./pages/LoginPage";
 import SignUpRole from "./pages/SignUpRole";
@@ -17,56 +16,21 @@ import TicketDetailsPage from "./pages/TicketDetailsPage";
 import StockManagementPage from "./pages/StockManagementPage";
 import CreateTicketModal from "./components/CreateTicketModal";
 import UserProfileModal from "./components/UserProfileModal";
+import Settings from "./pages/Settings";
+
 import { mockTickets } from "./mockData";
 
-function MainApp() {
+function MainApp({ themeObj, theme, setTheme, user, setUser }) {
   const [currentUserRole, setCurrentUserRole] = useState("admin");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [tickets, setTickets] = useState(mockTickets);
-  const [theme, setTheme] = useState("light");
   const [selectedUser, setSelectedUser] = useState(null);
 
-  const [user, setUser] = useState({
-    name: "hamada Hassan",
-    email: "a.hassan@company.com",
-    phone: "+20 100 000 0000",
-    dept: "Infrastructure",
-    role: "Senior IT Engineer",
-    team: "Infrastructure Team",
-    location: "Cairo, EG",
-    avatar: null,
-    isOnline: true,
-  });
-
-  const themeObj =
-    theme === "dark"
-      ? {
-          bg: "bg-[#12102A]",
-          surface: "bg-[#1E1B3A]",
-          textP: "text-[#E2E0FF]",
-          textM: "text-[#8480B8]",
-          border: "border-[#2E2B5A]",
-          input: "bg-[#1E1B3A]",
-          primary: "#7F6FF5",
-          accent: "#3ECFAA",
-          btn: "from-[#7F6FF5] to-[#3ECFAA]",
-        }
-      : {
-          bg: "bg-[#F5F4FF]",
-          surface: "bg-white",
-          textP: "text-[#1E1B3A]",
-          textM: "text-[#7F77DD]",
-          border: "border-[#DDD9FF]",
-          input: "bg-white",
-          primary: "#534AB7",
-          accent: "#0F6E56",
-          btn: "from-[#534AB7] to-[#7F77DD]",
-        };
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
+  const openProfile = (userData) => {
+    setSelectedUser(userData || user);
+    setIsProfileOpen(true);
+  };
 
   const handleAddTicket = (newTicket) => {
     const nextId = `TKT-00${tickets.length + 1}`;
@@ -85,15 +49,10 @@ function MainApp() {
     setIsCreateOpen(false);
   };
 
-  const openProfile = (userData) => {
-    setSelectedUser(userData || user);
-    setIsProfileOpen(true);
-  };
-
   return (
-    <div className={`app-container ${themeObj.bg}`}>
+    <div className={`app-container flex min-h-screen ${themeObj.bg}`}>
       <Sidebar isDarkMode={theme === "dark"} theme={themeObj} />
-      <main className="main-wrapper">
+      <main className="main-wrapper flex-1 flex flex-col relative overflow-hidden">
         <Header
           user={user}
           onProfileClick={() => openProfile(user)}
@@ -105,8 +64,9 @@ function MainApp() {
         />
         <div className="p-4 flex-1 overflow-auto">
           <Routes>
+            {/* هنا المسار الافتراضي جوه السيستم هو التيكتات */}
             <Route
-              path="/"
+              path="/tickets"
               element={
                 <TicketingPage
                   tickets={tickets}
@@ -138,6 +98,9 @@ function MainApp() {
                 />
               }
             />
+            <Route path="/settings" element={<Settings />} />
+            {/* لو حد دخل على / يوديه للتيكتات */}
+            <Route path="/" element={<Navigate to="/tickets" replace />} />
           </Routes>
         </div>
       </main>
@@ -151,7 +114,6 @@ function MainApp() {
         allTickets={tickets}
         theme={themeObj}
       />
-
       {isCreateOpen && (
         <CreateTicketModal
           onClose={() => setIsCreateOpen(false)}
@@ -164,6 +126,15 @@ function MainApp() {
 
 function AppContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [user, setUser] = useState({
+    name: "hamada Hassan",
+    email: "a.hassan@company.com",
+    role: "Senior IT Engineer",
+    isOnline: true,
+    avatar: null,
+  });
+  const [theme, setTheme] = useState("light");
+
   const themeObj = isDarkMode
     ? {
         bg: "bg-[#12102A]",
@@ -185,7 +156,8 @@ function AppContent() {
         accent: "#0F6E56",
         btn: "from-[#534AB7] to-[#7F77DD]",
       };
-  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj };
+
+  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj , setUser };
 
   return (
     <Routes>
@@ -197,7 +169,23 @@ function AppContent() {
         element={<AdminRegister {...commonProps} />}
       />
       <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
-      <Route path="/*" element={<MainApp />} />
+
+      {/* أي مسار تاني يفتح الـ MainApp */}
+      <Route
+        path="/*"
+        element={
+          <MainApp
+            themeObj={themeObj}
+            theme={theme}
+            setTheme={setTheme}
+            user={user}
+            setUser={setUser}
+          />
+        }
+      />
+
+      {/* توجيه البداية للوجن */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

@@ -3,6 +3,7 @@ const userController = require("../controllers/userController");
 const authController = require("../controllers/authController");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
+const { protect, getMe } = require('../controllers/authController');
 
 const Router = express.Router();
 

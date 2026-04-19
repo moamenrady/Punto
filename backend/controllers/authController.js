@@ -34,18 +34,22 @@ exports.signup = catchAsync(async (req, res, next) => {
 });
 
 exports.login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, teamId } = req.body;
 
   // 1) check email & password exist
   if (!email || !password) {
     return next(new AppError("Please provide email and password", 400));
   }
 
-  // 2) get user + password
+  // 2) find user
   const user = await User.findOne({ email }).select("+password");
-  const isCorrectPassword = await user.correctPassword(password, user.password);
+  if (!user) {
+    return next(new AppError("Incorrect email or password", 401));
+  }
+
   // 3) check password
-  if (!user || !isCorrectPassword) {
+  const isCorrectPassword = await user.correctPassword(password, user.password);
+  if (!isCorrectPassword) {
     return next(new AppError("Incorrect email or password", 401));
   }
 
@@ -193,5 +197,41 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     token,
+  });
+});
+
+
+exports.getMe = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  res.status(200).json({
+    status: "success",
+    data: { user }
+  });
+});
+
+
+//update-pass
+exports.updateMe = catchAsync(async (req, res, next) => {
+  // منع تغيير الباسورد من هنا
+  if (req.body.password || req.body.confirmPassword) {
+    return next(new AppError("This route is not for password updates.", 400));
+  }
+
+  // الـ fields المسموح بتحديثها
+  const allowedFields = ["name", "phone", "dept", "location", "photo"];
+  const filteredBody = {};
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) filteredBody[field] = req.body[field];
+  });
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user.id,
+    filteredBody,
+    { new: true, runValidators: true }
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: { user: updatedUser }
   });
 });

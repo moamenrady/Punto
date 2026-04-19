@@ -4,39 +4,93 @@ import {
   Cloud,
   Moon,
   Sun,
-  Loader2,
-  ArrowLeft,
   Mail,
+  Lock,
+  Loader2,
   EyeOff,
 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { DarkLogo, LightLogo } from "../components/logo";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { DarkLogo, LightLogo } from "../components/logo";
 
-const LOGIN_URL = "http://localhost:5000/api/v1/users/login";
-const FORGOT_URL = "http://localhost:5000/api/v1/users/forgetPassword";
-
-export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
-  const [view, setView] = useState("login");
+export default function VertexLoginPage({
+  isDarkMode,
+  setIsDarkMode,
+  theme,
+  setUser,
+}) {
+  const navigate = useNavigate();
+  const [view, setView] = useState("login"); // حالة التبديل بين اللوجن ونسيان الباسورد
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [apiSuccess, setApiSuccess] = useState("");
-  const [formData, setFormData] = useState({ email: "", password: "" });
+
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    teamId: "",
+  });
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    let e = {};
+    if (!formData.email) e.email = "Email is required";
+    if (!formData.password) e.password = "Password is required";
+    if (!formData.teamId) e.teamId = "Team ID is required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleLogin = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (!validate()) return;
+
     setIsLoading(true);
     setApiError("");
+
     try {
-      const response = await axios.post(LOGIN_URL, formData);
+      console.log("Sending:", formData.email, formData.password);
+      const response = await axios.post(
+        "http://localhost:5000/api/v1/users/login",
+        {
+          email: formData.email,
+          password: formData.password,
+      
+        },
+      );
+      console.log("Response:", response.data);
       if (response.data.status === "success") {
-        localStorage.setItem("token", response.data.token);
-        alert(`Welcome back!`);
+  const token = response.data.token;
+  localStorage.setItem("token", token);
+
+  const profileRes = await axios.get(
+    "http://localhost:5000/api/v1/users/me",
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  const profile = profileRes.data.data.doc;
+
+  setUser({
+    name:     profile.name     ?? "",
+    email:    profile.email    ?? "",
+    role:     profile.role     ?? "",
+    phone:    profile.phone    ?? "+20 100 000 0000",
+    dept:     profile.dept     ?? "IT Department",
+    location: profile.location ?? "",
+    isOnline: true,
+    avatar:   profile.photo    ?? null,
+  });
+
+  navigate("/tickets");
+
       }
     } catch (err) {
-      setApiError(err.response?.data?.message || "Login failed");
+      console.log("Error:", err.response?.data);
+      setApiError(
+        err.response?.data?.message || "Login failed. Please check your data.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -48,9 +102,13 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
     setApiError("");
     setApiSuccess("");
     try {
-      const response = await axios.post(FORGOT_URL, {
-        email: formData.email.trim(),
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/v1/users/forgetPassword",
+        {
+          email: formData.email.trim(),
+        },
+        
+      );
       if (response.data.status === "success") {
         setApiSuccess(response.data.message);
       }
@@ -63,41 +121,29 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
     }
   };
 
+  const socialHover = {
+    y: -2,
+    boxShadow: isDarkMode
+      ? "0px 8px 20px rgba(0,0,0,0.4)"
+      : "0px 8px 20px rgba(127, 119, 221, 0.12)",
+  };
+
   return (
     <div
       className={`min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-500 ${theme.bg}`}
     >
-      <AnimatePresence>
-        {view === "forgot" && (
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            onClick={() => {
-              setView("login");
-              setApiError("");
-              setApiSuccess("");
-            }}
-            className={`fixed top-8 left-8 p-3 rounded-full border transition-all shadow-sm z-50 ${isDarkMode ? "bg-[#1E1B3A] border-[#2E2B5A]" : "bg-white border-[#DDD9FF]"}`}
-            style={{ color: theme.primary }}
-          >
-            <ArrowLeft size={24} />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       <button
         onClick={() => setIsDarkMode(!isDarkMode)}
-        className={`fixed top-8 right-8 p-3 rounded-full border transition-all shadow-sm z-50 ${isDarkMode ? "bg-[#1E1B3A] border-[#2E2B5A]" : "bg-white border-[#DDD9FF]"}`}
+        className={`fixed top-4 right-4 p-2.5 rounded-full border transition-all shadow-sm z-50 ${isDarkMode ? "bg-[#1E1B3A] border-[#2E2B5A]" : "bg-white border-[#DDD9FF]"}`}
       >
         {isDarkMode ? (
-          <Sun size={20} className="text-[#E2E0FF]" />
+          <Sun size={18} className="text-[#E2E0FF]" />
         ) : (
-          <Moon size={20} className="text-[#534AB7]" />
+          <Moon size={18} className="text-[#534AB7]" />
         )}
       </button>
 
-      <div className="w-full max-w-[440px]">
+      <div className="w-full max-w-[420px]">
         <AnimatePresence mode="wait">
           {view === "login" ? (
             <motion.div
@@ -106,33 +152,23 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <div className="text-center mb-10">
+              <div className="text-center mb-8">
                 {isDarkMode ? (
                   <DarkLogo primary={theme.primary} accent={theme.accent} />
                 ) : (
                   <LightLogo />
                 )}
                 <h2
-                  className="text-[32px] font-bold mb-2"
-                  style={{ color: isDarkMode ? "#E2E0FF" : "#1E1B3A" }}
+                  className="text-[24px] font-bold mb-1"
+                  style={{ color: theme.primary }}
                 >
-                  Welcome{" "}
-                  <span
-                    className={
-                      isDarkMode
-                        ? "bg-gradient-to-r from-[#7F6FF5] to-[#3ECFAA] bg-clip-text text-transparent"
-                        : ""
-                    }
-                    style={{ color: !isDarkMode ? "#534AB7" : "transparent" }}
-                  >
-                    back!
-                  </span>
+                  Welcome back!
                 </h2>
-                <p className={`text-[14px] ${theme.textM}`}>
-                  Don't have an account?{" "}
+                <p className={`text-[13px] ${theme.textM}`}>
+                  Don't have an account?
                   <Link
                     to="/signup"
-                    className="font-bold hover:underline"
+                    className="font-bold hover:underline ml-1"
                     style={{ color: theme.primary }}
                   >
                     Sign up
@@ -140,53 +176,159 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
                 </p>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-5">
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  required
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className={`w-full px-5 py-3.5 rounded-xl border outline-none text-[14px] ${theme.input} ${theme.textP} ${theme.border} focus:ring-1`}
-                  style={{ "--tw-ring-color": theme.primary }}
-                />
+              <div className="space-y-3 mb-8">
+                <motion.button
+                  whileHover={socialHover}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full flex items-center justify-center gap-2.5 py-3 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  <span className="text-[13px] font-medium">
+                    Continue with Google
+                  </span>
+                </motion.button>
+                <motion.button
+                  whileHover={socialHover}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full flex items-center justify-center gap-2.5 py-3 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <rect
+                      x="2"
+                      y="4"
+                      width="10"
+                      height="16"
+                      rx="2"
+                      fill="#0A66C2"
+                    />
+                    <rect
+                      x="10"
+                      y="6"
+                      width="12"
+                      height="12"
+                      rx="2"
+                      fill="#0078D4"
+                    />
+                    <path d="M12 9l6 3-6 3V9z" fill="#50A9F2" />
+                    <circle cx="7" cy="12" r="2.5" fill="#FFFFFF" />
+                  </svg>
+                  <span className="text-[13px] font-medium">
+                    Continue with Outlook
+                  </span>
+                </motion.button>
+              </div>
+
+              <div className="flex items-center mb-8">
+                <div className={`flex-grow border-t ${theme.border}`}></div>
+                <span
+                  className={`px-4 text-[11px] font-medium lowercase ${theme.textM}`}
+                >
+                  or
+                </span>
+                <div className={`flex-grow border-t ${theme.border}`}></div>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.email ? "border-red-500" : theme.border} focus:ring-1`}
+                    style={{ "--tw-ring-color": theme.primary }}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-[10px] mt-1 ml-1">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
-                    required
+                    value={formData.password}
                     onChange={(e) =>
                       setFormData({ ...formData, password: e.target.value })
                     }
-                    className={`w-full px-5 py-3.5 rounded-xl border outline-none text-[14px] ${theme.input} ${theme.textP} ${theme.border} focus:ring-1`}
+                    className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.password ? "border-red-500" : theme.border} focus:ring-1`}
                     style={{ "--tw-ring-color": theme.primary }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute right-4 top-4 ${theme.textM}`}
+                    className={`absolute right-4 top-3.5 ${theme.textM}`}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
+                  {errors.password && (
+                    <p className="text-red-500 text-[10px] mt-1 ml-1">
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Team ID / invitation Code"
+                    value={formData.teamId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, teamId: e.target.value })
+                    }
+                    className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.teamId ? "border-red-500" : theme.border} focus:ring-1`}
+                    style={{ "--tw-ring-color": theme.primary }}
+                  />
+                  {errors.teamId && (
+                    <p className="text-red-500 text-[10px] mt-1 ml-1">
+                      {errors.teamId}
+                    </p>
+                  )}
                 </div>
                 {apiError && (
-                  <p className="text-red-500 text-[12px] text-center font-medium">
+                  <p className="text-red-500 text-[11px] text-center font-bold italic">
                     {apiError}
                   </p>
                 )}
-                <button
+                <motion.button
+                  whileHover={{
+                    y: -2,
+                    boxShadow: isDarkMode
+                      ? "0px 10px 25px rgba(0,0,0,0.4)"
+                      : "0px 10px 25px rgba(83, 74, 183, 0.2)",
+                  }}
+                  whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full py-4 rounded-xl text-white font-bold text-[16px] bg-gradient-to-r shadow-lg ${theme.btn}`}
+                  className={`w-full py-3.5 rounded-xl text-white font-bold text-[13px] transition-all bg-gradient-to-r ${theme.btn}`}
                 >
                   {isLoading ? (
-                    <Loader2 className="animate-spin mx-auto" size={24} />
+                    <Loader2 className="animate-spin mx-auto" size={18} />
                   ) : (
                     "Log In"
                   )}
-                </button>
+                </motion.button>
               </form>
+
               <div className="mt-8 text-center">
                 <button
                   onClick={() => {
@@ -194,7 +336,7 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
                     setApiError("");
                     setApiSuccess("");
                   }}
-                  className="text-[14px] font-medium hover:underline"
+                  className="text-[13px] font-medium hover:underline"
                   style={{ color: theme.primary }}
                 >
                   Forgot Password?
@@ -234,7 +376,6 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
                   Enter your email to reset your account
                 </p>
               </div>
-
               <form onSubmit={handleForgot} className="space-y-8 mt-16">
                 <div className="relative">
                   <input
@@ -274,17 +415,27 @@ export default function LoginPage({ isDarkMode, setIsDarkMode, theme }) {
                     "Send Reset Link"
                   )}
                 </button>
+                <div className="text-center mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setView("login")}
+                    className="text-sm font-bold opacity-70 hover:opacity-100"
+                    style={{ color: theme.primary }}
+                  >
+                    Back to Login
+                  </button>
+                </div>
               </form>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="mt-20 text-center">
+        <div className="text-center mt-12">
           <a
             href="#"
-            className={`text-[12px] ${theme.textM} transition-colors underline`}
+            className={`text-[12px] ${theme.textM} transition-colors underline block`}
           >
-            Need help?
+            Contact Us
           </a>
         </div>
       </div>
