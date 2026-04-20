@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+const token = () => localStorage.getItem("token");
+const API = "http://localhost:5000/api/v1";
 
 const C = {
   bg: "#F5F4FF",
@@ -256,9 +258,142 @@ function Label({ children }) {
   );
 }
 
+function Toast({ toast }) {
+  if (!toast) return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: 24,
+        right: 24,
+        zIndex: 999,
+        padding: "12px 20px",
+        borderRadius: 12,
+        fontWeight: 600,
+        fontSize: 13,
+        backgroundColor: toast.type === "success" ? "#F0FDF4" : "#FEF2F2",
+        color: toast.type === "success" ? "#16A34A" : "#EF4444",
+        border: `1px solid ${toast.type === "success" ? "#BBF7D0" : "#FECACA"}`,
+        boxShadow: "0 4px 12px rgba(0,0,0,.1)",
+      }}
+    >
+      {toast.msg}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// PageProfile — مع API
+// ─────────────────────────────────────────
 function PageProfile() {
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+  const fileRef = useRef();
+
+  function showToast(msg, type) {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  function loadProfile() {
+    return fetch(`${API}/users/me`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setForm(d.data.doc));
+  }
+
+  useEffect(() => {
+    loadProfile()
+      .catch(() => showToast("فشل جلب البيانات", "error"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token()}`,
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          dept: form.dept,
+          location: form.location,
+        }),
+      });
+      const data = await res.json();
+      setForm(data.data.doc);
+      showToast("success");
+    } catch {
+      showToast("error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAvatarLoading(true);
+    const formData = new FormData();
+    formData.append("photo", file);
+    try {
+      const res = await fetch(`${API}/users/me/avatar`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token()}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data?.data?.photo) {
+        setForm((prev) => ({ ...prev, photo: data.data.photo }));
+      }
+      showToast("success");
+    } catch {
+      showToast("error");
+    } finally {
+      setAvatarLoading(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setAvatarLoading(true);
+    try {
+      await fetch(`${API}/users/me/avatar`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      setForm((prev) => ({ ...prev, photo: "" }));
+      showToast("✓ تم مسح الصورة", "success");
+    } catch {
+      showToast("فشل مسح الصورة", "error");
+    } finally {
+      setAvatarLoading(false);
+    }
+  }
+
+  if (loading) return null;
+  if (!form) return null;
+
+  const initials =
+    form.name
+      ?.split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() ?? "U";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <Toast toast={toast} />
+
+      {/* الصورة */}
       <Card>
         <CardHeader
           title="Profile picture"
@@ -272,30 +407,63 @@ function PageProfile() {
             gap: 20,
           }}
         >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 16,
-              background: "linear-gradient(135deg,#7F6FF5,#3ECFAA)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 22,
-              fontWeight: 700,
-              color: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            AH
-          </div>
+          {form.photo ? (
+            <img
+              src={form.photo}
+              alt="avatar"
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 16,
+                objectFit: "cover",
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 16,
+                flexShrink: 0,
+                background: "linear-gradient(135deg,#7F6FF5,#3ECFAA)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+                fontWeight: 700,
+                color: "#fff",
+              }}
+            >
+              {initials}
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <BtnPrimary style={{ width: 140 }}>Upload photo</BtnPrimary>
-            <BtnSecondary style={{ width: 140 }}>Remove photo</BtnSecondary>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleAvatarUpload}
+            />
+            <BtnPrimary
+              style={{ width: 140 }}
+              onClick={() => fileRef.current.click()}
+            >
+              Upload photo
+            </BtnPrimary>
+            <BtnSecondary
+              style={{ width: 140 }}
+              onClick={handleRemoveAvatar}
+              disabled={avatarLoading || !form.photo}
+            >
+              Remove photo
+            </BtnSecondary>
           </div>
         </div>
       </Card>
 
+      {/* البيانات */}
       <Card>
         <CardHeader
           title="Personal information"
@@ -310,36 +478,43 @@ function PageProfile() {
           }}
         >
           {[
-            { label: "First name", val: "Ahmed", type: "text" },
-            { label: "Last name", val: "Hassan", type: "text" },
-            { label: "Email", val: "a.hassan@company.com", type: "email" },
-            { label: "Phone", val: "+20 100 000 0000", type: "tel" },
-            { label: "Job title", val: "Senior IT Engineer", type: "text" },
+            { label: "Full name", key: "name", type: "text" },
+            { label: "Email", key: "email", type: "email" },
+            { label: "Phone", key: "phone", type: "tel" },
+            { label: "Department", key: "dept", type: "text" },
+            { label: "Location", key: "location", type: "text" },
           ].map((f) => (
-            <div key={f.label}>
+            <div key={f.key}>
               <Label>{f.label}</Label>
-              <input style={inp} type={f.type} defaultValue={f.val} />
+              <input
+                style={inp}
+                type={f.type}
+                value={form[f.key] ?? ""}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, [f.key]: e.target.value }))
+                }
+              />
             </div>
           ))}
-          <div>
-            <Label>Department</Label>
-            <select style={{ ...inp }}>
-              <option>Infrastructure</option>
-              <option>Operations</option>
-              <option>Security</option>
-              <option>Support</option>
-            </select>
-          </div>
         </div>
         <CardFooter>
-          <BtnSecondary>Cancel</BtnSecondary>
-          <BtnPrimary>Save changes</BtnPrimary>
+          <BtnSecondary
+            onClick={() => loadProfile().catch(() => showToast("فشل", "error"))}
+          >
+            Cancel
+          </BtnSecondary>
+          <BtnPrimary onClick={handleSave} disabled={saving}>
+            {saving ? "جاري الحفظ..." : "Save changes"}
+          </BtnPrimary>
         </CardFooter>
       </Card>
     </div>
   );
 }
 
+// ─────────────────────────────────────────
+// باقي الصفحات — زي ما هي
+// ─────────────────────────────────────────
 function PageAccount() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -371,7 +546,6 @@ function PageAccount() {
           <BtnPrimary>Update password</BtnPrimary>
         </CardFooter>
       </Card>
-
       <Card>
         <CardHeader
           title="Two-factor authentication"
@@ -509,7 +683,6 @@ function PageAppearance() {
           <option>Dark</option>
         </select>
       </Row>
-
       <CardFooter>
         <BtnSecondary>Discard</BtnSecondary>
         <BtnPrimary>Save changes</BtnPrimary>
@@ -604,7 +777,6 @@ export default function Settings() {
             Manage your account and preferences.
           </p>
         </div>
-
         <div
           style={{
             display: "flex",
@@ -658,7 +830,6 @@ export default function Settings() {
             );
           })}
         </div>
-
         {PAGES[active]}
       </div>
     </div>
