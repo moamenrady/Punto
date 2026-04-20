@@ -26,7 +26,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
 
-  // REPLACE THIS WITH YOUR ACTUAL API URL
   const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
 
   useEffect(() => {
@@ -34,15 +33,11 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
       try {
         setIsLoading(true);
         const response = await fetch(API_URL);
-        
-        // Safety check: Is the response actually JSON?
         const contentType = response.headers.get("content-type");
         if (!response.ok || !contentType || !contentType.includes("application/json")) {
           throw new Error("Server didn't return JSON. Check your API URL.");
         }
-
         const data = await response.json();
-        // Ensure we always store an array
         setTickets(Array.isArray(data) ? data : (data.tickets || []));
       } catch (error) {
         console.error("Fetch Error:", error);
@@ -51,7 +46,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
         setIsLoading(false);
       }
     };
-
     fetchTickets();
   }, [API_URL]);
 
@@ -70,7 +64,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
           createdBy: { name: user.name, role: user.role, avatar: user.avatar },
         }),
       });
-
       if (response.ok) {
         const savedTicket = await response.json();
         setTickets((prev) => [savedTicket, ...prev]);
@@ -157,14 +150,35 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
 
 function AppContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [user, setUser] = useState({
-    name: "hamada Hassan",
-    email: "a.hassan@company.com",
-    role: "Senior IT Engineer",
-    isOnline: true,
-    avatar: null,
-  });
   const [theme, setTheme] = useState("light");
+
+  // Initial check for user and 10-hour expiry
+  const [user, setUserState] = useState(() => {
+    const savedUser = localStorage.getItem("vertex_user");
+    const expiry = localStorage.getItem("vertex_expiry");
+    if (savedUser && expiry && Date.now() < parseInt(expiry)) {
+      return JSON.parse(savedUser);
+    }
+    localStorage.removeItem("vertex_user");
+    localStorage.removeItem("vertex_expiry");
+    return null;
+  });
+
+  // Custom setter to handle localStorage and 10-hour timestamp
+  const setUser = (userData) => {
+    if (userData) {
+      const tenHours = 10 * 60 * 60 * 1000;
+      const expiryTime = Date.now() + tenHours;
+      localStorage.setItem("vertex_user", JSON.stringify(userData));
+      localStorage.setItem("vertex_expiry", expiryTime.toString());
+      setUserState(userData);
+    } else {
+      localStorage.removeItem("vertex_user");
+      localStorage.removeItem("vertex_expiry");
+      localStorage.removeItem("token");
+      setUserState(null);
+    }
+  };
 
   const themeObj = isDarkMode
     ? {
@@ -195,22 +209,23 @@ function AppContent() {
       <Route path="/login" element={<LoginPage {...commonProps} />} />
       <Route path="/signup" element={<SignUpRole {...commonProps} />} />
       <Route path="/signup/user" element={<UserRegister {...commonProps} />} />
-      <Route
-        path="/signup/admin"
-        element={<AdminRegister {...commonProps} />}
-      />
+      <Route path="/signup/admin" element={<AdminRegister {...commonProps} />} />
       <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
 
       <Route
         path="/*"
         element={
-          <MainApp
-            themeObj={themeObj}
-            theme={theme}
-            setTheme={setTheme}
-            user={user}
-            setUser={setUser}
-          />
+          user ? (
+            <MainApp
+              themeObj={themeObj}
+              theme={theme}
+              setTheme={setTheme}
+              user={user}
+              setUser={setUser}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
 
