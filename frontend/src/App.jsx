@@ -123,7 +123,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                 />
               }
             />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={<Settings refreshUser={() => setUser(user)} />} />
             <Route path="/" element={<Navigate to="/tickets" replace />} />
           </Routes>
         </div>

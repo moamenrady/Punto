@@ -10,7 +10,7 @@ export const mockTickets = [
     createdBy: {
       name: 'Ahmed Salem',
       role: 'Marketing',
-      avatar: 'https://ui-avatars.com/api/?name=Ahmed+Salem&background=F3F4F6'
+      avatar: null
     },
     assignedTo: 'Amira Ali'
   },
@@ -25,7 +25,7 @@ export const mockTickets = [
     createdBy: {
       name: 'Ahmed Mahmoud',
       role: 'Sales',
-      avatar: 'https://ui-avatars.com/api/?name=Ahmed+Mahmoud&background=F3F4F6'
+      avatar: null
     },
     assignedTo: '-'
   },
@@ -40,7 +40,7 @@ export const mockTickets = [
     createdBy: {
       name: 'Fatima Khaled',
       role: 'Design',
-      avatar: 'https://ui-avatars.com/api/?name=Fatima+Khaled&background=F3F4F6'
+      avatar: null
     },
     assignedTo: 'Khaled Mohamed'
   },
@@ -55,7 +55,7 @@ export const mockTickets = [
     createdBy: {
       name: 'Omar Hassan',
       role: 'Content',
-      avatar: 'https://ui-avatars.com/api/?name=Omar+Hassan&background=F3F4F6'
+      avatar: null
     },
     assignedTo: 'Amira Ali'
   }
