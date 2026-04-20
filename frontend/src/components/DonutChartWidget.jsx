@@ -1,104 +1,78 @@
-import React from 'react';
+export default function DonutChartWidget({ stats, isLoading }) {
+  // Fallback values if stats aren't loaded yet
+  const { open = 0, inProgress = 0, closed = 0, total = 0 } = stats || {};
 
-const DonutChartWidget = ({ tickets }) => {
-  // Aggregate data
-  const stats = tickets.reduce(
-    (acc, t) => {
-      if (t.status === 'Open') acc.open++;
-      else if (t.status === 'In progress') acc.inProgress++;
-      else if (t.status === 'Assigned') acc.assigned++;
-      return acc;
-    },
-    { open: 0, inProgress: 0, assigned: 0 }
-  );
-
-  const total = stats.open + stats.inProgress + stats.assigned;
-
-  // Chart parameters
-  const strokeWidth = 14;
-  const radius = 50;
-  const circumference = 2 * Math.PI * radius; // ~314.159
-
-  const calcDash = (value) => {
-    return `${(value / total) * circumference} ${circumference}`;
-  };
-
-  const segments = [
-    { label: 'Opened', value: stats.open, color: '#22c55e', bg: '#dcfce7' },
-    { label: 'In Progress', value: stats.inProgress, color: '#f59e0b', bg: '#fef3c7' },
-    { label: 'Assigned', value: stats.assigned, color: '#3b82f6', bg: '#dbeafe' }
-  ];
+  // Calculate percentages safely
+  const openPct = total > 0 ? Math.round((open / total) * 100) : 0;
+  const progressPct = total > 0 ? Math.round((inProgress / total) * 100) : 0;
+  const closedPct = total > 0 ? Math.round((closed / total) * 100) : 0;
 
   return (
-    <div className="ds-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, marginBottom: 24 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h2 className="ds-card-title">Active Ticket Status Breakdown</h2>
-        <p style={{ fontSize: '0.78rem', color: '#9CA3AF', marginTop: -8, marginBottom: 16 }}>
-          Real-time overview of current outstanding support requests.
-        </p>
+    <div className="ds-card" style={{ padding: "24px", position: "relative" }}>
+      <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#111827" }}>
+        Active Ticket Status Breakdown
+      </h3>
+      <p style={{ margin: "4px 0 20px 0", fontSize: "0.875rem", color: "#6B7280" }}>
+        Real-time overview of current outstanding support requests.
+      </p>
 
-        <div style={{ display: 'flex', gap: 24 }}>
-          {segments.map(s => (
-            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 8,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: '1rem', flexShrink: 0,
-                backgroundColor: s.bg, color: s.color
-              }}>
-                {s.value}
-              </div>
-              <div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>{s.label}</div>
-                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>
-                  {total > 0 ? Math.round((s.value / total) * 100) : 0}%
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* SVG Donut Chart */}
-      <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
-        {total === 0 ? (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', color: '#9CA3AF', fontWeight: 500 }}>
-            No Data
+      <div style={{ display: "flex", alignItems: "center", gap: "32px", flexWrap: "wrap" }}>
+        {/* OPENED STAT */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ 
+            width: "40px", height: "40px", borderRadius: "8px", 
+            backgroundColor: "#ECFDF5", color: "#059669",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: "1.1rem"
+          }}>
+            {isLoading ? "..." : open}
           </div>
-        ) : (
-          <svg width="100%" height="100%" viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
-            {/* Background ring */}
-            <circle cx="60" cy="60" r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
+          <div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Opened</div>
+            <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#111827" }}>{openPct}%</div>
+          </div>
+        </div>
 
-            {stats.open > 0 && (
-              <circle
-                cx="60" cy="60" r={radius} fill="none" stroke="#22c55e" strokeWidth={strokeWidth} strokeLinecap="round"
-                strokeDasharray={calcDash(stats.open)} strokeDashoffset={0}
-              />
-            )}
+        {/* IN PROGRESS STAT */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ 
+            width: "40px", height: "40px", borderRadius: "8px", 
+            backgroundColor: "#FFFBEB", color: "#D97706",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: "1.1rem"
+          }}>
+            {isLoading ? "..." : inProgress}
+          </div>
+          <div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>In Progress</div>
+            <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#111827" }}>{progressPct}%</div>
+          </div>
+        </div>
 
-            {stats.inProgress > 0 && (
-              <circle
-                cx="60" cy="60" r={radius} fill="none" stroke="#f59e0b" strokeWidth={strokeWidth} strokeLinecap="round"
-                strokeDasharray={calcDash(stats.inProgress)} strokeDashoffset={-(stats.open / total) * circumference}
-              />
-            )}
+        {/* CLOSED STAT (Assigned in your screenshot, changing to Closed for clarity) */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ 
+            width: "40px", height: "40px", borderRadius: "8px", 
+            backgroundColor: "#EFF6FF", color: "#2563EB",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: "1.1rem"
+          }}>
+            {isLoading ? "..." : closed}
+          </div>
+          <div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Closed</div>
+            <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#111827" }}>{closedPct}%</div>
+          </div>
+        </div>
 
-            {stats.assigned > 0 && (
-              <circle
-                cx="60" cy="60" r={radius} fill="none" stroke="#3b82f6" strokeWidth={strokeWidth} strokeLinecap="round"
-                strokeDasharray={calcDash(stats.assigned)} strokeDashoffset={-((stats.open + stats.inProgress) / total) * circumference}
-              />
-            )}
-          </svg>
-        )}
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#111827', lineHeight: 1 }}>{total}</span>
-          <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 2 }}>Tickets</span>
+        {/* TOTAL COUNTER ON THE RIGHT */}
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+           <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#111827", lineHeight: 1 }}>
+             {isLoading ? "..." : total}
+           </div>
+           <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" }}>Total Tickets</div>
         </div>
       </div>
     </div>
   );
-};
-
-export default DonutChartWidget;
+}

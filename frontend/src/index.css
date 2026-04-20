@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 
+
 :root {
   --primary: #8A9FE8;
   /* Blueish purple for active states, logo text */
@@ -59,12 +60,6 @@ html.dark .border-slate-100 {
 
 html.dark .bg-slate-100 {
   background-color: #111827 !important;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
 }
 
 body {
@@ -616,7 +611,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(2px);
+  /*backdrop-filter: blur(2px);*/
 }
 
 .modal-content {

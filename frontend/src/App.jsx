@@ -1,94 +1,150 @@
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import useAuth from './context/useAuth';
+import React, { useEffect, useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 
-// Auth pages
-import LoginPage from './pages/LoginPage';
-import SignUpRole from './pages/SignUpRole';
-import UserRegister from './pages/UserRegister';
-import AdminRegister from './pages/AdminRegister';
-import SetupEnvironment from './pages/SetupEnvironment';
+import LoginPage from "./pages/LoginPage";
+import SignUpRole from "./pages/SignUpRole";
+import UserRegister from "./pages/UserRegister";
+import AdminRegister from "./pages/AdminRegister";
+import SetupEnvironment from "./pages/SetupEnvironment";
 
-// Main app
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import TicketingPage from './pages/TicketingPage';
-import TicketDetailsPage from './pages/TicketDetailsPage';
-import StockManagementPage from './pages/StockManagementPage';
-import CreateTicketModal from './components/CreateTicketModal';
-import { mockTickets } from './mockData';
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import Dashboard from "./components/Dashboard";
+import TicketingPage from "./pages/TicketingPage";
+import TicketDetailsPage from "./pages/TicketDetailsPage";
+import StockManagementPage from "./pages/StockManagementPage";
+import CreateTicketModal from "./components/CreateTicketModal";
+import UserProfileModal from "./components/UserProfileModal";
+import Settings from "./pages/Settings";
 
-/* ─── Main app layout (shown after login) ───────────────────── */
-function MainApp() {
-  const [currentUserRole, setCurrentUserRole] = useState('admin');
+function MainApp({ themeObj, theme, setTheme, user, setUser }) {
+  const [currentUserRole, setCurrentUserRole] = useState("admin");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tickets, setTickets] = useState(mockTickets);
-  const [theme, setTheme] = useState('light');
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [tickets, setTickets] = useState([]); 
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  // REPLACE THIS WITH YOUR ACTUAL API URL
+  const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
+    const fetchTickets = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(API_URL);
+        
+        // Safety check: Is the response actually JSON?
+        const contentType = response.headers.get("content-type");
+        if (!response.ok || !contentType || !contentType.includes("application/json")) {
+          throw new Error("Server didn't return JSON. Check your API URL.");
+        }
 
-  const handleAddTicket = (newTicket) => {
-    const nextId = `TKT-00${tickets.length + 1}`;
-    setTickets([{
-      id: nextId,
-      title: newTicket.title,
-      category: newTicket.category,
-      status: 'Open',
-      priority: newTicket.priority,
-      description: newTicket.description,
-      createdAt: 'Just now',
-      createdBy: {
-        name: 'Ahmed Ali',
-        role: 'Current User',
-        avatar: 'https://ui-avatars.com/api/?name=Ahmed+Ali&background=E2E8F0&color=475569'
-      },
-      assignedTo: '-'
-    }, ...tickets]);
+        const data = await response.json();
+        // Ensure we always store an array
+        setTickets(Array.isArray(data) ? data : (data.tickets || []));
+      } catch (error) {
+        console.error("Fetch Error:", error);
+        setTickets([]); 
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, [API_URL]);
+
+  const openProfile = (userData) => {
+    setSelectedUser(userData || user);
+    setIsProfileOpen(true);
+  };
+
+  const handleAddTicket = async (newTicket) => {
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newTicket,
+          createdBy: { name: user.name, role: user.role, avatar: user.avatar },
+        }),
+      });
+
+      if (response.ok) {
+        const savedTicket = await response.json();
+        setTickets((prev) => [savedTicket, ...prev]);
+        setIsCreateOpen(false);
+      }
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+    }
   };
 
   return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-wrapper">
+    <div className={`app-container flex min-h-screen ${themeObj.bg}`}>
+      <Sidebar isDarkMode={theme === "dark"} theme={themeObj} />
+      <main className="main-wrapper flex-1 flex flex-col relative overflow-hidden">
         <Header
+          user={user}
+          onProfileClick={() => openProfile(user)}
           currentUserRole={currentUserRole}
           setCurrentUserRole={setCurrentUserRole}
           theme={theme}
           setTheme={setTheme}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
+          themeObj={themeObj}
         />
-        <Routes>
-          <Route path="/" element={
-            <TicketingPage
-              tickets={tickets}
-              isITUser={currentUserRole === 'admin'}
-              searchQuery={searchQuery}
-              onOpenCreate={() => setIsCreateOpen(true)}
+        <div className="p-4 flex-1 overflow-auto">
+          <Routes>
+            <Route
+              path="/tickets"
+              element={
+                <TicketingPage
+                  tickets={tickets}
+                  user={user}
+                  onProfileClick={openProfile}
+                  isITUser={currentUserRole === "admin"}
+                  onOpenCreate={() => setIsCreateOpen(true)}
+                  theme={themeObj}
+                  isLoading={isLoading}
+                />
+              }
             />
-          } />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/stock" element={<StockManagementPage currentUserRole={currentUserRole} />} />
-          <Route path="/ticket/:id" element={
-            <TicketDetailsPage tickets={tickets} isITUser={currentUserRole === 'admin'} />
-          } />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-
-        {/* Floating support-chat button */}
-        <div className="fab" title="Support Chat">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-          </svg>
+            <Route path="/dashboard" element={<Dashboard theme={themeObj} />} />
+            <Route
+              path="/stock"
+              element={
+                <StockManagementPage
+                  currentUserRole={currentUserRole}
+                  theme={themeObj}
+                />
+              }
+            />
+            <Route
+              path="/ticket/:id"
+              element={
+                <TicketDetailsPage
+                  tickets={tickets}
+                  isITUser={currentUserRole === "admin"}
+                  theme={themeObj}
+                />
+              }
+            />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/" element={<Navigate to="/tickets" replace />} />
+          </Routes>
         </div>
       </main>
 
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={selectedUser || user}
+        setUser={setUser}
+        currentUser={user}
+        allTickets={tickets}
+        theme={themeObj}
+      />
       {isCreateOpen && (
         <CreateTicketModal
           onClose={() => setIsCreateOpen(false)}
@@ -99,37 +155,70 @@ function MainApp() {
   );
 }
 
-/* ─── Auth-aware content (rendered inside AuthProvider) ─────── */
 function AppContent() {
-  const { token } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [user, setUser] = useState({
+    name: "hamada Hassan",
+    email: "a.hassan@company.com",
+    role: "Senior IT Engineer",
+    isOnline: true,
+    avatar: null,
+  });
+  const [theme, setTheme] = useState("light");
 
-  const theme = isDarkMode
-    ? { bg: 'bg-[#12102A]', textP: 'text-[#E2E0FF]', textM: 'text-[#8480B8]',
-        border: 'border-[#2E2B5A]', input: 'bg-[#1E1B3A]', primary: '#7F6FF5',
-        accent: '#3ECFAA', btn: 'from-[#7F6FF5] to-[#3ECFAA]' }
-    : { bg: 'bg-[#F5F4FF]', textP: 'text-[#1E1B3A]', textM: 'text-[#7F77DD]',
-        border: 'border-[#DDD9FF]', input: 'bg-white', primary: '#534AB7',
-        accent: '#0F6E56', btn: 'from-[#534AB7] to-[#7F77DD]' };
+  const themeObj = isDarkMode
+    ? {
+        bg: "bg-[#12102A]",
+        textP: "text-[#E2E0FF]",
+        textM: "text-[#8480B8]",
+        border: "border-[#2E2B5A]",
+        input: "bg-[#1E1B3A]",
+        primary: "#7F6FF5",
+        accent: "#3ECFAA",
+        btn: "from-[#7F6FF5] to-[#3ECFAA]",
+      }
+    : {
+        bg: "bg-[#F5F4FF]",
+        textP: "text-[#1E1B3A]",
+        textM: "text-[#7F77DD]",
+        border: "border-[#DDD9FF]",
+        input: "bg-white",
+        primary: "#534AB7",
+        accent: "#0F6E56",
+        btn: "from-[#534AB7] to-[#7F77DD]",
+      };
 
-  const commonProps = { isDarkMode, setIsDarkMode, theme };
+  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj, setUser };
 
   return (
     <Routes>
-      {/* Auth pages always accessible */}
-      <Route path="/login"        element={<LoginPage        {...commonProps} />} />
-      <Route path="/signup"       element={<SignUpRole       {...commonProps} />} />
-      <Route path="/signup/user"  element={<UserRegister     {...commonProps} />} />
-      <Route path="/signup/admin" element={<AdminRegister    {...commonProps} />} />
-      <Route path="/setup"        element={<SetupEnvironment {...commonProps} />} />
+      <Route path="/login" element={<LoginPage {...commonProps} />} />
+      <Route path="/signup" element={<SignUpRole {...commonProps} />} />
+      <Route path="/signup/user" element={<UserRegister {...commonProps} />} />
+      <Route
+        path="/signup/admin"
+        element={<AdminRegister {...commonProps} />}
+      />
+      <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
 
-      {/* Main app — shown directly (auth integration ready when backend is live) */}
-      <Route path="/*" element={<MainApp />} />
+      <Route
+        path="/*"
+        element={
+          <MainApp
+            themeObj={themeObj}
+            theme={theme}
+            setTheme={setTheme}
+            user={user}
+            setUser={setUser}
+          />
+        }
+      />
+
+      <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
 
-/* ─── Root component ─────────────────────────────────────────── */
 export default function App() {
   return (
     <AuthProvider>
