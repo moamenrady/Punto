@@ -23,10 +23,12 @@ const sprintRoutes = require("./routes/sprintRoutes");
 const userRoutes = require("./routes/userRoutes");
 const stockRoutes = require("./routes/stockRoutes");
 const profileRouter = require("./routes/profile");
+const accountActionsRouter = require("./routes/accountActions");
+const notificationsRouter = require("./routes/notifications");
 
 // Middleware
 app.use(express.json());
-app.use("/uploads", express.static("uploads")); // ← اتنقل هنا
+app.use("/uploads", express.static("uploads"));
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 app.use(session({
   secret: "secret",
@@ -45,6 +47,10 @@ app.use("/api/v1/sprints/:sprintId/tasks", taskRoutes);
 app.use("/api/v1/stock", stockRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/auth", userRoutes);
+
+// ── الأطول الأول دايما ──
+app.use("/api/v1/users/me/notifications", notificationsRouter);
+app.use("/api/v1/users/me", accountActionsRouter);
 app.use("/api/v1/users/me", profileRouter);
 
 app.get("/", (req, res) => {

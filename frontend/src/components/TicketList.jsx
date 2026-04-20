@@ -39,11 +39,11 @@ const TicketList = ({
 
   const handleUserClick = (createdBy) => {
     const fullUser = users?.find((u) => u.name === createdBy.name) ?? createdBy;
-  if (createdBy.role?.toLowerCase() === "admin") {
-    setSelectedUser({ ...fullUser, _forcePanel: true });
-  } else {
-    setSelectedUser(fullUser);
-  }
+    if (createdBy.role?.toLowerCase() === "admin") {
+      setSelectedUser({ ...fullUser, _forcePanel: true });
+    } else {
+      setSelectedUser(fullUser);
+    }
   };
 
   const isMe = selectedUser?.name === currentUser?.name;
@@ -121,7 +121,12 @@ const TicketList = ({
                       >
                         {ticket.createdBy.avatar ? (
                           <img
-                            src={ticket.createdBy.avatar}
+                            src={
+                              ticket.createdBy.avatar.startsWith("data:") ||
+                              ticket.createdBy.avatar.startsWith("http")
+                                ? ticket.createdBy.avatar
+                                : `http://localhost:5000${ticket.createdBy.avatar}`
+                            }
                             alt={ticket.createdBy.name}
                             style={{
                               borderRadius: "50%",
@@ -158,7 +163,11 @@ const TicketList = ({
                               (e.currentTarget.style.transform = "scale(1)")
                             }
                           >
-                            {ticket.createdBy.name?.charAt(0)}
+                            {ticket.createdBy.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}{" "}
+                            {/* ← ده اللي ناقص */}
                           </div>
                         )}
                         <div>

@@ -20,17 +20,19 @@ import Settings from "./pages/Settings";
 
 import { mockTickets } from "./mockData";
 
-function MainApp({ themeObj, theme, setTheme, user, setUser }) {
+function MainApp({ themeObj, theme, setTheme, user, setUser, refreshUser }) {
   const [currentUserRole, setCurrentUserRole] = useState("admin");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [tickets, setTickets] = useState(mockTickets);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const openProfile = (userData) => {
-    setSelectedUser(userData || user);
-    setIsProfileOpen(true);
-  };
+const openProfile = (userData) => {
+  setSelectedUser(userData === user ? null : userData);
+  setIsProfileOpen(true);
+};
+
 
   const handleAddTicket = (newTicket) => {
     const nextId = `TKT-00${tickets.length + 1}`;
@@ -61,10 +63,11 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
           theme={theme}
           setTheme={setTheme}
           themeObj={themeObj}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
         />
         <div className="p-4 flex-1 overflow-auto">
           <Routes>
-            {/* هنا المسار الافتراضي جوه السيستم هو التيكتات */}
             <Route
               path="/tickets"
               element={
@@ -98,8 +101,10 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                 />
               }
             />
-            <Route path="/settings" element={<Settings />} />
-            {/* لو حد دخل على / يوديه للتيكتات */}
+            <Route
+              path="/settings"
+              element={<Settings refreshUser={refreshUser} />}
+            />
             <Route path="/" element={<Navigate to="/tickets" replace />} />
           </Routes>
         </div>
@@ -108,7 +113,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
       <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        user={selectedUser || user}
+        user={selectedUser && selectedUser !== user ? selectedUser : user}
         setUser={setUser}
         currentUser={user}
         allTickets={tickets}
@@ -127,12 +132,62 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
 function AppContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState({
-    name: "hamada Hassan",
-    email: "a.hassan@company.com",
-    role: "Senior IT Engineer",
-    isOnline: true,
+    name: "",
+    email: "",
+    role: "",
     avatar: null,
+    phone: "",
+    dept: "",
+    location: "",
+    isOnline: true,
   });
+
+  function refreshUser() {
+    const t = localStorage.getItem("token");
+    if (!t) return;
+    fetch("http://localhost:5000/api/v1/users/me", {
+      headers: { Authorization: `Bearer ${t}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const doc = data.data.doc;
+        setUser({
+          name: doc.name,
+          email: doc.email,
+          role: doc.role,
+          avatar: doc.photo || null,
+          phone: doc.phone,
+          dept: doc.dept,
+          location: doc.location,
+          isOnline: true,
+        });
+      });
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    fetch("http://localhost:5000/api/v1/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const doc = data.data.doc;
+        setUser({
+          name: doc.name,
+          email: doc.email,
+          role: doc.role,
+          avatar: doc.photo || null,
+          phone: doc.phone,
+          dept: doc.dept,
+          location: doc.location,
+          isOnline: true,
+        });
+      })
+      .catch(() => console.error("User data retrieval Failed"));
+  }, []);
+
   const [theme, setTheme] = useState("light");
 
   const themeObj = isDarkMode
@@ -157,7 +212,7 @@ function AppContent() {
         btn: "from-[#534AB7] to-[#7F77DD]",
       };
 
-  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj , setUser };
+  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj, setUser };
 
   return (
     <Routes>
@@ -170,21 +225,35 @@ function AppContent() {
       />
       <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
 
-      {/* أي مسار تاني يفتح الـ MainApp */}
       <Route
         path="/*"
         element={
-          <MainApp
-            themeObj={themeObj}
-            theme={theme}
-            setTheme={setTheme}
-            user={user}
-            setUser={setUser}
-          />
+          !user.name ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100vh",
+                fontSize: 16,
+                color: "#9CA3AF",
+              }}
+            >
+              Loading...
+            </div>
+          ) : (
+            <MainApp
+              themeObj={themeObj}
+              theme={theme}
+              setTheme={setTheme}
+              user={user}
+              setUser={setUser}
+              refreshUser={refreshUser}
+            />
+          )
         }
       />
 
-      {/* توجيه البداية للوجن */}
       <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   );

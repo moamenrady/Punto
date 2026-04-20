@@ -66,7 +66,10 @@ location: { type: String, default: "" },
       default: true,
       select: false,
     },
+
   },
+
+  
   {
     timestamps: true,
   }
