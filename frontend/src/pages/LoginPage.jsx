@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import {
   Eye,
-  Cloud,
-  Moon,
   Sun,
+  Moon,
   Mail,
-  Lock,
   Loader2,
   EyeOff,
 } from "lucide-react";
@@ -21,7 +19,7 @@ export default function VertexLoginPage({
   setUser,
 }) {
   const navigate = useNavigate();
-  const [view, setView] = useState("login"); // حالة التبديل بين اللوجن ونسيان الباسورد
+  const [view, setView] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -43,7 +41,7 @@ export default function VertexLoginPage({
     return Object.keys(e).length === 0;
   };
 
-  const handleLogin = async (e) => {
+const handleLogin = async (e) => {
     if (e) e.preventDefault();
     if (!validate()) return;
 
@@ -51,71 +49,51 @@ export default function VertexLoginPage({
     setApiError("");
 
     try {
-      console.log("Sending:", formData.email, formData.password);
       const response = await axios.post(
         "http://localhost:5000/api/v1/users/login",
         {
           email: formData.email,
           password: formData.password,
-      
-        },
+        }
       );
-      console.log("Response:", response.data);
+
+      console.log("Login API Raw Response:", response.data);
+
       if (response.data.status === "success") {
-  const token = response.data.token;
-  localStorage.setItem("token", token);
-
-  const profileRes = await axios.get(
-    "http://localhost:5000/api/v1/users/me",
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-
-  const profile = profileRes.data.data.doc;
-
-  setUser({
-    name:     profile.name     ?? "",
-    email:    profile.email    ?? "",
-    role:     profile.role     ?? "",
-    phone:    profile.phone    ?? "+20 100 000 0000",
-    dept:     profile.dept     ?? "IT Department",
-    location: profile.location ?? "",
-    isOnline: true,
-    avatar:   profile.photo    ?? null,
-  });
-
-  navigate("/tickets");
-
-      }
-    } catch (err) {
-      console.log("Error:", err.response?.data);
-      setApiError(
-        err.response?.data?.message || "Login failed. Please check your data.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleForgot = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setApiError("");
-    setApiSuccess("");
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/api/v1/users/forgetPassword",
-        {
-          email: formData.email.trim(),
-        },
+        const token = response.data.token;
         
-      );
-      if (response.data.status === "success") {
-        setApiSuccess(response.data.message);
+        // FIX: Digging into response.data.data.user 
+        // Based on your earlier console logs, your backend wraps it in 'data'
+        const userData = response.data.data?.user || response.data.user; 
+
+        if (!userData) {
+          throw new Error("Login successful, but user data was missing from response.");
+        }
+
+        localStorage.setItem("token", token);
+
+        setUser({
+          _id:      userData._id, 
+          name:     userData.name     ?? "",
+          email:    userData.email    ?? "",
+          role:     userData.role     ?? "",
+          phone:    userData.phone    ?? "+20 100 000 0000",
+          dept:     userData.dept     ?? "IT Department",
+          location: userData.location ?? "",
+          isOnline: true,
+          avatar:   userData.photo    ?? null,
+        });
+
+        navigate("/tickets");
       }
     } catch (err) {
-      setApiError(
-        err.response?.data?.message || "Check your email and try again",
-      );
+      console.error("Login Error Object:", err);
+      
+      const errorMessage = err.response?.data?.message 
+        || err.message 
+        || "An unexpected error occurred.";
+        
+      setApiError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -129,315 +107,99 @@ export default function VertexLoginPage({
   };
 
   return (
-    <div
-      className={`min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-500 ${theme.bg}`}
-    >
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-500 ${theme.bg}`}>
       <button
         onClick={() => setIsDarkMode(!isDarkMode)}
         className={`fixed top-4 right-4 p-2.5 rounded-full border transition-all shadow-sm z-50 ${isDarkMode ? "bg-[#1E1B3A] border-[#2E2B5A]" : "bg-white border-[#DDD9FF]"}`}
       >
-        {isDarkMode ? (
-          <Sun size={18} className="text-[#E2E0FF]" />
-        ) : (
-          <Moon size={18} className="text-[#534AB7]" />
-        )}
+        {isDarkMode ? <Sun size={18} className="text-[#E2E0FF]" /> : <Moon size={18} className="text-[#534AB7]" />}
       </button>
 
       <div className="w-full max-w-[420px]">
         <AnimatePresence mode="wait">
           {view === "login" ? (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
+            <motion.div key="login" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               <div className="text-center mb-8">
-                {isDarkMode ? (
-                  <DarkLogo primary={theme.primary} accent={theme.accent} />
-                ) : (
-                  <LightLogo />
-                )}
-                <h2
-                  className="text-[24px] font-bold mb-1"
-                  style={{ color: theme.primary }}
-                >
-                  Welcome back!
-                </h2>
+                {isDarkMode ? <DarkLogo primary={theme.primary} accent={theme.accent} /> : <LightLogo />}
+                <h2 className="text-[24px] font-bold mb-1" style={{ color: theme.primary }}>Welcome back!</h2>
                 <p className={`text-[13px] ${theme.textM}`}>
                   Don't have an account?
-                  <Link
-                    to="/signup"
-                    className="font-bold hover:underline ml-1"
-                    style={{ color: theme.primary }}
-                  >
-                    Sign up
-                  </Link>
+                  <Link to="/signup" className="font-bold hover:underline ml-1" style={{ color: theme.primary }}>Sign up</Link>
                 </p>
               </div>
 
               <div className="space-y-3 mb-8">
-                <motion.button
-                  whileHover={socialHover}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full flex items-center justify-center gap-2.5 py-3 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input}`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                  <span className="text-[13px] font-medium">
-                    Continue with Google
-                  </span>
-                </motion.button>
-                <motion.button
-                  whileHover={socialHover}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full flex items-center justify-center gap-2.5 py-3 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input}`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <rect
-                      x="2"
-                      y="4"
-                      width="10"
-                      height="16"
-                      rx="2"
-                      fill="#0A66C2"
-                    />
-                    <rect
-                      x="10"
-                      y="6"
-                      width="12"
-                      height="12"
-                      rx="2"
-                      fill="#0078D4"
-                    />
-                    <path d="M12 9l6 3-6 3V9z" fill="#50A9F2" />
-                    <circle cx="7" cy="12" r="2.5" fill="#FFFFFF" />
-                  </svg>
-                  <span className="text-[13px] font-medium">
-                    Continue with Outlook
-                  </span>
+                <motion.button whileHover={socialHover} whileTap={{ scale: 0.98 }} className={`w-full flex items-center justify-center gap-2.5 py-3 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input}`}>
+                  <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                  <span className="text-[13px] font-medium">Continue with Google</span>
                 </motion.button>
               </div>
 
               <div className="flex items-center mb-8">
                 <div className={`flex-grow border-t ${theme.border}`}></div>
-                <span
-                  className={`px-4 text-[11px] font-medium lowercase ${theme.textM}`}
-                >
-                  or
-                </span>
+                <span className={`px-4 text-[11px] font-medium lowercase ${theme.textM}`}>or</span>
                 <div className={`flex-grow border-t ${theme.border}`}></div>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
+                  <input type="email" placeholder="Email address" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.email ? "border-red-500" : theme.border} focus:ring-1`}
-                    style={{ "--tw-ring-color": theme.primary }}
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-[10px] mt-1 ml-1">
-                      {errors.email}
-                    </p>
-                  )}
+                    style={{ "--tw-ring-color": theme.primary }} />
+                  {errors.email && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.email}</p>}
                 </div>
                 <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
+                  <input type={showPassword ? "text" : "password"} placeholder="Password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.password ? "border-red-500" : theme.border} focus:ring-1`}
-                    style={{ "--tw-ring-color": theme.primary }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute right-4 top-3.5 ${theme.textM}`}
-                  >
+                    style={{ "--tw-ring-color": theme.primary }} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className={`absolute right-4 top-3.5 ${theme.textM}`}>
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
-                  {errors.password && (
-                    <p className="text-red-500 text-[10px] mt-1 ml-1">
-                      {errors.password}
-                    </p>
-                  )}
+                  {errors.password && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.password}</p>}
                 </div>
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Team ID / invitation Code"
-                    value={formData.teamId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, teamId: e.target.value })
-                    }
+                  <input type="text" placeholder="Team ID / invitation Code" value={formData.teamId} onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
                     className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.teamId ? "border-red-500" : theme.border} focus:ring-1`}
-                    style={{ "--tw-ring-color": theme.primary }}
-                  />
-                  {errors.teamId && (
-                    <p className="text-red-500 text-[10px] mt-1 ml-1">
-                      {errors.teamId}
-                    </p>
-                  )}
+                    style={{ "--tw-ring-color": theme.primary }} />
+                  {errors.teamId && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.teamId}</p>}
                 </div>
-                {apiError && (
-                  <p className="text-red-500 text-[11px] text-center font-bold italic">
-                    {apiError}
-                  </p>
-                )}
-                <motion.button
-                  whileHover={{
-                    y: -2,
-                    boxShadow: isDarkMode
-                      ? "0px 10px 25px rgba(0,0,0,0.4)"
-                      : "0px 10px 25px rgba(83, 74, 183, 0.2)",
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-full py-3.5 rounded-xl text-white font-bold text-[13px] transition-all bg-gradient-to-r ${theme.btn}`}
-                >
-                  {isLoading ? (
-                    <Loader2 className="animate-spin mx-auto" size={18} />
-                  ) : (
-                    "Log In"
-                  )}
+                {apiError && <p className="text-red-500 text-[11px] text-center font-bold italic">{apiError}</p>}
+                <motion.button whileHover={{ y: -2, boxShadow: isDarkMode ? "0px 10px 25px rgba(0,0,0,0.4)" : "0px 10px 25px rgba(83, 74, 183, 0.2)" }}
+                  whileTap={{ scale: 0.98 }} type="submit" disabled={isLoading} className={`w-full py-3.5 rounded-xl text-white font-bold text-[13px] transition-all bg-gradient-to-r ${theme.btn}`}>
+                  {isLoading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Log In"}
                 </motion.button>
               </form>
 
               <div className="mt-8 text-center">
-                <button
-                  onClick={() => {
-                    setView("forgot");
-                    setApiError("");
-                    setApiSuccess("");
-                  }}
-                  className="text-[13px] font-medium hover:underline"
-                  style={{ color: theme.primary }}
-                >
-                  Forgot Password?
-                </button>
+                <button onClick={() => { setView("forgot"); setApiError(""); setApiSuccess(""); }} className="text-[13px] font-medium hover:underline" style={{ color: theme.primary }}>Forgot Password?</button>
               </div>
             </motion.div>
           ) : (
-            <motion.div
-              key="forgot"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
+            <motion.div key="forgot" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               <div className="text-center mb-12">
-                {isDarkMode ? (
-                  <DarkLogo primary={theme.primary} accent={theme.accent} />
-                ) : (
-                  <LightLogo />
-                )}
-                <h2
-                  className="text-[32px] font-bold mb-2 mt-4"
-                  style={{ color: isDarkMode ? "#E2E0FF" : "#1E1B3A" }}
-                >
-                  Forgot{" "}
-                  <span
-                    className={
-                      isDarkMode
-                        ? "bg-gradient-to-r from-[#7F6FF5] to-[#3ECFAA] bg-clip-text text-transparent"
-                        : ""
-                    }
-                    style={{ color: !isDarkMode ? "#534AB7" : "transparent" }}
-                  >
-                    Password?
-                  </span>
-                </h2>
-                <p className={`text-[14px] ${theme.textM}`}>
-                  Enter your email to reset your account
-                </p>
+                {isDarkMode ? <DarkLogo primary={theme.primary} accent={theme.accent} /> : <LightLogo />}
+                <h2 className="text-[32px] font-bold mb-2 mt-4" style={{ color: isDarkMode ? "#E2E0FF" : "#1E1B3A" }}>Forgot <span className={isDarkMode ? "bg-gradient-to-r from-[#7F6FF5] to-[#3ECFAA] bg-clip-text text-transparent" : ""} style={{ color: !isDarkMode ? "#534AB7" : "transparent" }}>Password?</span></h2>
+                <p className={`text-[14px] ${theme.textM}`}>Enter your email to reset your account</p>
               </div>
               <form onSubmit={handleForgot} className="space-y-8 mt-16">
                 <div className="relative">
-                  <input
-                    type="email"
-                    placeholder="Enter work email"
-                    required
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
+                  <input type="email" placeholder="Enter work email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className={`w-full px-5 py-4 rounded-xl border outline-none text-[14px] ${theme.input} ${theme.textP} ${theme.border} focus:ring-1`}
-                    style={{ "--tw-ring-color": theme.primary }}
-                  />
-                  <Mail
-                    className={`absolute right-4 top-4.5 ${theme.textM}`}
-                    size={20}
-                  />
+                    style={{ "--tw-ring-color": theme.primary }} />
+                  <Mail className={`absolute right-4 top-4.5 ${theme.textM}`} size={20} />
                 </div>
-                {apiError && (
-                  <div className="bg-red-50 text-red-500 text-[12px] p-3 rounded-xl text-center border border-red-100">
-                    {apiError}
-                  </div>
-                )}
-                {apiSuccess && (
-                  <div className="bg-green-50 text-green-600 text-[12px] p-4 rounded-xl text-center font-bold border border-green-100 shadow-sm">
-                    {apiSuccess}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-full py-4 rounded-xl text-white font-bold text-[16px] bg-gradient-to-r shadow-lg transition-all hover:scale-[1.01] ${theme.btn}`}
-                >
-                  {isLoading ? (
-                    <Loader2 className="animate-spin mx-auto" size={24} />
-                  ) : (
-                    "Send Reset Link"
-                  )}
+                {apiError && <div className="bg-red-50 text-red-500 text-[12px] p-3 rounded-xl text-center border border-red-100">{apiError}</div>}
+                {apiSuccess && <div className="bg-green-50 text-green-600 text-[12px] p-4 rounded-xl text-center font-bold border border-green-100 shadow-sm">{apiSuccess}</div>}
+                <button type="submit" disabled={isLoading} className={`w-full py-4 rounded-xl text-white font-bold text-[16px] bg-gradient-to-r shadow-lg transition-all hover:scale-[1.01] ${theme.btn}`}>
+                  {isLoading ? <Loader2 className="animate-spin mx-auto" size={24} /> : "Send Reset Link"}
                 </button>
                 <div className="text-center mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setView("login")}
-                    className="text-sm font-bold opacity-70 hover:opacity-100"
-                    style={{ color: theme.primary }}
-                  >
-                    Back to Login
-                  </button>
+                  <button type="button" onClick={() => setView("login")} className="text-sm font-bold opacity-70 hover:opacity-100" style={{ color: theme.primary }}>Back to Login</button>
                 </div>
               </form>
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="text-center mt-12">
-          <a
-            href="#"
-            className={`text-[12px] ${theme.textM} transition-colors underline block`}
-          >
-            Contact Us
-          </a>
-        </div>
       </div>
     </div>
   );
