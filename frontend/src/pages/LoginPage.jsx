@@ -40,65 +40,55 @@ export default function VertexLoginPage({
     setErrors(e);
     return Object.keys(e).length === 0;
   };
-
+// This is your function with the persistence logic added
 const handleLogin = async (e) => {
-    if (e) e.preventDefault();
-    if (!validate()) return;
+  if (e) e.preventDefault();
+  if (!validate()) return;
 
-    setIsLoading(true);
-    setApiError("");
+  setIsLoading(true);
+  setApiError("");
 
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/api/v1/users/login",
-        {
-          email: formData.email,
-          password: formData.password,
-        }
-      );
-
-      console.log("Login API Raw Response:", response.data);
-
-      if (response.data.status === "success") {
-        const token = response.data.token;
-        
-        // FIX: Digging into response.data.data.user 
-        // Based on your earlier console logs, your backend wraps it in 'data'
-        const userData = response.data.data?.user || response.data.user; 
-
-        if (!userData) {
-          throw new Error("Login successful, but user data was missing from response.");
-        }
-
-        localStorage.setItem("token", token);
-
-        setUser({
-          _id:      userData._id, 
-          name:     userData.name     ?? "",
-          email:    userData.email    ?? "",
-          role:     userData.role     ?? "",
-          phone:    userData.phone    ?? "+20 100 000 0000",
-          dept:     userData.dept     ?? "IT Department",
-          location: userData.location ?? "",
-          isOnline: true,
-          avatar:   userData.photo    ?? null,
-        });
-
-        navigate("/tickets");
+  try {
+    const response = await axios.post(
+      "http://localhost:5000/api/v1/users/login",
+      {
+        email: formData.email,
+        password: formData.password,
       }
-    } catch (err) {
-      console.error("Login Error Object:", err);
-      
-      const errorMessage = err.response?.data?.message 
-        || err.message 
-        || "An unexpected error occurred.";
-        
-      setApiError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    );
 
+    if (response.data.status === "success") {
+      const token = response.data.token;
+      const userData = response.data.data?.user || response.data.user; 
+
+      if (!userData) {
+        throw new Error("User data missing from response.");
+      }
+
+      // 1. Save the token for API calls
+      localStorage.setItem("token", token);
+
+      // 2. This call now triggers the 10-hour save logic in App.jsx
+      setUser({
+        _id:      userData._id, 
+        name:     userData.name     ?? "",
+        email:    userData.email    ?? "",
+        role:     userData.role     ?? "",
+        phone:    userData.phone    ?? "+20 100 000 0000",
+        dept:     userData.dept     ?? "IT Department",
+        location: userData.location ?? "",
+        isOnline: true,
+        avatar:   userData.photo    ?? null,
+      });
+
+      navigate("/tickets");
+    }
+  } catch (err) {
+    setApiError(err.response?.data?.message || err.message || "Login failed.");
+  } finally {
+    setIsLoading(false);
+  }
+};
   const socialHover = {
     y: -2,
     boxShadow: isDarkMode
