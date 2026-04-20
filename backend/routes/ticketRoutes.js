@@ -5,7 +5,7 @@ const baseController = require("../controllers/baseController");
 
 const router = express.Router();
 
-router.use(authController.protect);
+// router.use(authController.protect);
 
 router
   .route("/")

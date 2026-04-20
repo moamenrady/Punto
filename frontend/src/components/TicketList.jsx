@@ -94,16 +94,16 @@ const TicketList = ({
             <tbody>
               {tickets?.map((ticket) => (
                 <tr
-                  key={ticket.id}
+                  key={ticket._id}
                   className="ticket-table-row group"
                   style={{ "--hover-bg": "#F9FAFB" }}
                 >
                   <td className="ticket-table-cell ticket-id-cell">
-                    <span className="ticket-id-pill">{ticket.id}</span>
+                    <span className="ticket-id-pill">{ticket._id}</span>
                   </td>
                   <td className="ticket-table-cell ticket-title-cell">
-                    <div className="ticket-title-text" title={ticket.title}>
-                      {ticket.title}
+                    <div className="ticket-title-text" title={ticket.name}>
+                      {ticket.name}
                     </div>
                   </td>
                   <td className="ticket-table-cell">
@@ -112,17 +112,17 @@ const TicketList = ({
 
                   {/* ── Created By ── */}
                   <td className="ticket-table-cell">
-                    {ticket.createdBy ? (
+                    {ticket.created_by.name ? (
                       <div
                         className="ticket-created-by"
-                        onClick={() => handleUserClick(ticket.createdBy)}
+                        onClick={() => handleUserClick(ticket.created_by.name)}
                         style={{ cursor: "pointer" }}
-                        title={`View ${ticket.createdBy.name}'s profile`}
+                        title={`View ${ticket.created_by.name}'s profile`}
                       >
-                        {ticket.createdBy.avatar ? (
+                        {ticket.created_by.name ? (
                           <img
-                            src={ticket.createdBy.avatar}
-                            alt={ticket.createdBy.name}
+                            src={ticket.created_by.name}
+                            alt={ticket.created_by.name}
                             style={{
                               borderRadius: "50%",
                               transition: "transform 0.15s",
@@ -158,15 +158,15 @@ const TicketList = ({
                               (e.currentTarget.style.transform = "scale(1)")
                             }
                           >
-                            {ticket.createdBy.name?.charAt(0)}
+                            {ticket.created_by.name?.charAt(0)}
                           </div>
                         )}
                         <div>
                           <div className="ticket-created-by-name">
-                            {ticket.createdBy.name}
+                            {ticket.created_by.name}
                           </div>
                           <div className="ticket-created-by-role">
-                            {ticket.createdBy.role}
+                            {ticket.created_by.role}
                           </div>
                         </div>
                       </div>

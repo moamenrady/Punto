@@ -18,35 +18,67 @@ import CreateTicketModal from "./components/CreateTicketModal";
 import UserProfileModal from "./components/UserProfileModal";
 import Settings from "./pages/Settings";
 
-import { mockTickets } from "./mockData";
-
 function MainApp({ themeObj, theme, setTheme, user, setUser }) {
   const [currentUserRole, setCurrentUserRole] = useState("admin");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [tickets, setTickets] = useState(mockTickets);
+  const [tickets, setTickets] = useState([]); 
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
+
+  // REPLACE THIS WITH YOUR ACTUAL API URL
+  const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(API_URL);
+        
+        // Safety check: Is the response actually JSON?
+        const contentType = response.headers.get("content-type");
+        if (!response.ok || !contentType || !contentType.includes("application/json")) {
+          throw new Error("Server didn't return JSON. Check your API URL.");
+        }
+
+        const data = await response.json();
+        // Ensure we always store an array
+        setTickets(Array.isArray(data) ? data : (data.tickets || []));
+      } catch (error) {
+        console.error("Fetch Error:", error);
+        setTickets([]); 
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, [API_URL]);
 
   const openProfile = (userData) => {
     setSelectedUser(userData || user);
     setIsProfileOpen(true);
   };
 
-  const handleAddTicket = (newTicket) => {
-    const nextId = `TKT-00${tickets.length + 1}`;
-    const createdTicket = {
-      id: nextId,
-      title: newTicket.title,
-      category: newTicket.category,
-      status: "Open",
-      priority: newTicket.priority,
-      description: newTicket.description,
-      createdAt: "Just now",
-      createdBy: { name: user.name, role: user.role, avatar: user.avatar },
-      assignedTo: "-",
-    };
-    setTickets([createdTicket, ...tickets]);
-    setIsCreateOpen(false);
+  const handleAddTicket = async (newTicket) => {
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newTicket,
+          createdBy: { name: user.name, role: user.role, avatar: user.avatar },
+        }),
+      });
+
+      if (response.ok) {
+        const savedTicket = await response.json();
+        setTickets((prev) => [savedTicket, ...prev]);
+        setIsCreateOpen(false);
+      }
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+    }
   };
 
   return (
@@ -64,7 +96,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
         />
         <div className="p-4 flex-1 overflow-auto">
           <Routes>
-            {/* هنا المسار الافتراضي جوه السيستم هو التيكتات */}
             <Route
               path="/tickets"
               element={
@@ -75,6 +106,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                   isITUser={currentUserRole === "admin"}
                   onOpenCreate={() => setIsCreateOpen(true)}
                   theme={themeObj}
+                  isLoading={isLoading}
                 />
               }
             />
@@ -99,7 +131,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
               }
             />
             <Route path="/settings" element={<Settings />} />
-            {/* لو حد دخل على / يوديه للتيكتات */}
             <Route path="/" element={<Navigate to="/tickets" replace />} />
           </Routes>
         </div>
@@ -157,7 +188,7 @@ function AppContent() {
         btn: "from-[#534AB7] to-[#7F77DD]",
       };
 
-  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj , setUser };
+  const commonProps = { isDarkMode, setIsDarkMode, theme: themeObj, setUser };
 
   return (
     <Routes>
@@ -170,7 +201,6 @@ function AppContent() {
       />
       <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
 
-      {/* أي مسار تاني يفتح الـ MainApp */}
       <Route
         path="/*"
         element={
@@ -184,7 +214,6 @@ function AppContent() {
         }
       />
 
-      {/* توجيه البداية للوجن */}
       <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   );
