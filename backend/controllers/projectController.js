@@ -61,3 +61,32 @@ exports.deleteProject = catchAsync(async (req, res, next) => {
     data: null,
   });
 });
+
+// ADD MEMBER
+exports.addMember = catchAsync(async (req, res, next) => {
+  const { userId } = req.body;
+  if (!userId) return next(new AppError("userId is required", 400));
+
+  const project = await Project.findByIdAndUpdate(
+    req.params.id,
+    { $addToSet: { members: userId } },
+    { new: true, runValidators: false }
+  );
+
+  if (!project) return next(new AppError("No project found with that ID", 404));
+
+  res.status(200).json({ status: "success", data: { project } });
+});
+
+// REMOVE MEMBER
+exports.removeMember = catchAsync(async (req, res, next) => {
+  const project = await Project.findByIdAndUpdate(
+    req.params.id,
+    { $pull: { members: req.params.userId } },
+    { new: true }
+  );
+
+  if (!project) return next(new AppError("No project found with that ID", 404));
+
+  res.status(200).json({ status: "success", data: { project } });
+});

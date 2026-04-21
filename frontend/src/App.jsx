@@ -77,7 +77,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
 
   return (
     <div className={`app-container flex min-h-screen ${themeObj.bg}`}>
-      <Sidebar isDarkMode={theme === "dark"} theme={themeObj} />
+      <Sidebar isDarkMode={theme === "dark"} theme={themeObj} user={user} />
       <main className="main-wrapper flex-1 flex flex-col relative overflow-hidden">
         <Header
           user={user}
@@ -102,7 +102,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                 />
               }
             />
-            <Route path="/dashboard" element={<Dashboard theme={themeObj} />} />
+            <Route path="/dashboard" element={<Dashboard theme={themeObj} user={user} />} />
             <Route
               path="/stock"
               element={
