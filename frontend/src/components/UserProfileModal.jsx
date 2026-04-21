@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Camera,
-  Pencil,
-  Check,
   Mail,
   Phone,
   Briefcase,
@@ -27,26 +25,6 @@ const priorityBg = {
 };
 const ACCENT_BG = "#F5F4FF";
 
-const handleSave = async () => {
-  const token = localStorage.getItem("token");
-  
-  const res = await axios.patch(
-    "http://localhost:5000/api/v1/users/updateMe",
-    {
-      name:     formData.name,
-      phone:    formData.phone,
-      dept:     formData.dept,
-      location: formData.location,
-    },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-
-  setUser(res.data.data.user);
-  setIsEditing(false);
-};
-
-
-/* ── shared ticket row ── */
 const TicketRow = ({ t }) => {
   const p = t.priority?.toLowerCase();
   return (
@@ -112,22 +90,19 @@ export default function UserProfileModal({
   allTickets,
   theme,
 }) {
-  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ ...user });
   const [showAllTickets, setShowAllTickets] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setFormData({ ...user });
-      setShowAllTickets(false);
-      setIsEditing(false);
-    }
+    setFormData({ ...user });
+    if (isOpen) setShowAllTickets(false);
   }, [isOpen, user]);
 
   if (!isOpen) return null;
 
-const isMe = user?.name === currentUser?.name || user?._forcePanel === true;  
+  const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
+
   const userTickets =
     allTickets?.filter((t) => t.createdBy?.name === user?.name) || [];
   const activeList = userTickets.filter(
@@ -138,14 +113,6 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
     (t) => t.status?.toLowerCase() === "closed",
   ).length;
 
-  const handleSave = () => {
-    setUser(formData);
-    setIsEditing(false);
-  };
-
-  /* ════════════════════════════════════════════
-     SIDE PANEL  — لو نفس اليوزر (isMe)
-  ════════════════════════════════════════════ */
   if (isMe) {
     return createPortal(
       <AnimatePresence>
@@ -200,7 +167,7 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                       flex: 1,
                     }}
                   >
-                    {/* purple top */}
+                    {/* top */}
                     <div
                       style={{
                         backgroundColor: ACCENT_BG,
@@ -258,7 +225,7 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                           >
                             {formData.avatar ? (
                               <img
-                                src={formData.avatar}
+                                src={`http://localhost:5000${formData.avatar}`}
                                 style={{
                                   width: "100%",
                                   height: "100%",
@@ -312,37 +279,16 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                               flexWrap: "wrap",
                             }}
                           >
-                            {isEditing ? (
-                              <input
-                                style={{
-                                  fontSize: "20px",
-                                  fontWeight: "bold",
-                                  border: "none",
-                                  borderBottom: "2px solid #534AB7",
-                                  outline: "none",
-                                  background: "transparent",
-                                  textAlign: "center",
-                                }}
-                                value={formData.name ?? ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    name: e.target.value,
-                                  })
-                                }
-                              />
-                            ) : (
-                              <h2
-                                style={{
-                                  fontSize: "22px",
-                                  fontWeight: "700",
-                                  color: "#111827",
-                                  margin: 0,
-                                }}
-                              >
-                                {formData.name}
-                              </h2>
-                            )}
+                            <h2
+                              style={{
+                                fontSize: "22px",
+                                fontWeight: "700",
+                                color: "#111827",
+                                margin: 0,
+                              }}
+                            >
+                              {formData.name}
+                            </h2>
                             <span
                               onClick={() =>
                                 setFormData({
@@ -368,66 +314,16 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                               {formData.isOnline ? "ONLINE" : "OFFLINE"}
                             </span>
                           </div>
-                          {isEditing ? (
-                            <input
-                              style={{
-                                fontSize: "14px",
-                                color: "#9CA3AF",
-                                border: "none",
-                                borderBottom: "1px solid #DDD",
-                                outline: "none",
-                                background: "transparent",
-                                textAlign: "center",
-                                marginTop: "4px",
-                              }}
-                              value={formData.role ?? ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  role: e.target.value,
-                                })
-                              }
-                            />
-                          ) : (
-                            <p
-                              style={{
-                                fontSize: "14px",
-                                color: "#9CA3AF",
-                                margin: "4px 0 0",
-                              }}
-                            >
-                              {formData.role}
-                            </p>
-                          )}
+                          <p
+                            style={{
+                              fontSize: "14px",
+                              color: "#9CA3AF",
+                              margin: "4px 0 0",
+                            }}
+                          >
+                            {formData.role}
+                          </p>
                         </div>
-                        <button
-                          onClick={
-                            isEditing ? handleSave : () => setIsEditing(true)
-                          }
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "8px 20px",
-                            borderRadius: "12px",
-                            border: "1px solid #E5E7EB",
-                            background: isEditing ? "#7F6FF5" : "white",
-                            color: isEditing ? "white" : "#374151",
-                            fontWeight: "600",
-                            fontSize: "13px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {isEditing ? (
-                            <>
-                              <Check size={14} /> Save
-                            </>
-                          ) : (
-                            <>
-                              <Pencil size={14} /> Edit Profile
-                            </>
-                          )}
-                        </button>
                       </div>
                     </div>
 
@@ -502,25 +398,21 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                         {
                           label: "Work Email",
                           val: formData.email,
-                          k: "email",
                           icon: Mail,
                         },
                         {
                           label: "Phone Number",
                           val: formData.phone,
-                          k: "phone",
                           icon: Phone,
                         },
                         {
                           label: "Department",
                           val: formData.dept,
-                          k: "dept",
                           icon: Briefcase,
                         },
                         {
                           label: "Location",
                           val: formData.location,
-                          k: "location",
                           icon: MapPin,
                         },
                       ].map((item) => (
@@ -544,34 +436,15 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                             }}
                           >
                             <item.icon size={15} color="#8A9FE8" />
-                            {isEditing ? (
-                              <input
-                                style={{
-                                  border: "none",
-                                  borderBottom: "1px solid #E5E7EB",
-                                  outline: "none",
-                                  width: "100%",
-                                  fontSize: "14px",
-                                }}
-                                value={item.val ?? ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    [item.k]: e.target.value,
-                                  })
-                                }
-                              />
-                            ) : (
-                              <span
-                                style={{
-                                  fontWeight: "600",
-                                  color: "#374151",
-                                  fontSize: "14px",
-                                }}
-                              >
-                                {item.val}
-                              </span>
-                            )}
+                            <span
+                              style={{
+                                fontWeight: "600",
+                                color: "#374151",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {item.val}
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -762,9 +635,7 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
     );
   }
 
-  /* ════════════════════════════════════════════
-     POPUP MODAL
-  ════════════════════════════════════════════ */
+  /* POPUP MODAL */
   const statCard = {
     padding: "25px",
     borderRadius: "20px",
@@ -773,8 +644,7 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
     border: "2.5px solid #7F6FF5",
     boxShadow: "0 4px 15px rgba(127,111,245,0.15)",
   };
-  
-  
+
   return createPortal(
     <div
       style={{
@@ -804,7 +674,6 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* header */}
         <div
           style={{
             padding: "40px 50px",
@@ -832,7 +701,7 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
             >
               {formData.avatar ? (
                 <img
-                  src={formData.avatar}
+                  src={`http://localhost:5000${formData.avatar}`}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   alt=""
                 />
@@ -885,7 +754,6 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
 
         <div style={{ borderBottom: "1px solid #F3F4F6", margin: "0 50px" }} />
 
-        {/* body */}
         <AnimatePresence mode="wait">
           {!showAllTickets ? (
             <motion.div
@@ -901,7 +769,6 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                 gap: "60px",
               }}
             >
-              {/* left */}
               <div style={{ marginTop: "30px" }}>
                 <p
                   style={{
@@ -950,7 +817,6 @@ const isMe = user?.name === currentUser?.name || user?._forcePanel === true;
                   </div>
                 ))}
               </div>
-              {/* right */}
               <div
                 style={{
                   marginTop: "30px",

@@ -192,7 +192,7 @@ const Header = ({
           >
             {user?.avatar ? (
               <img
-                src={user.avatar}
+                src={user.avatar.startsWith("data:") ? user.avatar : `http://localhost:5000${user.avatar}`}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
