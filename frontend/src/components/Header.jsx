@@ -5,14 +5,17 @@ import { Sun, Moon, Bell, MessageSquare, FileText, Search } from "lucide-react";
 const Header = ({
   user,
   onProfileClick,
-  currentUserRole,
-  setCurrentUserRole,
   theme,
   setTheme,
   searchQuery,
   setSearchQuery,
 }) => {
   const location = useLocation();
+
+  const roleLabel = user?.role === "admin" ? "Admin" : "User";
+  const roleBg = user?.role === "admin" ? "#EEF1FD" : "#F0FDF4";
+  const roleColor = user?.role === "admin" ? "#534AB7" : "#15803D";
+  const roleBorder = user?.role === "admin" ? "#C7D2F8" : "#BBF7D0";
 
   return (
     <header
@@ -58,7 +61,7 @@ const Header = ({
           type="text"
           placeholder="Search by ID, title, category, or user..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
           style={{
             width: "100%",
             padding: "10px 16px 10px 45px",
@@ -75,40 +78,30 @@ const Header = ({
         className="header-actions"
         style={{ display: "flex", alignItems: "center", gap: 12 }}
       >
+        {/* Read-only role badge */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            background: "#F9FAFB",
-            padding: "6px 12px",
+            gap: 6,
+            background: roleBg,
+            padding: "5px 12px",
             borderRadius: "10px",
-            border: "1px solid #E9EBF0",
+            border: `1px solid ${roleBorder}`,
           }}
         >
-          <span
-            style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9CA3AF" }}
-          >
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9CA3AF" }}>
             ROLE:
           </span>
-          <button
-            onClick={() =>
-              setCurrentUserRole(currentUserRole === "admin" ? "user" : "admin")
-            }
+          <span
             style={{
-              border: "none",
-              background: "#FFFFFF",
-              padding: "4px 12px",
-              borderRadius: "6px",
               fontSize: "0.8rem",
-              fontWeight: 600,
-              color: "#111827",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-              cursor: "pointer",
+              fontWeight: 700,
+              color: roleColor,
             }}
           >
-            {currentUserRole === "admin" ? "Admin" : "User"}
-          </button>
+            {roleLabel}
+          </span>
         </div>
 
         <button
@@ -173,12 +166,12 @@ const Header = ({
                 textTransform: "uppercase",
               }}
             >
-              USER
+              {roleLabel}
             </div>
             <div
               style={{ fontSize: "0.9rem", fontWeight: 700, color: "#000000" }}
             >
-              {user.name}
+              {user?.name}
             </div>
           </div>
           <div
@@ -197,16 +190,16 @@ const Header = ({
               overflow: "hidden",
             }}
           >
-            {user.avatar ? (
+            {user?.avatar ? (
               <img
                 src={user.avatar.startsWith("data:") ? user.avatar : `http://localhost:5000${user.avatar}`}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
-              user.name
-                .split(" ")
+              user?.name
+                ?.split(" ")
                 .map((n) => n[0])
-                .join("")
+                .join("") ?? "?"
             )}
           </div>
         </div>

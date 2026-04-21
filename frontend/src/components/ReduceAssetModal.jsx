@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { getAssetStatus } from '../data/assetData';
+import React, { useState } from 'react';
 
-const reasons = ['Damaged', 'Deployed', 'Lost', 'Maintenance'];
+const reasons = ['Damaged', 'Deployed', 'Lost', 'Maintenance', 'Expired'];
 
 const statusBadgeStyle = {
   'In Stock':     { background: '#D1FAE5', color: '#065F46' },
@@ -13,7 +12,7 @@ const ReduceAssetModal = ({ asset, onClose, onConfirm }) => {
   const [quantityToReduce, setQuantityToReduce] = useState(1);
   const [reason, setReason] = useState('');
 
-  const status = useMemo(() => getAssetStatus(asset.quantity), [asset.quantity]);
+  const status = asset.status ?? 'In Stock';
   const canSubmit = quantityToReduce > 0 && quantityToReduce <= asset.quantity && !!reason;
 
   const handleSubmit = () => {
@@ -43,13 +42,16 @@ const ReduceAssetModal = ({ asset, onClose, onConfirm }) => {
               <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                 Current Qty
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 900, color: '#8A9FE8', lineHeight: 1 }}>{asset.quantity}</div>
+              <div style={{ fontSize: '2rem', fontWeight: 900, color: '#8A9FE8', lineHeight: 1 }}>
+                {asset.quantity}
+                <span style={{ fontSize: '0.85rem', marginLeft: 4, fontWeight: 500 }}>{asset.unit ?? 'pcs'}</span>
+              </div>
             </div>
             <div style={{ background: '#F9FAFB', border: '1px solid #E9EBF0', borderRadius: 10, padding: '14px 16px' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                 Status
               </div>
-              <span className="ds-badge" style={statusBadgeStyle[status] || statusBadgeStyle['In Stock']}>{status}</span>
+              <span className="ds-badge" style={statusBadgeStyle[status] ?? statusBadgeStyle['In Stock']}>{status}</span>
             </div>
           </div>
 
@@ -69,7 +71,7 @@ const ReduceAssetModal = ({ asset, onClose, onConfirm }) => {
 
           {/* Reason select */}
           <div className="ds-form-group">
-            <label className="ds-label">Reason for reduction</label>
+            <label className="ds-label">Reason for reduction <span style={{ color: '#EF4444' }}>*</span></label>
             <select value={reason} onChange={(e) => setReason(e.target.value)} className="ds-select">
               <option value="">Select a reason...</option>
               {reasons.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
