@@ -19,12 +19,13 @@ import UserProfileModal from "./components/UserProfileModal";
 import Settings from "./pages/Settings";
 
 function MainApp({ themeObj, theme, setTheme, user, setUser }) {
-  const [currentUserRole, setCurrentUserRole] = useState("admin");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [tickets, setTickets] = useState([]); 
+  const [tickets, setTickets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
+
+  const isAdmin = user?.role === "admin";
 
   const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
 
@@ -41,7 +42,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
         setTickets(Array.isArray(data) ? data : (data.tickets || []));
       } catch (error) {
         console.error("Fetch Error:", error);
-        setTickets([]); 
+        setTickets([]);
       } finally {
         setIsLoading(false);
       }
@@ -81,8 +82,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
         <Header
           user={user}
           onProfileClick={() => openProfile(user)}
-          currentUserRole={currentUserRole}
-          setCurrentUserRole={setCurrentUserRole}
           theme={theme}
           setTheme={setTheme}
           themeObj={themeObj}
@@ -96,7 +95,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                   tickets={tickets}
                   user={user}
                   onProfileClick={openProfile}
-                  isITUser={currentUserRole === "admin"}
+                  isITUser={isAdmin}
                   onOpenCreate={() => setIsCreateOpen(true)}
                   theme={themeObj}
                   isLoading={isLoading}
@@ -108,7 +107,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
               path="/stock"
               element={
                 <StockManagementPage
-                  currentUserRole={currentUserRole}
+                  currentUserRole={user?.role}
                   theme={themeObj}
                 />
               }
@@ -118,7 +117,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
               element={
                 <TicketDetailsPage
                   tickets={tickets}
-                  isITUser={currentUserRole === "admin"}
+                  isITUser={isAdmin}
                   theme={themeObj}
                 />
               }
@@ -152,7 +151,6 @@ function AppContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [theme, setTheme] = useState("light");
 
-  // Initial check for user and 10-hour expiry
   const [user, setUserState] = useState(() => {
     const savedUser = localStorage.getItem("vertex_user");
     const expiry = localStorage.getItem("vertex_expiry");
@@ -164,7 +162,6 @@ function AppContent() {
     return null;
   });
 
-  // Custom setter to handle localStorage and 10-hour timestamp
   const setUser = (userData) => {
     if (userData) {
       const tenHours = 10 * 60 * 60 * 1000;
