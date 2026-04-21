@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import UserProfileModal from "./UserProfileModal";
 
 const TicketList = ({
@@ -9,14 +10,58 @@ const TicketList = ({
   setUsers,
 }) => {
   const [selectedUser, setSelectedUser] = useState(null);
+  const navigate = useNavigate();
 
   const getStatusBadge = (status) => {
     const s = status?.toLowerCase() || "";
-    if (s === "open") return <span className="ds-badge ds-badge-open">Open</span>;
-    if (s === "in progress" || s === "in_progress") return <span className="ds-badge ds-badge-progress">In Progress</span>;
-    if (s === "assigned") return <span className="ds-badge ds-badge-assigned">Assigned</span>;
-    if (s === "closed") return <span className="ds-badge ds-badge-closed">Closed</span>;
-    return <span className="ds-badge ds-badge-closed">{status}</span>;
+    
+    // Status color mapping
+    if (s === "open") {
+      return (
+        <span className="ds-badge" style={{ 
+          backgroundColor: "#FEE2E2", 
+          color: "#EF4444", 
+          borderRadius: '6px', 
+          padding: '4px 10px',
+          fontSize: '0.75rem',
+          fontWeight: 600 
+        }}>
+          Open
+        </span>
+      );
+    }
+    
+    if (s === "resolved" || s === "closed") {
+      return (
+        <span className="ds-badge" style={{ 
+          backgroundColor: "#DCFCE7", 
+          color: "#22C55E", 
+          borderRadius: '6px', 
+          padding: '4px 10px',
+          fontSize: '0.75rem',
+          fontWeight: 600 
+        }}>
+          Resolved
+        </span>
+      );
+    }
+
+    if (s === "in progress" || s === "in_progress") {
+      return (
+        <span className="ds-badge" style={{ 
+          backgroundColor: "#FEF9C3", 
+          color: "#CA8A04", 
+          borderRadius: '6px', 
+          padding: '4px 10px',
+          fontSize: '0.75rem',
+          fontWeight: 600 
+        }}>
+          In Progress
+        </span>
+      );
+    }
+
+    return <span className="ds-badge ds-badge-assigned">{status}</span>;
   };
 
   const getPriorityBadge = (priority) => {
@@ -27,23 +72,23 @@ const TicketList = ({
     return <span className="ds-badge ds-badge-closed">{priority}</span>;
   };
 
-  const handleUserClick = (createdBy) => {
-    const fullUser = users?.find((u) => u.name === createdBy.name) ?? createdBy;
-    if (createdBy.role?.toLowerCase() === "admin") {
+  const handleUserClick = (e, userObj) => {
+    e.stopPropagation();
+    if (!userObj) return;
+    const fullUser = users?.find((u) => u.name === userObj.name) ?? userObj;
+    if (userObj.role?.toLowerCase() === "admin") {
       setSelectedUser({ ...fullUser, _forcePanel: true });
     } else {
       setSelectedUser(fullUser);
     }
   };
 
-  // Define the grid layout ratio here
   const gridLayout = {
     display: "grid",
-    gridTemplateColumns: "100px 3fr 1.2fr 1.5fr 1.2fr 1fr 1fr",
+    gridTemplateColumns: "100px 3fr 1fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr",
     gap: "16px",
     alignItems: "center",
-    padding: "12px 24px",
-    minWidth: "1000px", // Ensures it doesn't break on small screens
+    padding: "16px 24px",
   };
 
   const cellStyle = {
@@ -56,66 +101,76 @@ const TicketList = ({
 
   return (
     <>
-      <div className="ticket-list" style={{ overflowX: "auto", width: "100%" }}>
-        {/* Table Header */}
-        <div style={{ ...gridLayout, borderBottom: "1px solid #E5E7EB", background: "#F9FAFB" }}>
-          {["ID", "Title", "Category", "Created By", "Date", "Priority", "Status"].map((h) => (
-            <span key={h} style={{ color: "#9CA3AF", fontSize: "0.72rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              {h}
+      <div className="ticket-rows">
+        {tickets?.map((ticket) => (
+          <div 
+            key={ticket._id} 
+            style={{ ...gridLayout, borderBottom: "1px solid #F3F4F6", cursor: 'pointer' }}
+            className="ticket-table-row-hover"
+            onClick={() => navigate(`/ticket/${ticket._id}`)}
+          >
+            {/* ID */}
+            <span style={{ ...cellStyle, fontFamily: "monospace", color: "#6B7280" }}>
+              #{ticket._id?.slice(-6)}
             </span>
-          ))}
-        </div>
 
-        {/* Table Body */}
-        <div className="ticket-rows">
-          {tickets?.map((ticket) => (
+            {/* Subject */}
+            <span style={{ ...cellStyle, fontWeight: "600" }} title={ticket.name}>
+              {ticket.name}
+            </span>
+
+            {/* Category */}
+            <span style={cellStyle}>
+              <span className="category-pill" style={{ fontSize: "0.75rem" }}>
+                {ticket.category || "General"}
+              </span>
+            </span>
+
+            {/* Created By */}
             <div 
-              key={ticket._id} 
-              style={{ ...gridLayout, borderBottom: "1px solid #F3F4F6", transition: "background 0.2s" }}
-              className="ticket-row-hover"
+              style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", overflow: "hidden" }}
+              onClick={(e) => handleUserClick(e, ticket.created_by)}
             >
-              {/* Ticket ID */}
-              <span style={{ ...cellStyle, fontFamily: "monospace", color: "#6B7280" }}>
-                #{ticket._id?.slice(-6)}
-              </span>
-
-              {/* Title (Truncated) */}
-              <span style={{ ...cellStyle, fontWeight: "600" }} title={ticket.name}>
-                {ticket.name}
-              </span>
-
-              {/* Category */}
-              <span style={cellStyle}>
-                <span className="category-pill" style={{ fontSize: "0.75rem" }}>{ticket.category || "General"}</span>
-              </span>
-
-              {/* Created By */}
-              <div 
-                style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", overflow: "hidden" }}
-                onClick={() => handleUserClick(ticket.created_by)}
-              >
-                <div style={{
-                  width: "24px", height: "24px", borderRadius: "50%", 
-                  background: "linear-gradient(135deg, #7F6FF5, #3ECFAA)",
-                  color: "white", display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "10px", fontWeight: "bold", flexShrink: 0
-                }}>
-                  {ticket.created_by?.name?.charAt(0)}
-                </div>
-                <span style={{ ...cellStyle, fontSize: "0.8rem" }}>{ticket.created_by?.name}</span>
+              <div style={{
+                width: "24px", height: "24px", borderRadius: "50%", 
+                background: "linear-gradient(135deg, #7F6FF5, #3ECFAA)",
+                color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "10px", fontWeight: "bold", flexShrink: 0
+              }}>
+                {ticket.created_by?.name?.charAt(0) || "?"}
               </div>
-
-              {/* Created At */}
-              <span style={{ ...cellStyle, color: "#6B7280" }}>{ticket.createdAt}</span>
-
-              {/* Priority */}
-              <div>{getPriorityBadge(ticket.priority)}</div>
-
-              {/* Status */}
-              <div>{getStatusBadge(ticket.status)}</div>
+              <span style={cellStyle}>{ticket.created_by?.name || "System"}</span>
             </div>
-          ))}
-        </div>
+
+            {/* Assigned To */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+              {ticket.assign_to?.name ? (
+                <>
+                  <div style={{
+                    width: "24px", height: "24px", borderRadius: "50%", 
+                    background: "#E5E7EB", color: "#4B5563",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "10px", fontWeight: "bold", flexShrink: 0
+                  }}>
+                    {ticket.assign_to.name.charAt(0)}
+                  </div>
+                  <span style={cellStyle}>{ticket.assign_to.name}</span>
+                </>
+              ) : (
+                <span style={{ ...cellStyle, color: "#9CA3AF", fontStyle: "italic" }}>Unassigned</span>
+              )}
+            </div>
+
+            {/* Date */}
+            <span style={{ ...cellStyle, color: "#6B7280" }}>{ticket.createdAt}</span>
+
+            {/* Priority */}
+            <div>{getPriorityBadge(ticket.priority)}</div>
+
+            {/* Status */}
+            <div>{getStatusBadge(ticket.status)}</div>
+          </div>
+        ))}
       </div>
 
       <UserProfileModal

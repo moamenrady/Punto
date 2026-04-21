@@ -24,30 +24,28 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
   const [tickets, setTickets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
-
   const isAdmin = user?.role === "admin";
 
   const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch(API_URL);
-        const contentType = response.headers.get("content-type");
-        if (!response.ok || !contentType || !contentType.includes("application/json")) {
-          throw new Error("Server didn't return JSON. Check your API URL.");
-        }
-        const data = await response.json();
+  // Define refreshTicketList to re-fetch data from the API
+  const refreshTicketList = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      if (response.ok) {
         setTickets(Array.isArray(data) ? data : (data.tickets || []));
-      } catch (error) {
-        console.error("Fetch Error:", error);
-        setTickets([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
-    fetchTickets();
+    } catch (error) {
+      console.error("Failed to refresh tickets:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshTicketList();
   }, [API_URL]);
 
   const openProfile = (userData) => {
@@ -66,8 +64,8 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
         }),
       });
       if (response.ok) {
-        const savedTicket = await response.json();
-        setTickets((prev) => [savedTicket, ...prev]);
+        // Refresh the list from server to get the official saved state
+        await refreshTicketList();
         setIsCreateOpen(false);
       }
     } catch (error) {
@@ -119,6 +117,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                   tickets={tickets}
                   isITUser={isAdmin}
                   theme={themeObj}
+                  user={user}
                 />
               }
             />
@@ -138,9 +137,10 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
         theme={themeObj}
       />
       {isCreateOpen && (
-        <CreateTicketModal
-          onClose={() => setIsCreateOpen(false)}
-          onSubmit={handleAddTicket}
+        <CreateTicketModal 
+          user={user} 
+          onClose={() => setIsCreateOpen(false)} 
+          onSubmit={refreshTicketList} 
         />
       )}
     </div>

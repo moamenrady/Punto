@@ -2,13 +2,20 @@ import { useState, useRef } from "react";
 
 const PRIORITY_COLORS = { High: '#EF4444', Medium: '#F59E0B', Low: '#22C55E' };
 
-export default function CreateTicketModal({ onClose, onSubmit }) {
+export default function CreateTicketModal({ onClose, onSubmit, user }) {
   const [formData, setFormData] = useState({
-    title: "", category: "", subcategory: "", priority: "", description: "", assignToMe: true,
+    name: "", // Changed from 'title' to 'name' to match your Mongoose model
+    category: "", 
+    subcategory: "", 
+    priority: "low", // Default to 'low' as per your model
+    description: "", 
+    assignToMe: true,
   });
+  
   const [errors, setErrors] = useState({});
   const [dragging, setDragging] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef();
 
   const handleChange = (field) => (e) => {
@@ -20,27 +27,69 @@ export default function CreateTicketModal({ onClose, onSubmit }) {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) setAttachedFile(file.name);
+    if (file) setAttachedFile(file);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // Validation
     const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = "Ticket title is required";
+    if (!formData.name.trim()) newErrors.name = "Ticket title is required";
     if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.subcategory) newErrors.subcategory = "Subcategory is required";
     if (!formData.priority) newErrors.priority = "Priority is required";
     if (!formData.description.trim()) {
       newErrors.description = "Description is required";
-    } else if (formData.description.trim().length < 20) {
-      newErrors.description = "Description must be at least 20 characters";
+    } else if (formData.description.trim().length < 10) {
+      newErrors.description = "Description must be at least 10 characters";
     }
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
-    if (onSubmit) onSubmit(formData);
-    if (onClose) onClose();
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Prepare payload for backend
+    // Note: 'created_by' is usually handled by the backend via JWT/Session
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      priority: formData.priority.toLowerCase(),
+      status: "open",
+      created_by: user?._id, // Sending the ID from the automated user info
+      // If the checkbox is checked, we set assign_to to current user ID
+      assign_to: formData.assignToMe ? user?._id : null
+    };
+
+    try {
+      const response = await fetch("https://itmgmtbackend-production.up.railway.app/api/v1/tickets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Add Authorization header if your API requires it:
+          // "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (onSubmit) onSubmit(data.data); // Trigger list refresh
+        if (onClose) onClose();
+      } else {
+        alert(data.message || "Failed to create ticket");
+      }
+    } catch (error) {
+      console.error("API Error:", error);
+      alert("Network error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="ds-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
+    <div className="ds-overlay" onClick={(e) => e.target === e.currentTarget && !isSubmitting && onClose?.()}>
       <div className="ds-modal ds-modal-lg">
 
         {/* Header */}
@@ -56,52 +105,65 @@ export default function CreateTicketModal({ onClose, onSubmit }) {
             </div>
             <h2 className="ds-modal-title">Create New Ticket</h2>
           </div>
-          <button className="ds-modal-close" onClick={onClose}>×</button>
+          <button className="ds-modal-close" onClick={onClose} disabled={isSubmitting}>×</button>
         </div>
 
         {/* Body */}
         <div className="ds-modal-body">
 
-          {/* User Info */}
+          {/* Automated User Information */}
           <div className="ds-user-card">
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
               User Information
             </div>
             <div className="ds-user-grid">
-              {[["UserID:", "USR-1138"], ["Username:", "Alex Thompson"], ["Email:", "alex.t@corp.com"], ["Phone:", "+1 555-010-9988"]].map(([label, value]) => (
-                <div key={label}>
-                  <div className="ds-user-label">{label}</div>
-                  <div className="ds-user-value">{value}</div>
-                </div>
-              ))}
+              <div>
+                <div className="ds-user-label">UserID:</div>
+                <div className="ds-user-value">{user?._id || "Loading..."}</div>
+              </div>
+              <div>
+                <div className="ds-user-label">Username:</div>
+                <div className="ds-user-value">{user?.name || "Anonymous"}</div>
+              </div>
+              <div>
+                <div className="ds-user-label">Email:</div>
+                <div className="ds-user-value">{user?.email || "N/A"}</div>
+              </div>
+              <div>
+                <div className="ds-user-label">Role:</div>
+                <div className="ds-user-value" style={{ textTransform: 'capitalize' }}>{user?.role || "User"}</div>
+              </div>
             </div>
           </div>
 
-          {/* Ticket Details */}
           <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827', marginBottom: 14 }}>Ticket Details</div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 148px', gap: 16, alignItems: 'start' }}>
-
-            {/* Left: form fields */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-              {/* Title */}
+              
+              {/* Title / Name */}
               <div className="ds-form-group">
                 <label className="ds-label">Ticket Title</label>
                 <input
-                  className={`ds-input${errors.title ? ' error' : ''}`}
+                  className={`ds-input${errors.name ? ' error' : ''}`}
                   placeholder="Enter a brief summary of the issue..."
-                  value={formData.title}
-                  onChange={handleChange("title")}
+                  value={formData.name}
+                  onChange={handleChange("name")}
+                  disabled={isSubmitting}
                 />
-                {errors.title && <span className="ds-error">{errors.title}</span>}
+                {errors.name && <span className="ds-error">{errors.name}</span>}
               </div>
 
-              {/* Category + Subcategory */}
+              {/* Category */}
               <div className="ds-form-row">
                 <div className="ds-form-group">
                   <label className="ds-label">Category</label>
-                  <select className={`ds-select${errors.category ? ' error' : ''}`} value={formData.category} onChange={handleChange("category")}>
+                  <select 
+                    className={`ds-select${errors.category ? ' error' : ''}`} 
+                    value={formData.category} 
+                    onChange={handleChange("category")}
+                    disabled={isSubmitting}
+                  >
                     <option value="" disabled hidden>Select Category</option>
                     <option>Network Issues</option>
                     <option>Hardware</option>
@@ -110,43 +172,31 @@ export default function CreateTicketModal({ onClose, onSubmit }) {
                   </select>
                   {errors.category && <span className="ds-error">{errors.category}</span>}
                 </div>
+                
                 <div className="ds-form-group">
-                  <label className="ds-label">Subcategory</label>
-                  <select className={`ds-select${errors.subcategory ? ' error' : ''}`} value={formData.subcategory} onChange={handleChange("subcategory")}>
-                    <option value="" disabled hidden>Select Subcategory</option>
-                    <option>VPN Connection</option>
-                    <option>Wi-Fi</option>
-                    <option>Firewall</option>
-                    <option>DNS</option>
-                  </select>
-                  {errors.subcategory && <span className="ds-error">{errors.subcategory}</span>}
+                  <label className="ds-label">Priority</label>
+                  <div style={{ position: 'relative' }}>
+                    {formData.priority && (
+                      <span style={{
+                        position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                        width: 8, height: 8, borderRadius: '50%', pointerEvents: 'none',
+                        background: PRIORITY_COLORS[formData.priority] || 'transparent'
+                      }} />
+                    )}
+                    <select
+                      className={`ds-select${errors.priority ? ' error' : ''}`}
+                      style={formData.priority ? { paddingLeft: 26 } : {}}
+                      value={formData.priority}
+                      onChange={handleChange("priority")}
+                      disabled={isSubmitting}
+                    >
+                      <option>Low</option>
+                      <option>Medium</option>
+                      <option>High</option>
+                    </select>
+                  </div>
+                  {errors.priority && <span className="ds-error">{errors.priority}</span>}
                 </div>
-              </div>
-
-              {/* Priority */}
-              <div className="ds-form-group">
-                <label className="ds-label">Priority</label>
-                <div style={{ position: 'relative' }}>
-                  {formData.priority && (
-                    <span style={{
-                      position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                      width: 8, height: 8, borderRadius: '50%', pointerEvents: 'none',
-                      background: PRIORITY_COLORS[formData.priority] || 'transparent'
-                    }} />
-                  )}
-                  <select
-                    className={`ds-select${errors.priority ? ' error' : ''}`}
-                    style={formData.priority ? { paddingLeft: 26 } : {}}
-                    value={formData.priority}
-                    onChange={handleChange("priority")}
-                  >
-                    <option value="" disabled hidden>Select Priority</option>
-                    <option>High</option>
-                    <option>Medium</option>
-                    <option>Low</option>
-                  </select>
-                </div>
-                {errors.priority && <span className="ds-error">{errors.priority}</span>}
               </div>
 
               {/* Description */}
@@ -154,9 +204,10 @@ export default function CreateTicketModal({ onClose, onSubmit }) {
                 <label className="ds-label">Description</label>
                 <textarea
                   className={`ds-textarea${errors.description ? ' error' : ''}`}
-                  placeholder="Describe the issue in detail..."
+                  placeholder="Describe the issue in detail (min 10 chars)..."
                   value={formData.description}
                   onChange={handleChange("description")}
+                  disabled={isSubmitting}
                 />
                 {errors.description && <span className="ds-error">{errors.description}</span>}
               </div>
@@ -165,41 +216,45 @@ export default function CreateTicketModal({ onClose, onSubmit }) {
             {/* Right: upload + assign */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <label className="ds-label">Attach File</label>
-
-              {/* Drop zone */}
               <div
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragOver={(e) => { e.preventDefault(); !isSubmitting && setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current.click()}
+                onClick={() => !isSubmitting && fileInputRef.current.click()}
                 style={{
                   border: `1.5px dashed ${dragging ? '#8A9FE8' : '#D1D5DB'}`,
                   borderRadius: 10,
                   padding: '20px 12px',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: 8, cursor: 'pointer', background: dragging ? '#EEF1FD' : '#F9FAFB',
+                  gap: 8, cursor: isSubmitting ? 'not-allowed' : 'pointer', background: dragging ? '#EEF1FD' : '#F9FAFB',
                   minHeight: 110, textAlign: 'center', transition: 'border-color 0.15s, background 0.15s'
                 }}
               >
-                <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={(e) => setAttachedFile(e.target.files[0]?.name)} />
+                <input 
+                  ref={fileInputRef} 
+                  type="file" 
+                  style={{ display: 'none' }} 
+                  onChange={(e) => setAttachedFile(e.target.files[0])} 
+                  disabled={isSubmitting}
+                />
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="16 16 12 12 8 16"/>
                   <line x1="12" y1="12" x2="12" y2="21"/>
                   <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
                 </svg>
                 <span style={{ fontSize: '0.72rem', color: '#9CA3AF', lineHeight: 1.4 }}>
-                  {attachedFile ? attachedFile : 'Drag & Drop\nor Click to Upload'}
+                  {attachedFile ? attachedFile.name : 'Drag & Drop\nor Click to Upload'}
                 </span>
               </div>
 
-              {/* Assign to me toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>Assign to Me</span>
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setFormData((p) => ({ ...p, assignToMe: !p.assignToMe }))}
                   style={{
-                    width: 38, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+                    width: 38, height: 22, borderRadius: 11, border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer',
                     background: formData.assignToMe ? '#8A9FE8' : '#D1D5DB',
                     position: 'relative', transition: 'background 0.2s', flexShrink: 0
                   }}
@@ -217,12 +272,24 @@ export default function CreateTicketModal({ onClose, onSubmit }) {
 
         {/* Footer */}
         <div className="ds-modal-footer">
-          <button className="ds-btn ds-btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="ds-btn ds-btn-primary" onClick={handleSubmit}>
-            Submit Ticket
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
-            </svg>
+          <button 
+            className="ds-btn ds-btn-secondary" 
+            onClick={onClose} 
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button 
+            className="ds-btn ds-btn-primary" 
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Creating..." : "Submit Ticket"}
+            {!isSubmitting && (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+              </svg>
+            )}
           </button>
         </div>
 
