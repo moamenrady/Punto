@@ -13,15 +13,21 @@ exports.getAllTeams = catchAsync(async (req, res) => {
 });
 
 // POST /api/v1/teams
-exports.createTeam = catchAsync(async (req, res) => {
+exports.createTeam = catchAsync(async (req, res, next) => {
   const { name, description, members } = req.body;
+
+  if (!name || name.trim().length < 2) {
+    return next(new AppError('Team name is required and must be at least 2 characters.', 400));
+  }
+
   const team = await Team.create({
-    name,
-    description: description || '',
+    name:        name.trim(),
+    description: description?.trim() || '',
     members:     Array.isArray(members) ? members : [],
     created_by:  req.user._id,
   });
-  // Re-fetch to get populated fields
+
+  // Re-fetch to get populated fields (members, created_by)
   const populated = await Team.findById(team._id);
   res.status(201).json({ status: 'success', data: { team: populated } });
 });

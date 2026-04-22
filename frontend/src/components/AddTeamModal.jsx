@@ -88,7 +88,8 @@ const AddTeamModal = ({ isOpen, onClose, onSubmit, editTeam = null }) => {
       await onSubmit({ name: name.trim(), description: description.trim(), members: selectedMembers.map(m => m._id) });
       onClose();
     } catch (e) {
-      alert(e.message || 'Failed to save team');
+      // error is handled by the parent (toastError) — just keep modal open
+      console.error('Team save failed:', e.message);
     } finally {
       setIsSubmitting(false);
     }

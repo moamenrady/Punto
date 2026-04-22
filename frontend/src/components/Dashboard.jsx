@@ -468,19 +468,29 @@ const Dashboard = ({ user }) => {
 
   // ─── Team handlers ────────────────────────────────────────────────────────────
   const handleCreateTeam = async (formData) => {
-    const team = await projectService.createTeam(formData);
-    setTeams(prev => [team, ...prev]);
-    toastSuccess(
-      'Team Created!',
-      `"${team.name}" has been created with ${(team.members ?? []).length} member${(team.members ?? []).length !== 1 ? 's' : ''}.`
-    );
+    try {
+      const team = await projectService.createTeam(formData);
+      setTeams(prev => [team, ...prev]);
+      toastSuccess(
+        'Team Created!',
+        `"${team.name}" has been created with ${(team.members ?? []).length} member${(team.members ?? []).length !== 1 ? 's' : ''}.`
+      );
+    } catch (e) {
+      toastError('Failed to Create Team', e.message);
+      throw e; // re-throw so modal stays open
+    }
   };
 
   const handleEditTeam = async (formData) => {
-    const id   = teamModal?.team?._id;
-    const team = await projectService.updateTeam(id, formData);
-    setTeams(prev => prev.map(t => t._id === id ? team : t));
-    toastSuccess('Team Updated!', `"${team.name}" has been saved successfully.`);
+    try {
+      const id   = teamModal?.team?._id;
+      const team = await projectService.updateTeam(id, formData);
+      setTeams(prev => prev.map(t => t._id === id ? team : t));
+      toastSuccess('Team Updated!', `"${team.name}" has been saved successfully.`);
+    } catch (e) {
+      toastError('Failed to Update Team', e.message);
+      throw e; // re-throw so modal stays open
+    }
   };
 
   const handleDeleteTeam = (team) => {
@@ -488,9 +498,13 @@ const Dashboard = ({ user }) => {
       title:   'Delete Team',
       message: `Delete team "${team.name}"? This cannot be undone.`,
       onConfirm: async () => {
-        await projectService.deleteTeam(team._id);
-        setTeams(prev => prev.filter(t => t._id !== team._id));
-        toastSuccess('Team Deleted', `"${team.name}" has been removed.`);
+        try {
+          await projectService.deleteTeam(team._id);
+          setTeams(prev => prev.filter(t => t._id !== team._id));
+          toastSuccess('Team Deleted', `"${team.name}" has been removed.`);
+        } catch (e) {
+          toastError('Failed to Delete Team', e.message);
+        }
       },
     });
   };
