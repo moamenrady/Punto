@@ -29,16 +29,22 @@ const taskSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    assigned_to: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
 
 taskSchema.pre(/^find/, function () {
-  this.populate("backlog_id", "name").populate("sprint_id", "name status");
-  // next();
-});
-taskSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role");
+  this.populate("backlog_id", "name")
+    .populate("sprint_id", "name status")
+    .populate("created_by", "name email role")
+    .populate("assigned_to", "name email role photo");
 });
 
 module.exports = mongoose.model("Task", taskSchema);

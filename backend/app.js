@@ -25,6 +25,7 @@ const stockRoutes = require("./routes/stockRoutes");
 const profileRouter = require("./routes/profile");
 const accountActionsRouter = require("./routes/accountActions");
 const notificationsRouter = require("./routes/notifications");
+const scheduleRoutes = require("./routes/scheduleRoutes");
 
 // Middleware
 app.use(express.json());
@@ -45,6 +46,8 @@ app.use("/api/v1/projects/:projectId/sprints", sprintRoutes);
 app.use("/api/v1/backlogs/:backlogId/tasks", taskRoutes);
 app.use("/api/v1/sprints/:sprintId/tasks", taskRoutes);
 app.use("/api/v1/stock", stockRoutes);
+app.use("/api/v1/schedules", scheduleRoutes);
+app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/auth", userRoutes);
 

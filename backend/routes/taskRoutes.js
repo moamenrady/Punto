@@ -5,6 +5,9 @@ const baseController = require("../controllers/baseController");
 
 const router = express.Router({ mergeParams: true });
 
+// Standalone route — must be before /:id to avoid conflict
+router.get("/my", authController.protect, taskController.getMyTasks);
+
 router
   .route("/")
   .get(taskController.getAllTasks)

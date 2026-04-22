@@ -19,13 +19,23 @@ const projectSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
 
-// auto populate created_by later
+// auto populate created_by and members
 projectSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role");
+  this.populate("created_by", "name email role").populate(
+    "members",
+    "name email role photo"
+  );
 });
 
 module.exports = mongoose.model("Project", projectSchema);

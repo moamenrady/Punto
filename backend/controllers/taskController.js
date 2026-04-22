@@ -1,6 +1,7 @@
-const Task = require("../models/taskModel");
+const Task    = require("../models/taskModel");
+const Backlog = require("../models/backlogModel");
 const catchAsync = require("../utils/catchAsync");
-const AppError = require("../utils/appError");
+const AppError   = require("../utils/appError");
 
 // Middleware: set backlog_id or sprint_id from params if missing in body
 exports.setBacklogOrSprintId = (req, res, next) => {
@@ -60,4 +61,26 @@ exports.deleteTask = catchAsync(async (req, res, next) => {
   const task = await Task.findByIdAndDelete(req.params.id);
   if (!task) return next(new AppError("Task not found", 404));
   res.status(204).json({ status: "success", data: null });
+});
+
+// GET tasks assigned to the currently logged-in user
+exports.getMyTasks = catchAsync(async (req, res, next) => {
+  const tasks = await Task.find({ assigned_to: req.user.id });
+  res.status(200).json({
+    status: "success",
+    results: tasks.length,
+    data: { tasks },
+  });
+});
+
+// GET all tasks across every backlog of a project
+exports.getProjectTasks = catchAsync(async (req, res, next) => {
+  const backlogs    = await Backlog.find({ project_id: req.params.id });
+  const backlogIds  = backlogs.map(b => b._id);
+  const tasks       = await Task.find({ backlog_id: { $in: backlogIds } });
+  res.status(200).json({
+    status: "success",
+    results: tasks.length,
+    data: { tasks },
+  });
 });
