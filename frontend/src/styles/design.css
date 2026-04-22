@@ -340,3 +340,70 @@
   border-radius: 6px;
   padding: 5px 8px;
 }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+
+/* Tablet (≤ 1024px) */
+@media (max-width: 1024px) {
+  .ds-page {
+    padding: 24px 24px;
+  }
+
+  .ds-user-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile (≤ 640px) */
+@media (max-width: 640px) {
+  .ds-page {
+    padding: 16px 14px;
+  }
+
+  .ds-modal {
+    max-width: 100%;
+    border-radius: 12px;
+    max-height: 95vh;
+  }
+
+  .ds-modal-lg {
+    max-width: 100%;
+  }
+
+  .ds-modal-header {
+    padding: 16px 18px 12px;
+  }
+
+  .ds-modal-body {
+    padding: 16px 18px;
+  }
+
+  .ds-modal-footer {
+    padding: 12px 18px 16px;
+    flex-wrap: wrap;
+  }
+
+  .ds-modal-footer .ds-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .ds-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ds-user-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ds-btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+  }
+
+  .ds-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+}

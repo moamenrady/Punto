@@ -915,3 +915,164 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================
+   RESPONSIVE — PROJECT MANAGEMENT DASHBOARD
+   ============================================ */
+
+/* ── Scrollable table wrappers ── */
+.table-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Page content wrapper ── */
+.page-content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Landing: stat cards ── */
+.landing-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+/* ── Landing: project cards list ── */
+.landing-project-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #E9EBF0;
+  flex-wrap: wrap;
+}
+
+.landing-project-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* ── Teams grid ── */
+.landing-teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* ── Kanban board ── */
+.kanban-board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── Tabs row ── */
+.tabs-row {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Weekly schedule table ── */
+.schedule-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─────────── Tablet (≤ 1100px) ─────────── */
+@media (max-width: 1100px) {
+  .landing-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kanban-board-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ─────────── Tablet (≤ 900px) ─────────── */
+@media (max-width: 900px) {
+  .landing-teams-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ─────────── Mobile (≤ 640px) ─────────── */
+@media (max-width: 640px) {
+  .landing-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .team-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kanban-board-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-teams-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-project-card {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .landing-project-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .tasks-table th,
+  .tasks-table td {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  .sprint-tasks-table th,
+  .sprint-tasks-table td {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  .kanboard {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ─────────── Small mobile (≤ 420px) ─────────── */
+@media (max-width: 420px) {
+  .landing-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-project-actions button {
+    font-size: 0.75rem;
+    padding: 5px 10px;
+  }
+}

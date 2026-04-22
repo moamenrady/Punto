@@ -62,12 +62,11 @@ export default function CreateTicketModal({ onClose, onSubmit, user }) {
     };
 
     try {
-      const response = await fetch("https://itmgmtbackend-production.up.railway.app/api/v1/tickets", {
+      const response = await fetch("http://127.0.0.1:5000/api/v1/tickets", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Add Authorization header if your API requires it:
-          // "Authorization": `Bearer ${localStorage.getItem('token')}`
+          "Authorization": `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify(payload),
       });

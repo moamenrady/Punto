@@ -20,7 +20,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
     // Reset form when modal opens or defaults change
     useEffect(() => {
         if (isOpen) {
-            setForm({ name: '', description: '', backlogId: defaultBacklogId, sprintId: defaultSprintId, priority: 'medium' });
+            setForm({ name: '', description: '', backlogId: defaultBacklogId, sprintId: defaultSprintId, priority: 'medium', assignedTo: [] });
             setErrors({});
             setTouched({});
         }

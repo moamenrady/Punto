@@ -970,3 +970,74 @@ body {
   background-color: #fafbfe;
   color: var(--text-dark);
 }
+
+/* ============================================================
+   RESPONSIVE LAYOUT
+   ============================================================ */
+
+/* Tablet (≤ 1024px) */
+@media (max-width: 1024px) {
+  .top-header {
+    padding: 0 20px;
+  }
+
+  .content-area {
+    padding: 24px 20px;
+  }
+}
+
+/* Mobile (≤ 768px) */
+@media (max-width: 768px) {
+  .app-container {
+    position: relative;
+  }
+
+  /* Sidebar collapses to icon-only width automatically via JS,
+     but also ensure it doesn't overflow on very small screens */
+  .sidebar {
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .top-header {
+    padding: 0 14px;
+    gap: 8px;
+  }
+
+  .header-actions {
+    gap: 10px;
+  }
+
+  .user-profile span {
+    display: none; /* hide username text on small screens */
+  }
+
+  .content-area {
+    padding: 16px 14px;
+  }
+}
+
+/* Mobile (≤ 480px) */
+@media (max-width: 480px) {
+  .top-header {
+    padding: 0 10px;
+  }
+
+  .icon-btn {
+    padding: 8px;
+  }
+
+  .icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .create-btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .page-title {
+    font-size: 1.2rem;
+  }
+}

@@ -65,6 +65,14 @@ export const projectService = {
   // ── My Tasks (tasks assigned to the logged-in user) ──────────────────────────
   getMyTasks: () => request('GET', '/tasks/my').then(j => j?.data?.tasks ?? []),
 
+  // ── Teams ────────────────────────────────────────────────────────────────────
+  getTeams:        ()           => request('GET',    '/teams').then(j => j?.data?.teams ?? []),
+  createTeam:      (data)       => request('POST',   '/teams', data).then(j => j?.data?.team ?? j?.data),
+  updateTeam:      (id, data)   => request('PATCH',  `/teams/${id}`, data).then(j => j?.data?.team ?? j?.data),
+  deleteTeam:      (id)         => request('DELETE', `/teams/${id}`),
+  addTeamMember:   (tid, userId) => request('POST',  `/teams/${tid}/members`, { userId }).then(j => j?.data?.team ?? j?.data),
+  removeTeamMember:(tid, userId) => request('DELETE', `/teams/${tid}/members/${userId}`).then(j => j?.data?.team ?? j?.data),
+
   // ── Schedules ────────────────────────────────────────────────────────────────
   getMySchedule:      (projectId, weekStart) => {
     const params = new URLSearchParams();
