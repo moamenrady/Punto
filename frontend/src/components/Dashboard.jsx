@@ -16,6 +16,7 @@ import AddMemberModal      from './AddMemberModal';
 import ConfirmModal        from './ConfirmModal';
 import ProjectDetailsModal from './ProjectDetailsModal';
 import AddTeamModal        from './AddTeamModal';
+import TeamDetailsModal    from './TeamDetailsModal';
 import Toast, { useToast } from './Toast';
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
@@ -302,7 +303,8 @@ const Dashboard = ({ user }) => {
   // ── modals ──
   const [modal,        setModal]        = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
-  const [teamModal,    setTeamModal]    = useState(null); // null | { mode:'create' } | { mode:'edit', team }
+  const [teamModal,       setTeamModal]       = useState(null); // null | { mode:'create' } | { mode:'edit', team }
+  const [viewTeam,        setViewTeam]        = useState(null); // team object to view details
 
 
   // ── DnD sensors ──
@@ -1007,12 +1009,32 @@ const Dashboard = ({ user }) => {
                     )}
                   </div>
 
-                  {/* Created by + date */}
+                  {/* Created by + date + view button */}
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingTop:10, borderTop:'1px solid #F3F4F6' }}>
-                    <span style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>
-                      By {team.created_by?.name ?? 'Admin'}
-                    </span>
-                    <span style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>{fmt(team.createdAt)}</span>
+                    <div>
+                      <span style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>By {team.created_by?.name ?? 'Admin'}</span>
+                      <span style={{ fontSize:'0.7rem', color:'#D1D5DB', margin:'0 6px' }}>·</span>
+                      <span style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>{fmt(team.createdAt)}</span>
+                    </div>
+                    <button
+                      onClick={() => setViewTeam(team)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        fontSize: '0.75rem', fontWeight: 700,
+                        color: '#0891B2', background: '#E0F2FE',
+                        border: 'none', borderRadius: 8,
+                        padding: '5px 11px', cursor: 'pointer',
+                        transition: 'background .15s, color .15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background='#0891B2'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background='#E0F2FE'; e.currentTarget.style.color='#0891B2'; }}
+                    >
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      View
+                    </button>
                   </div>
                 </div>
               );
@@ -1861,6 +1883,15 @@ const Dashboard = ({ user }) => {
         stats={selectedProjId ? getProjectStats(selectedProjId) : {}}
         isAdmin={isAdmin}
         onManageTeam={() => setModal({ type:'manageTeam', data: modal?.data })}
+      />
+
+      {/* ── Team Details Modal ── */}
+      <TeamDetailsModal
+        isOpen={!!viewTeam}
+        team={viewTeam}
+        onClose={() => setViewTeam(null)}
+        isAdmin={isAdmin}
+        onEdit={(team) => setTeamModal({ mode: 'edit', team })}
       />
 
       {/* ── Add / Edit Team Modal ── */}
