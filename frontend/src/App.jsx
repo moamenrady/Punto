@@ -26,8 +26,6 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const isAdmin = user?.role === "admin";
 
-  const isAdmin = user?.role === "admin";
-
   const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
 
   // Define refreshTicketList to re-fetch data from the API
@@ -38,11 +36,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
       const data = await response.json();
       if (response.ok) {
         setTickets(Array.isArray(data) ? data : (data.tickets || []));
-      } catch (error) {
-        console.error("Fetch Error:", error);
-        setTickets([]);
-      } finally {
-        setIsLoading(false);
+   
       }
     } catch (error) {
       console.error("Failed to refresh tickets:", error);
