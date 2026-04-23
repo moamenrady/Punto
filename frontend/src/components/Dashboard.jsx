@@ -13,7 +13,11 @@ import CreateSprintModal   from './CreateSprintModal';
 import CreateBacklogModal  from './CreateBacklogModal';
 import CreateTaskModal     from './CreateTaskModal';
 import AddMemberModal      from './AddMemberModal';
+import ConfirmModal        from './ConfirmModal';
 import ProjectDetailsModal from './ProjectDetailsModal';
+import AddTeamModal        from './AddTeamModal';
+import TeamDetailsModal    from './TeamDetailsModal';
+import Toast, { useToast } from './Toast';
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
@@ -262,20 +266,29 @@ const Dashboard = ({ user }) => {
 
   const isAdmin = true;
 
+  // ── toast notifications ──
+  const { toasts, close: closeToast, success: toastSuccess, error: toastError } = useToast();
+
   // ── data state ──
   const [projects,      setProjects]      = useState([]);
+  const [teams,         setTeams]         = useState([]);
   const [sprints,       setSprints]       = useState([]);
   const [backlogs,      setBacklogs]      = useState([]);
   const [tasksByBacklog,setTasksByBacklog] = useState({}); // { backlogId: Task[] }
 
+  // Tracks the most-recently-requested project ID so stale fetches don't overwrite fresh data
+  const currentFetchPid = useRef(null);
+
   // ── loading / error ──
   const [projLoading,  setProjLoading]  = useState(true);
   const [projError,    setProjError]    = useState(null);
+  const [teamsLoading, setTeamsLoading] = useState(false);
   const [dataLoading,  setDataLoading]  = useState(false);
   const [dataError,    setDataError]    = useState(null);
 
   // ── ui state ──
-  const [activeTab,       setActiveTab]       = useState('overview');
+  const [viewMode,        setViewMode]        = useState('landing'); // 'landing' | 'project'
+  const [activeTab,       setActiveTab]       = useState('backlog');
   const [selectedProjId,  setSelectedProjId]  = useState('');
   const [expandedBacklogs,setExpandedBacklogs] = useState([]);
   const [expandedSprints, setExpandedSprints]  = useState([]);
@@ -288,7 +301,11 @@ const Dashboard = ({ user }) => {
   const [schedLoading,    setSchedLoading]    = useState(false);
 
   // ── modals ──
-  const [modal, setModal] = useState(null);
+  const [modal,        setModal]        = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
+  const [teamModal,       setTeamModal]       = useState(null); // null | { mode:'create' } | { mode:'edit', team }
+  const [viewTeam,        setViewTeam]        = useState(null); // team object to view details
+
 
   // ── DnD sensors ──
   const sensors = useSensors(
@@ -356,17 +373,37 @@ const Dashboard = ({ user }) => {
     }
   }, []);
 
+  const fetchTeams = useCallback(async () => {
+    try {
+      setTeamsLoading(true);
+      const data = await projectService.getTeams();
+      setTeams(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Failed to load teams:', e.message);
+    } finally {
+      setTeamsLoading(false);
+    }
+  }, []);
+
   const fetchProjectData = useCallback(async (pid) => {
-    if (!pid) { setSprints([]); setBacklogs([]); setTasksByBacklog({}); return; }
+    // Register this fetch as the "current" one
+    currentFetchPid.current = pid;
+
+    // Clear previous project data immediately — no stale tasks shown during load
+    setSprints([]); setBacklogs([]); setTasksByBacklog({});
+    if (!pid) return;
+
     try {
       setDataLoading(true); setDataError(null);
       const [sprintData, backlogData] = await Promise.all([
         projectService.getSprints(pid),
         projectService.getBacklogs(pid),
       ]);
-      setSprints(sprintData);
-      setBacklogs(backlogData);
 
+      // Abort if a newer fetch has already been triggered for a different project
+      if (currentFetchPid.current !== pid) return;
+
+      // Fetch tasks for every backlog of THIS project in parallel
       const taskEntries = await Promise.all(
         backlogData.map(async (bl) => {
           try {
@@ -375,13 +412,20 @@ const Dashboard = ({ user }) => {
           } catch { return [bl._id, []]; }
         })
       );
+
+      // Final stale check before committing task data
+      if (currentFetchPid.current !== pid) return;
+
+      setSprints(sprintData);
+      setBacklogs(backlogData);
+      // Completely replace task map — only this project's backlogs/tasks are kept
       setTasksByBacklog(Object.fromEntries(taskEntries));
       setExpandedBacklogs(backlogData.map(b => b._id));
       setExpandedSprints(sprintData.map(s => s._id));
     } catch (e) {
-      setDataError(e.message);
+      if (currentFetchPid.current === pid) setDataError(e.message);
     } finally {
-      setDataLoading(false);
+      if (currentFetchPid.current === pid) setDataLoading(false);
     }
   }, []);
 
@@ -416,6 +460,7 @@ const Dashboard = ({ user }) => {
   }, []);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => { fetchTeams(); },   [fetchTeams]);
   useEffect(() => { fetchProjectData(selectedProjId); }, [selectedProjId, fetchProjectData]);
   useEffect(() => {
     if (activeTab === 'team') fetchTeamSchedules(selectedProjId, schedWeekOffset);
@@ -423,24 +468,74 @@ const Dashboard = ({ user }) => {
 
   const refreshProjectData = () => fetchProjectData(selectedProjId);
 
+  // ─── Team handlers ────────────────────────────────────────────────────────────
+  const handleCreateTeam = async (formData) => {
+    try {
+      const team = await projectService.createTeam(formData);
+      setTeams(prev => [team, ...prev]);
+      toastSuccess(
+        'Team Created!',
+        `"${team.name}" has been created with ${(team.members ?? []).length} member${(team.members ?? []).length !== 1 ? 's' : ''}.`
+      );
+    } catch (e) {
+      toastError('Failed to Create Team', e.message);
+      throw e; // re-throw so modal stays open
+    }
+  };
+
+  const handleEditTeam = async (formData) => {
+    try {
+      const id   = teamModal?.team?._id;
+      const team = await projectService.updateTeam(id, formData);
+      setTeams(prev => prev.map(t => t._id === id ? team : t));
+      toastSuccess('Team Updated!', `"${team.name}" has been saved successfully.`);
+    } catch (e) {
+      toastError('Failed to Update Team', e.message);
+      throw e; // re-throw so modal stays open
+    }
+  };
+
+  const handleDeleteTeam = (team) => {
+    setConfirmModal({
+      title:   'Delete Team',
+      message: `Delete team "${team.name}"? This cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await projectService.deleteTeam(team._id);
+          setTeams(prev => prev.filter(t => t._id !== team._id));
+          toastSuccess('Team Deleted', `"${team.name}" has been removed.`);
+        } catch (e) {
+          toastError('Failed to Delete Team', e.message);
+        }
+      },
+    });
+  };
+
   // ─── handlers ─────────────────────────────────────────────────────────────────
   const closeModal = () => setModal(null);
 
   const handleCreateProject = async (formData) => {
     try {
-      await projectService.createProject({ name: formData.name, description: formData.description });
+      const p = await projectService.createProject({ name: formData.name, description: formData.description });
       await fetchProjects();
       closeModal();
-    } catch (e) { alert(e.message); }
+      toastSuccess('Project Created!', `"${formData.name}" is ready.`);
+    } catch (e) { toastError('Failed', e.message); }
   };
 
-  const handleDeleteProject = async (project) => {
-    if (!window.confirm(`Delete project "${project.name}"? This cannot be undone.`)) return;
-    try {
-      await projectService.deleteProject(project._id);
-      if (selectedProjId === project._id) setSelectedProjId('');
-      await fetchProjects();
-    } catch (e) { alert(e.message); }
+  const handleDeleteProject = (project) => {
+    setConfirmModal({
+      title:   'Delete Project',
+      message: `Are you sure you want to delete "${project.name}"? All its sprints, backlogs and tasks will be permanently removed.`,
+      onConfirm: async () => {
+        try {
+          await projectService.deleteProject(project._id);
+          if (selectedProjId === project._id) { setSelectedProjId(''); setViewMode('landing'); }
+          await fetchProjects();
+          toastSuccess('Project Deleted', `"${project.name}" has been removed.`);
+        } catch (e) { toastError('Failed', e.message); }
+      },
+    });
   };
 
   const handleCreateSprint = async (formData) => {
@@ -454,7 +549,8 @@ const Dashboard = ({ user }) => {
       });
       await refreshProjectData();
       closeModal();
-    } catch (e) { alert(e.message); }
+      toastSuccess('Sprint Created!', `"${formData.name}" added to this project.`);
+    } catch (e) { toastError('Failed', e.message); }
   };
 
   const handleEditSprint = async (formData) => {
@@ -469,7 +565,8 @@ const Dashboard = ({ user }) => {
       });
       await refreshProjectData();
       closeModal();
-    } catch (e) { alert(e.message); }
+      toastSuccess('Sprint Updated', `"${formData.name}" saved.`);
+    } catch (e) { toastError('Failed', e.message); }
   };
 
   const handleDeleteSprint = async (sprintId) => {
@@ -477,7 +574,8 @@ const Dashboard = ({ user }) => {
       await projectService.deleteSprint(selectedProjId, sprintId);
       await refreshProjectData();
       closeModal();
-    } catch (e) { alert(e.message); }
+      toastSuccess('Sprint Deleted', 'Sprint has been removed.');
+    } catch (e) { toastError('Failed', e.message); }
   };
 
   const handleCreateBacklog = async (formData) => {
@@ -491,15 +589,22 @@ const Dashboard = ({ user }) => {
       });
       await refreshProjectData();
       closeModal();
-    } catch (e) { alert(e.message); }
+      toastSuccess('Backlog Created!', `"${formData.name}" added to this project.`);
+    } catch (e) { toastError('Failed', e.message); }
   };
 
-  const handleDeleteBacklog = async (backlog) => {
-    if (!window.confirm(`Delete backlog "${backlog.name}"?`)) return;
-    try {
-      await projectService.deleteBacklog(selectedProjId, backlog._id);
-      await refreshProjectData();
-    } catch (e) { alert(e.message); }
+  const handleDeleteBacklog = (backlog) => {
+    setConfirmModal({
+      title:   'Delete Backlog',
+      message: `Delete backlog "${backlog.name}"? All tasks inside it will also be removed.`,
+      onConfirm: async () => {
+        try {
+          await projectService.deleteBacklog(selectedProjId, backlog._id);
+          await refreshProjectData();
+          toastSuccess('Backlog Deleted', `"${backlog.name}" and its tasks have been removed.`);
+        } catch (e) { toastError('Failed', e.message); }
+      },
+    });
   };
 
   const handleCreateTask = async (formData) => {
@@ -515,7 +620,8 @@ const Dashboard = ({ user }) => {
       });
       await refreshProjectData();
       closeModal();
-    } catch (e) { alert(e.message); }
+      toastSuccess('Task Created!', `"${name}" added successfully.`);
+    } catch (e) { toastError('Failed', e.message); }
   };
 
   const handleUpdateTaskStatus = async (task, newStatus) => {
@@ -526,19 +632,25 @@ const Dashboard = ({ user }) => {
         const bTasks = (prev[backlogId] ?? []).map(t => t._id === task._id ? { ...t, status: newStatus } : t);
         return { ...prev, [backlogId]: bTasks };
       });
-    } catch (e) { alert(e.message); }
+    } catch (e) { toastError('Failed to update status', e.message); }
   };
 
-  const handleDeleteTask = async (task) => {
-    if (!window.confirm(`Delete task "${task.name}"?`)) return;
-    const backlogId = task.backlog_id?._id ?? task.backlog_id;
-    try {
-      await projectService.deleteTask(backlogId, task._id);
-      setTasksByBacklog(prev => ({
-        ...prev,
-        [backlogId]: (prev[backlogId] ?? []).filter(t => t._id !== task._id),
-      }));
-    } catch (e) { alert(e.message); }
+  const handleDeleteTask = (task) => {
+    setConfirmModal({
+      title:   'Delete Task',
+      message: `Delete task "${task.name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        const backlogId = task.backlog_id?._id ?? task.backlog_id;
+        try {
+          await projectService.deleteTask(backlogId, task._id);
+          setTasksByBacklog(prev => ({
+            ...prev,
+            [backlogId]: (prev[backlogId] ?? []).filter(t => t._id !== task._id),
+          }));
+          toastSuccess('Task Deleted', `"${task.name}" has been removed.`);
+        } catch (e) { toastError('Failed', e.message); }
+      },
+    });
   };
 
   const handleMembersChange = (updatedProject) => {
@@ -671,8 +783,270 @@ const Dashboard = ({ user }) => {
     };
   };
 
+  // helper: enter a specific project
+  const enterProject = (projectId, tab = 'backlog') => {
+    setSelectedProjId(projectId);
+    setActiveTab(tab);
+    setViewMode('project');
+  };
+
   // ══════════════════════════════════════════════════════════════════════════════
-  // TAB: OVERVIEW
+  // LANDING PAGE — all projects + teams overview
+  // ══════════════════════════════════════════════════════════════════════════════
+  const renderLanding = () => (
+    <>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h1 style={{ fontSize:'1.25rem', fontWeight:800, color:'#111827', margin:'0 0 4px' }}>Project Management</h1>
+          <p style={{ color:'#9CA3AF', fontSize:'0.85rem', margin:0 }}>Overview of all your projects and teams</p>
+        </div>
+        {isAdmin && (
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <button className="ds-btn ds-btn-secondary" onClick={() => setTeamModal({ mode:'create' })}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              New Team
+            </button>
+            <button className="ds-btn ds-btn-primary" onClick={() => setModal({ type:'createProject' })}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Project
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="landing-stats-grid" style={{ gap:14, marginBottom:28 }}>
+        {[
+          { label:'Total Projects',  value: stats.totalProjects,  icon:'🗂️', color:'#534AB7', bg:'#EEF1FD' },
+          { label:'Total Teams',     value: teams.length,         icon:'👥', color:'#0891B2', bg:'#E0F2FE' },
+          { label:'Active Sprints',  value: stats.activeSprints,  icon:'🚀', color:'#059669', bg:'#D1FAE5' },
+          { label:'Completed Tasks', value: stats.completed,      icon:'✅', color:'#6B7280', bg:'#F3F4F6' },
+        ].map(c => (
+          <div key={c.label} className="ds-card" style={{ padding:'18px 20px', display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ width:44, height:44, borderRadius:12, background:c.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem', flexShrink:0 }}>{c.icon}</div>
+            <div>
+              <p style={{ margin:0, fontSize:'0.68rem', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em' }}>{c.label}</p>
+              <p style={{ margin:0, fontSize:'1.7rem', fontWeight:800, color:c.color, lineHeight:1.1 }}>{c.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Projects Overview */}
+      <div style={{ marginBottom:28 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <h2 style={{ fontSize:'1rem', fontWeight:700, color:'#111827', margin:0 }}>
+            Projects Overview
+            <span style={{ marginLeft:8, fontSize:'0.72rem', fontWeight:700, color:'#8A9FE8', background:'#EEF1FD', padding:'2px 8px', borderRadius:20 }}>{projects.length}</span>
+          </h2>
+        </div>
+
+        {projLoading ? <Spinner /> : projError ? <ErrorBanner msg={projError} onRetry={fetchProjects} /> : projects.length === 0 ? (
+          <EmptyState icon="🗂️" title="No projects yet" sub={isAdmin ? 'Click "New Project" to create your first project' : 'No projects available'} />
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {projects.map(p => {
+              /* per-card task stats need project data — use cached allTasks only if this project is already loaded */
+              const cardMembers = p.members ?? [];
+              return (
+                <div key={p._id} className="ds-card" style={{ padding:'16px 20px', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap', transition:'box-shadow .15s' }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 16px rgba(83,74,183,0.10)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow=''}
+                >
+                  {/* Project icon */}
+                  <div style={{ width:44, height:44, borderRadius:12, background:'linear-gradient(135deg,#8A9FE8,#534AB7)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', fontWeight:800, color:'#fff', flexShrink:0 }}>
+                    {p.name.charAt(0).toUpperCase()}
+                  </div>
+
+                  {/* Name + description */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ margin:'0 0 2px', fontWeight:700, fontSize:'0.9rem', color:'#111827', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>{p.name}</p>
+                    <p style={{ margin:0, fontSize:'0.78rem', color:'#9CA3AF', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>{p.description || 'No description'}</p>
+                  </div>
+
+                  {/* Team avatars */}
+                  <div style={{ display:'flex', alignItems:'center', flexShrink:0 }}>
+                    {cardMembers.length === 0 ? (
+                      <span style={{ fontSize:'0.75rem', color:'#D1D5DB' }}>No members</span>
+                    ) : (
+                      <>
+                        {cardMembers.slice(0,5).map((m, i) => (
+                          <div key={m._id??i} title={m.name??'?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i }}>
+                            <Avatar name={m.name??'?'} size={28} />
+                          </div>
+                        ))}
+                        {cardMembers.length > 5 && <span style={{ marginLeft:6, fontSize:'0.72rem', color:'#9CA3AF' }}>+{cardMembers.length-5}</span>}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Created date */}
+                  <span style={{ fontSize:'0.75rem', color:'#9CA3AF', whiteSpace:'nowrap', flexShrink:0 }}>{fmt(p.createdAt)}</span>
+
+                  {/* Action buttons */}
+                  <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                    <button title="View Details" onClick={() => { setSelectedProjId(p._id); setModal({ type:'projectDetails', data: p }); }}
+                      style={{ ...iconBtn }} onMouseEnter={e=>{e.currentTarget.style.background='#EEF1FD';e.currentTarget.style.color='#534AB7';}} onMouseLeave={e=>{e.currentTarget.style.background='';e.currentTarget.style.color='#9CA3AF';}}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </button>
+                    {isAdmin && (
+                      <button title="Manage Team" onClick={() => { setSelectedProjId(p._id); setModal({ type:'manageTeam', data: p }); }}
+                        style={{ ...iconBtn }} onMouseEnter={e=>{e.currentTarget.style.background='#D1FAE5';e.currentTarget.style.color='#065F46';}} onMouseLeave={e=>{e.currentTarget.style.background='';e.currentTarget.style.color='#9CA3AF';}}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button title="Delete Project" onClick={() => handleDeleteProject(p)}
+                        style={{ ...iconBtn }} onMouseEnter={e=>{e.currentTarget.style.background='#FEF2F2';e.currentTarget.style.color='#EF4444';}} onMouseLeave={e=>{e.currentTarget.style.background='';e.currentTarget.style.color='#9CA3AF';}}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                      </button>
+                    )}
+                    {/* Enter project */}
+                    <button
+                      onClick={() => enterProject(p._id)}
+                      style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background:'#534AB7', color:'#fff', fontWeight:700, fontSize:'0.8rem', cursor:'pointer', transition:'background .15s', flexShrink:0 }}
+                      onMouseEnter={e => e.currentTarget.style.background='#4338CA'}
+                      onMouseLeave={e => e.currentTarget.style.background='#534AB7'}
+                    >
+                      Open
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Teams Overview ── */}
+      <div>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
+          <h2 style={{ fontSize:'1rem', fontWeight:700, color:'#111827', margin:0 }}>
+            Teams Overview
+            <span style={{ marginLeft:8, fontSize:'0.72rem', fontWeight:700, color:'#0891B2', background:'#E0F2FE', padding:'2px 8px', borderRadius:20 }}>{teams.length}</span>
+          </h2>
+          {isAdmin && (
+            <button className="ds-btn ds-btn-secondary" style={{ fontSize:'0.8rem', padding:'6px 12px' }} onClick={() => setTeamModal({ mode:'create' })}>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Team
+            </button>
+          )}
+        </div>
+
+        {teamsLoading ? <Spinner /> : teams.length === 0 ? (
+          <EmptyState icon="👥" title="No teams yet" sub={isAdmin ? 'Click "Add Team" to create your first team' : 'No teams have been created yet'} />
+        ) : (
+          <div className="landing-teams-grid" style={{ gap:14 }}>
+            {teams.map(team => {
+              const members = team.members ?? [];
+              return (
+                <div key={team._id} className="ds-card" style={{ padding:'18px 20px', transition:'box-shadow .15s' }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 16px rgba(8,145,178,0.10)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow=''}
+                >
+                  {/* Card header */}
+                  <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                      <div style={{ width:38, height:38, borderRadius:10, background:'linear-gradient(135deg,#06B6D4,#0891B2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', fontWeight:800, color:'#fff', flexShrink:0 }}>
+                        {(team.name ?? 'T').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ minWidth:0 }}>
+                        <p style={{ margin:0, fontWeight:700, fontSize:'0.9rem', color:'#111827', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', maxWidth:160 }}>{team.name}</p>
+                        <p style={{ margin:0, fontSize:'0.72rem', color:'#9CA3AF' }}>{members.length} member{members.length!==1?'s':''}</p>
+                      </div>
+                    </div>
+
+                    {/* Action icons */}
+                    {isAdmin && (
+                      <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                        <button title="Edit team"
+                          onClick={() => setTeamModal({ mode:'edit', team })}
+                          style={{ width:28, height:28, borderRadius:7, border:'none', background:'transparent', cursor:'pointer', color:'#9CA3AF', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .15s' }}
+                          onMouseEnter={e=>{e.currentTarget.style.background='#EEF1FD';e.currentTarget.style.color='#534AB7';}}
+                          onMouseLeave={e=>{e.currentTarget.style.background='';e.currentTarget.style.color='#9CA3AF';}}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button title="Delete team"
+                          onClick={() => handleDeleteTeam(team)}
+                          style={{ width:28, height:28, borderRadius:7, border:'none', background:'transparent', cursor:'pointer', color:'#9CA3AF', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .15s' }}
+                          onMouseEnter={e=>{e.currentTarget.style.background='#FEF2F2';e.currentTarget.style.color='#EF4444';}}
+                          onMouseLeave={e=>{e.currentTarget.style.background='';e.currentTarget.style.color='#9CA3AF';}}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  {team.description && (
+                    <p style={{ margin:'0 0 10px', fontSize:'0.78rem', color:'#6B7280', lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                      {team.description}
+                    </p>
+                  )}
+
+                  {/* Member avatars */}
+                  <div style={{ display:'flex', alignItems:'center', marginBottom:14, minHeight:30 }}>
+                    {members.length === 0 ? (
+                      <span style={{ fontSize:'0.78rem', color:'#D1D5DB', fontStyle:'italic' }}>No members yet</span>
+                    ) : (
+                      <>
+                        {members.slice(0,7).map((m, i) => (
+                          <div key={m._id??i} title={m.name??'?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i, border:'2px solid #fff', borderRadius:'50%' }}>
+                            <Avatar name={m.name??'?'} size={30} />
+                          </div>
+                        ))}
+                        {members.length > 7 && (
+                          <div style={{ marginLeft:4, fontSize:'0.72rem', color:'#9CA3AF', fontWeight:600 }}>+{members.length-7}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Created by + date + view button */}
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingTop:10, borderTop:'1px solid #F3F4F6' }}>
+                    <div>
+                      <span style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>By {team.created_by?.name ?? 'Admin'}</span>
+                      <span style={{ fontSize:'0.7rem', color:'#D1D5DB', margin:'0 6px' }}>·</span>
+                      <span style={{ fontSize:'0.7rem', color:'#9CA3AF' }}>{fmt(team.createdAt)}</span>
+                    </div>
+                    <button
+                      onClick={() => setViewTeam(team)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        fontSize: '0.75rem', fontWeight: 700,
+                        color: '#0891B2', background: '#E0F2FE',
+                        border: 'none', borderRadius: 8,
+                        padding: '5px 11px', cursor: 'pointer',
+                        transition: 'background .15s, color .15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background='#0891B2'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background='#E0F2FE'; e.currentTarget.style.color='#0891B2'; }}
+                    >
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      View
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TAB: OVERVIEW (kept for backwards compat, not used directly)
   // ══════════════════════════════════════════════════════════════════════════════
   const renderOverview = () => (
     <>
@@ -814,17 +1188,16 @@ const Dashboard = ({ user }) => {
   // ══════════════════════════════════════════════════════════════════════════════
   const renderBacklog = () => (
     <>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20, flexWrap:'wrap', gap:12 }}>
-        <ProjectSelector projects={projects} value={selectedProjId} onChange={setSelectedProjId} />
-        {isAdmin && selectedProjId && (
+      {isAdmin && (
+        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
           <button className="ds-btn ds-btn-primary" onClick={() => setModal({ type:'createBacklog' })}>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Backlog
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {!selectedProjId ? noProjectSelected : dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : backlogs.length === 0 ? (
+      {dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : backlogs.length === 0 ? (
         <EmptyState icon="📂" title="No backlogs yet" sub={isAdmin ? 'Click "Add Backlog" to create one' : 'No backlogs in this project'} />
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -943,17 +1316,16 @@ const Dashboard = ({ user }) => {
   // ══════════════════════════════════════════════════════════════════════════════
   const renderSprintPlanning = () => (
     <>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20, flexWrap:'wrap', gap:12 }}>
-        <ProjectSelector projects={projects} value={selectedProjId} onChange={setSelectedProjId} />
-        {isAdmin && selectedProjId && (
+      {isAdmin && (
+        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
           <button className="ds-btn ds-btn-primary" onClick={() => setModal({ type:'createSprint' })}>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Sprint
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {!selectedProjId ? noProjectSelected : dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : sprints.length === 0 ? (
+      {dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : sprints.length === 0 ? (
         <EmptyState icon="🚀" title="No sprints yet" sub={isAdmin ? 'Click "Add Sprint" to create one' : 'No sprints in this project'} />
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -1080,14 +1452,13 @@ const Dashboard = ({ user }) => {
     return (
       <>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
-          <ProjectSelector projects={projects} value={selectedProjId} onChange={setSelectedProjId} />
           <div className="ds-search-wrap" style={{ width:220 }}>
             <span className="ds-search-icon">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
             <input className="ds-search-input" placeholder="Search tasks…" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} />
           </div>
-          {isAdmin && selectedProjId && backlogs.length > 0 && (
+          {isAdmin && backlogs.length > 0 && (
             <button className="ds-btn ds-btn-primary" onClick={() => setModal({ type:'createTask', data: null })}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Task
@@ -1095,7 +1466,7 @@ const Dashboard = ({ user }) => {
           )}
         </div>
 
-        {!selectedProjId ? noProjectSelected : dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : (
+        {dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : (
           <>
             <p style={{ margin:'0 0 12px', fontSize:'0.78rem', color:'#9CA3AF', display:'flex', alignItems:'center', gap:6 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 9h14M5 15h14"/><circle cx="4" cy="9" r="1" fill="currentColor"/><circle cx="4" cy="15" r="1" fill="currentColor"/></svg>
@@ -1107,7 +1478,7 @@ const Dashboard = ({ user }) => {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, alignItems:'start' }}>
+              <div className="kanban-board-grid" style={{ gap:16, alignItems:'start' }}>
                 {colCfg.map(col => (
                   <DroppableColumn
                     key={col.key}
@@ -1158,23 +1529,22 @@ const Dashboard = ({ user }) => {
     return (
       <>
         {/* Top bar */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20, flexWrap:'wrap', gap:12 }}>
-          <ProjectSelector projects={projects} value={selectedProjId} onChange={setSelectedProjId} />
-          {isAdmin && selectedProjId && (
+        {isAdmin && (
+          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
             <button className="ds-btn ds-btn-secondary" onClick={() => setModal({ type:'manageTeam', data: selectedProject })}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               Manage Team
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
-        {!selectedProjId ? noProjectSelected : dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : members.length === 0 ? (
+        {dataLoading ? <Spinner /> : dataError ? <ErrorBanner msg={dataError} onRetry={refreshProjectData} /> : members.length === 0 ? (
           <EmptyState icon="👥" title="No team members" sub={isAdmin ? 'Click "Manage Team" to add members to this project' : 'No members have been added to this project yet'} />
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
             {/* ── Summary stats ── */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+            <div className="team-stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
               {[
                 { label:'Team Size',   value: members.length,                                                         color:'#534AB7', bg:'#EEF1FD', icon:'👥' },
                 { label:'Total Tasks', value: allTasks.length,                                                          color:'#D97706', bg:'#FEF3C7', icon:'📋' },
@@ -1379,12 +1749,11 @@ const Dashboard = ({ user }) => {
     status:    (() => { const s = modal.data.status ?? 'planned'; return s.charAt(0).toUpperCase() + s.slice(1); })(),
   } : null;
 
-  const TABS = [
-    { key:'overview',  label:'Overview',       icon:'🏠' },
-    { key:'backlog',   label:'Backlog',         icon:'📋' },
-    { key:'sprint',    label:'Sprint Planning', icon:'🚀' },
-    { key:'board',     label:'Board',           icon:'📌' },
-    { key:'team',      label:'Team Schedule',   icon:'👥' },
+  const PROJECT_TABS = [
+    { key:'backlog', label:'Backlog',         icon:'📋' },
+    { key:'sprint',  label:'Sprint Planning', icon:'🚀' },
+    { key:'board',   label:'Board',           icon:'📌' },
+    { key:'team',    label:'Team Schedule',   icon:'👥' },
   ];
 
   // ══════════════════════════════════════════════════════════════════════════════
@@ -1394,38 +1763,63 @@ const Dashboard = ({ user }) => {
     <div className="ds-page">
       <div className="page-content-wrapper">
 
-        {/* Page header */}
-        <div style={{ marginBottom:24 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-            <h1 style={{ fontSize:'1.25rem', fontWeight:700, color:'#111827', margin:0 }}>Project Management</h1>
-            <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#8A9FE8', background:'#EEF1FD', border:'1px solid #C7D2F8', borderRadius:20, padding:'2px 10px', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              {isAdmin ? 'Admin' : 'Viewer'}
-            </span>
-          </div>
-          <p style={{ color:'#9CA3AF', fontSize:'0.875rem', margin:0 }}>
-            {selectedProject ? `Working on: ${selectedProject.name}` : 'Manage projects, sprints, backlogs and tasks.'}
-          </p>
-        </div>
+        {viewMode === 'landing' ? (
+          /* ── LANDING PAGE ── */
+          renderLanding()
+        ) : (
+          /* ── PROJECT DETAIL ── */
+          <>
+            {/* Breadcrumb */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, flexWrap:'wrap' }}>
+              <button
+                onClick={() => setViewMode('landing')}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:'1px solid #E9EBF0', background:'#F9FAFB', color:'#6B7280', fontSize:'0.82rem', fontWeight:600, cursor:'pointer', transition:'background .15s' }}
+                onMouseEnter={e => e.currentTarget.style.background='#EEF1FD'}
+                onMouseLeave={e => e.currentTarget.style.background='#F9FAFB'}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                All Projects
+              </button>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#D1D5DB" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ width:24, height:24, borderRadius:6, background:'linear-gradient(135deg,#8A9FE8,#534AB7)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', fontWeight:800, color:'#fff' }}>
+                  {selectedProject?.name?.charAt(0)?.toUpperCase() ?? 'P'}
+                </div>
+                <span style={{ fontWeight:700, fontSize:'0.9rem', color:'#111827' }}>{selectedProject?.name ?? 'Project'}</span>
+                <span style={{ fontSize:'0.72rem', fontWeight:700, color:'#8A9FE8', background:'#EEF1FD', border:'1px solid #C7D2F8', borderRadius:20, padding:'1px 8px', textTransform:'capitalize' }}>{user?.role ?? 'User'}</span>
+              </div>
+            </div>
 
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'2px solid #E9EBF0', paddingBottom:0 }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{ padding:'10px 18px', fontSize:'0.875rem', fontWeight:activeTab === tab.key ? 700 : 500, color: activeTab === tab.key ? '#534AB7' : '#6B7280', background:'none', border:'none', cursor:'pointer', borderBottom: activeTab === tab.key ? '2px solid #534AB7' : '2px solid transparent', marginBottom:-2, transition:'color .15s', display:'flex', alignItems:'center', gap:6 }}>
-              <span>{tab.icon}</span> {tab.label}
-            </button>
-          ))}
-        </div>
+            {/* Tabs */}
+            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'2px solid #E9EBF0', overflowX:'auto' }} className="tabs-row">
+              {PROJECT_TABS.map(tab => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  style={{ padding:'10px 18px', fontSize:'0.875rem', fontWeight:activeTab===tab.key?700:500, color:activeTab===tab.key?'#534AB7':'#6B7280', background:'none', border:'none', cursor:'pointer', borderBottom:activeTab===tab.key?'2px solid #534AB7':'2px solid transparent', marginBottom:-2, transition:'color .15s', display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap', flexShrink:0 }}>
+                  <span>{tab.icon}</span> {tab.label}
+                </button>
+              ))}
+            </div>
 
-        {/* Tab content */}
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'backlog'  && renderBacklog()}
-        {activeTab === 'sprint'   && renderSprintPlanning()}
-        {activeTab === 'board'    && renderBoard()}
-        {activeTab === 'team'     && renderTeamSchedule()}
+            {/* Tab content — project selector removed; project is already selected */}
+            {activeTab === 'backlog'  && renderBacklog()}
+            {activeTab === 'sprint'   && renderSprintPlanning()}
+            {activeTab === 'board'    && renderBoard()}
+            {activeTab === 'team'     && renderTeamSchedule()}
+          </>
+        )}
+
       </div>
 
-      {/* ── Modals ── */}
+      {/* ── Confirm Modal ── */}
+      <ConfirmModal
+        isOpen={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={confirmModal?.onConfirm}
+        title={confirmModal?.title ?? 'Confirm'}
+        message={confirmModal?.message ?? 'Are you sure?'}
+      />
+
+      {/* ── Other Modals ── */}
       <CreateProjectModal
         isOpen={modal?.type === 'createProject'}
         onClose={closeModal}
@@ -1466,7 +1860,7 @@ const Dashboard = ({ user }) => {
       <ViewTaskModal
         task={modal?.type === 'viewTask' ? {
           ...modal.data,
-          status: normalizeStatus(modal.data?.status),
+          status:   normalizeStatus(modal.data?.status),
           priority: modal.data?.priority ?? 'medium',
         } : null}
         isOpen={modal?.type === 'viewTask'}
@@ -1490,6 +1884,26 @@ const Dashboard = ({ user }) => {
         isAdmin={isAdmin}
         onManageTeam={() => setModal({ type:'manageTeam', data: modal?.data })}
       />
+
+      {/* ── Team Details Modal ── */}
+      <TeamDetailsModal
+        isOpen={!!viewTeam}
+        team={viewTeam}
+        onClose={() => setViewTeam(null)}
+        isAdmin={isAdmin}
+        onEdit={(team) => setTeamModal({ mode: 'edit', team })}
+      />
+
+      {/* ── Add / Edit Team Modal ── */}
+      <AddTeamModal
+        isOpen={!!teamModal}
+        onClose={() => setTeamModal(null)}
+        onSubmit={teamModal?.mode === 'edit' ? handleEditTeam : handleCreateTeam}
+        editTeam={teamModal?.mode === 'edit' ? teamModal.team : null}
+      />
+
+      {/* ── Toast Notifications ── */}
+      <Toast toasts={toasts} onClose={closeToast} />
     </div>
   );
 };

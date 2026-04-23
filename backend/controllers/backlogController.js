@@ -19,7 +19,12 @@ exports.createBacklog = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllBacklogs = catchAsync(async (req, res, next) => {
-  const backlogs = await Backlog.find();
+  // When called from the nested route /projects/:projectId/backlogs
+  // only return backlogs that belong to that project
+  const filter = {};
+  if (req.params.projectId) filter.project_id = req.params.projectId;
+
+  const backlogs = await Backlog.find(filter);
 
   res.status(200).json({
     status: "success",
