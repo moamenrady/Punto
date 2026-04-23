@@ -17,7 +17,7 @@ import StockManagementPage from "./pages/StockManagementPage";
 import CreateTicketModal from "./components/CreateTicketModal";
 import UserProfileModal from "./components/UserProfileModal";
 import Settings from "./pages/Settings";
-
+import TeamChat from "./pages/GroupChatPage"
 function MainApp({ themeObj, theme, setTheme, user, setUser }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -110,6 +110,15 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                   theme={themeObj}
                 />
               }
+            />
+            <Route 
+              path="/chatmodal" 
+              element={
+                <TeamChat 
+                  user={user} 
+                  theme={themeObj} 
+                />
+              } 
             />
             <Route
               path="/ticket/:id"
@@ -226,7 +235,7 @@ function AppContent() {
           )
         }
       />
-
+      
       <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   );

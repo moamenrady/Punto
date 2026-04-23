@@ -5,7 +5,7 @@ const authController = require('../controllers/authController');
 const router = express.Router();
 
 // All team routes require login
-router.use(authController.protect);
+// router.use(authController.protect);
 
 router.route('/')
   .get(teamController.getAllTeams)
@@ -21,5 +21,7 @@ router.route('/:id/members')
 
 router.route('/:id/members/:userId')
   .delete(teamController.removeMember);
+
+router.get('/user/:userId', teamController.getUserTeam);
 
 module.exports = router;

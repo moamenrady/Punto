@@ -83,3 +83,23 @@ exports.removeMember = catchAsync(async (req, res, next) => {
   if (!team) return next(new AppError('Team not found', 404));
   res.status(200).json({ status: 'success', data: { team } });
 });
+
+
+
+
+exports.getUserTeam = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // البحث عن التيم اللي اليوزر عضو فيه
+        const team = await Team.findOne({ members: userId });
+
+        if (!team) {
+            return res.status(404).json({ message: "No team found for this user." });
+        }
+
+        res.status(200).json(team);
+    } catch (error) {
+        res.status(500).json({ error: "Internal Server Error", details: error.message });
+    }
+};
