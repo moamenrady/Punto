@@ -117,6 +117,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                 <TeamChat 
                   user={user} 
                   theme={themeObj} 
+                  onProfileClick={openProfile}
                 />
               } 
             />

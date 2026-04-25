@@ -44,7 +44,13 @@ const Message = require('./models/Message'); // الموديل اللي ظبطن
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // 1. اليوزر بينضم لغرفة الفريق أول ما يفتح الشات
+  // 1. اليوزر بينضم لغرفة الشات
+  socket.on('join_chat', (chatId) => {
+    socket.join(chatId);
+    console.log(`User joined chat room: ${chatId}`);
+  });
+
+  // Backward compatibility
   socket.on('join_team', (teamId) => {
     socket.join(teamId);
     console.log(`User joined team room: ${teamId}`);
@@ -53,18 +59,21 @@ io.on('connection', (socket) => {
   // 2. استقبال رسالة جديدة
   socket.on('send_message', async (data) => {
     try {
-      const { teamId, senderId, senderName, text } = data;
+      const { teamId, chatId, senderId, senderName, text } = data;
+      
+      const room = chatId || teamId;
 
-      // حفظ في الداتابيز (الموديل هيحولهم لـ ObjectId تلقائي)
+      // حفظ في الداتابيز
       const savedMessage = await Message.create({
-        teamId,
+        teamId: teamId || undefined,
+        chatId: room,
         senderId,
         senderName,
         text
       });
 
-      // إرسال الرسالة لكل اللي في الغرفة (بما فيهم الـ Timestamp الجديد)
-      io.to(teamId).emit('receive_message', savedMessage);
+      // إرسال الرسالة لكل اللي في الغرفة
+      io.to(room).emit('receive_message', savedMessage);
     } catch (err) {
       console.error("Socket Error:", err);
     }
