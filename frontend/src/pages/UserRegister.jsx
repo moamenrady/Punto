@@ -13,6 +13,8 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const [successMessage, setSuccessMessage] = useState("");
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -38,6 +40,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
     if (!validate()) return;
     setIsLoading(true);
     setApiError("");
+    setSuccessMessage("");
 
     try {
       const payload = {
@@ -53,8 +56,10 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
       );
 
       if (response.data.status === "success") {
-        alert("Account Created Successfully!");
-        navigate("/login");
+        setSuccessMessage("Account created successfully! Redirecting to login...");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
       }
     } catch (err) {
       setApiError(
@@ -175,6 +180,12 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
           {apiError && (
             <p className="bg-red-50 text-red-500 text-[11px] p-3 rounded-xl text-center">
               {apiError}
+            </p>
+          )}
+
+          {successMessage && (
+            <p className="bg-green-50 text-green-600 text-[12px] font-medium p-3 rounded-xl text-center shadow-sm border border-green-100">
+              {successMessage}
             </p>
           )}
 
