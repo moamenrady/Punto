@@ -4,7 +4,11 @@ const MessageSchema = new mongoose.Schema({
     teamId: {
         type: mongoose.Schema.Types.ObjectId, // تأكد إن دي ObjectId
         ref: 'backlogs', // اسم كولكشن الفرق عندك
-        required: true
+        required: false
+    },
+    chatId: {
+        type: String,
+        required: false
     },
     senderId: {
         type: mongoose.Schema.Types.ObjectId,

@@ -1,13 +1,45 @@
 const express = require("express");
 const router = express.Router();
-const Message = require("../models/Message")
-router.get('/:teamId', async (req, res) => {
+const Message = require("../models/Message");
+const mongoose = require('mongoose');
+const User = require('../models/userModel');
+
+router.get('/dms/user/:userId', async (req, res) => {
     try {
-        const { teamId } = req.params;
-        console.log( teamId)
-        // تأكد إن الـ teamId اللي جاي في الـ Params هو نفسه اللي متخزن في الـ Message document
-        const messages = await Message.find({ teamId: teamId }); 
-        console.log(messages)
+        const { userId } = req.params;
+        
+        // Find messages where chatId contains the userId and has an underscore
+        const messages = await Message.find({ 
+            chatId: { $regex: userId }
+        });
+
+        const dmUserIds = new Set();
+        messages.forEach(msg => {
+            if (msg.chatId && msg.chatId.includes('_')) {
+                const ids = msg.chatId.split('_');
+                const otherId = ids[0] === userId ? ids[1] : ids[0];
+                if (otherId && otherId.length === 24) dmUserIds.add(otherId);
+            }
+        });
+
+        const users = await User.find({ _id: { $in: Array.from(dmUserIds) } }).select('name email photo role');
+        
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/:chatId', async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const isValidObjectId = mongoose.Types.ObjectId.isValid(chatId);
+        
+        let query = isValidObjectId 
+            ? { $or: [{ teamId: chatId }, { chatId: chatId }] }
+            : { chatId: chatId };
+
+        const messages = await Message.find(query); 
         res.json(messages);
     } catch (err) {
         res.status(500).json({ error: err.message });
