@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { Sun, Moon, Bell, MessageSquare, FileText, Search } from "lucide-react";
+import { Sun, Moon, Bell, MessageSquare, FileText, Search, LayoutDashboard, Package, Settings } from "lucide-react";
 
 const Header = ({
   user,
@@ -17,6 +17,16 @@ const Header = ({
   const roleColor = user?.role === "admin" ? "#534AB7" : "#15803D";
   const roleBorder = user?.role === "admin" ? "#C7D2F8" : "#BBF7D0";
 
+  const getPageInfo = (path) => {
+    if (path.startsWith("/dashboard")) return { title: "Dashboard", Icon: LayoutDashboard };
+    if (path.startsWith("/stock")) return { title: "Stock Management", Icon: Package };
+    if (path.startsWith("/chatmodal")) return { title: "Chat System", Icon: MessageSquare };
+    if (path.startsWith("/settings")) return { title: "Settings", Icon: Settings };
+    return { title: "Ticketing System", Icon: FileText };
+  };
+
+  const { title: pageTitle, Icon: PageIcon } = getPageInfo(location.pathname);
+
   return (
     <header
       className="top-header"
@@ -31,11 +41,11 @@ const Header = ({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <FileText size={18} color="#8A9FE8" />
+        <PageIcon size={18} color="#8A9FE8" />
         <span
           style={{ fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}
         >
-          Ticketing System
+          {pageTitle}
         </span>
       </div>
 
