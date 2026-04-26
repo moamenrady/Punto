@@ -312,7 +312,10 @@ function PageProfile({ refreshUser }) {
       headers: { Authorization: `Bearer ${token()}` },
     })
       .then((r) => r.json())
-      .then((d) => setForm(d.data.doc));
+      .then((d) => {
+        setForm(d.data.doc);
+        refreshUser(d.data.doc);
+      });
   }
 
   useEffect(() => {
@@ -340,7 +343,7 @@ function PageProfile({ refreshUser }) {
       });
       const data = await res.json();
       setForm(data.data.doc);
-      refreshUser(); 
+      refreshUser(data.data.doc); 
       showToast("success");
     } catch (err) {
     console.log("الغلـط فين يا مؤمن؟ =>", err.message); // هيطبع لك اسم الغلط في الـ Console
@@ -366,7 +369,7 @@ function PageProfile({ refreshUser }) {
       const data = await res.json();
       if (data?.data?.photo) {
         setForm((prev) => ({ ...prev, photo: data.data.photo }));
-          refreshUser();
+          refreshUser({ photo: data.data.photo, avatar: data.data.photo });
       }
       showToast("success");
     } catch {
@@ -384,6 +387,7 @@ function PageProfile({ refreshUser }) {
         headers: { Authorization: `Bearer ${token()}` },
       });
       setForm((prev) => ({ ...prev, photo: "" }));
+      refreshUser({ photo: "", avatar: "" });
       showToast("✓ تم مسح الصورة", "success");
     } catch {
       showToast("فشل مسح الصورة", "error");

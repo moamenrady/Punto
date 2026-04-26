@@ -1,16 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { projectService } from '../services/projectService';
-
-const Avatar = ({ name = '?', size = 28 }) => (
-  <div style={{
-    width: size, height: size, borderRadius: '50%',
-    background: 'linear-gradient(135deg,#8A9FE8,#534AB7)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: `${size * 0.38}px`, fontWeight: 800, color: '#fff', flexShrink: 0,
-  }}>
-    {(name ?? '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-  </div>
-);
+import Avatar from './Avatar';
 
 const ROLE_COLORS = {
   admin:   { bg: '#FEE2E2', color: '#DC2626' },
@@ -209,7 +199,7 @@ const AddTeamModal = ({ isOpen, onClose, onSubmit, editTeam = null }) => {
                       onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#F3F4F6'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = selected ? '#F0F3FF' : idx % 2 === 0 ? '#FAFAFA' : '#fff'; }}
                     >
-                      <Avatar name={u.name ?? '?'} size={34} />
+                      <Avatar photo={u.photo} name={u.name ?? '?'} size={34} />
 
                       <div style={{ flex:1, minWidth:0 }}>
                         <p style={{ margin:0, fontWeight:600, fontSize:'0.875rem', color:'#111827', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
@@ -248,7 +238,7 @@ const AddTeamModal = ({ isOpen, onClose, onSubmit, editTeam = null }) => {
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                 {selectedMembers.map(m => (
                   <div key={m._id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 8px 4px 5px', borderRadius:20, background:'#EEF1FD', border:'1.5px solid #C7D2F8' }}>
-                    <Avatar name={m.name ?? '?'} size={20} />
+                    <Avatar photo={m.photo} name={m.name ?? '?'} size={20} />
                     <span style={{ fontSize:'0.8rem', fontWeight:600, color:'#534AB7', maxWidth:90, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
                       {m.name?.split(' ')[0]}
                     </span>

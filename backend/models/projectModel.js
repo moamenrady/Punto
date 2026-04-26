@@ -32,7 +32,7 @@ const projectSchema = new mongoose.Schema(
 
 // auto populate created_by and members
 projectSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role").populate(
+  this.populate("created_by", "name email role photo").populate(
     "members",
     "name email role photo"
   );

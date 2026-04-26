@@ -39,7 +39,7 @@ sprintSchema.pre(/^find/, function () {
 });
 
 sprintSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role");
+  this.populate("created_by", "name email role photo");
 });
 
 module.exports = mongoose.model("Sprint", sprintSchema);

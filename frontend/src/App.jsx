@@ -18,7 +18,7 @@ import CreateTicketModal from "./components/CreateTicketModal";
 import UserProfileModal from "./components/UserProfileModal";
 import Settings from "./pages/Settings";
 import TeamChat from "./pages/GroupChatPage"
-function MainApp({ themeObj, theme, setTheme, user, setUser }) {
+function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, setUser }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [tickets, setTickets] = useState([]);
@@ -76,13 +76,13 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
 
   return (
     <div className={`app-container flex min-h-screen ${themeObj.bg}`}>
-      <Sidebar isDarkMode={theme === "dark"} theme={themeObj} user={user} />
+      <Sidebar isDarkMode={isDarkMode} theme={themeObj} user={user} />
       <main className="main-wrapper flex-1 flex flex-col relative overflow-hidden">
         <Header
           user={user}
           onProfileClick={() => openProfile(user)}
-          theme={theme}
-          setTheme={setTheme}
+          theme={isDarkMode ? "dark" : "light"}
+          setTheme={(val) => setIsDarkMode(val === "dark")}
           themeObj={themeObj}
         />
         <div className="p-4 flex-1 overflow-auto">
@@ -132,7 +132,7 @@ function MainApp({ themeObj, theme, setTheme, user, setUser }) {
                 />
               }
             />
-            <Route path="/settings" element={<Settings refreshUser={() => setUser(user)} />} />
+            <Route path="/settings" element={<Settings refreshUser={(updated) => setUser({ ...user, ...updated })} />} />
             <Route path="/" element={<Navigate to="/tickets" replace />} />
           </Routes>
         </div>
@@ -228,6 +228,8 @@ function AppContent() {
               themeObj={themeObj}
               theme={theme}
               setTheme={setTheme}
+              isDarkMode={isDarkMode}
+              setIsDarkMode={setIsDarkMode}
               user={user}
               setUser={setUser}
             />

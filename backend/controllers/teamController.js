@@ -95,7 +95,8 @@ exports.getUserTeam = async (req, res) => {
         const team = await Team.findOne({ members: userId });
 
         if (!team) {
-            return res.status(404).json({ message: "No team found for this user." });
+            // Return 200 with null instead of 404 to avoid browser console errors for expected empty states
+            return res.status(200).json(null);
         }
 
         res.status(200).json(team);

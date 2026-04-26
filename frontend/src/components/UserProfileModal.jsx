@@ -92,10 +92,66 @@ export default function UserProfileModal({
 }) {
   const [formData, setFormData] = useState({ ...user });
   const [showAllTickets, setShowAllTickets] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
+  
+  const canEdit = user?.email === currentUser?.email || user?._id === currentUser?._id;
+
+  const handleSaveInfo = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/v1/users/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          dept: formData.dept,
+          location: formData.location,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.data?.doc) {
+        setFormData(data.data.doc);
+        if (setUser) setUser(data.data.doc);
+        setIsEditing(false);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const fData = new FormData();
+    fData.append("photo", file);
+    try {
+      const res = await fetch(`http://localhost:5000/api/v1/users/me/avatar`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: fData,
+      });
+      const data = await res.json();
+      if (data?.data?.photo) {
+        setFormData(prev => ({ ...prev, photo: data.data.photo }));
+        if (setUser) setUser(data.data.doc);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     setFormData({ ...user });
+    setIsEditing(false);
     if (isOpen) setShowAllTickets(false);
   }, [isOpen, user]);
 
@@ -223,9 +279,9 @@ export default function UserProfileModal({
                               boxShadow: "0 8px 24px rgba(127,111,245,0.25)",
                             }}
                           >
-                            {formData.avatar ? (
+                            {formData.photo ? (
                               <img
-                                src={`http://localhost:5000${formData.avatar}`}
+                                src={`http://localhost:5000${formData.photo}`}
                                 style={{
                                   width: "100%",
                                   height: "100%",
@@ -237,36 +293,27 @@ export default function UserProfileModal({
                               (formData.name?.charAt(0) ?? "U")
                             )}
                           </div>
-                          <div
-                            style={{
-                              position: "absolute",
-                              bottom: 0,
-                              right: 0,
-                              backgroundColor: "white",
-                              padding: "4px",
-                              borderRadius: "8px",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                            }}
-                          >
-                            <Camera size={12} color="#7F6FF5" />
-                          </div>
+                          {canEdit && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: 0,
+                                right: 0,
+                                backgroundColor: "white",
+                                padding: "4px",
+                                borderRadius: "8px",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                              }}
+                            >
+                              <Camera size={12} color="#7F6FF5" />
+                            </div>
+                          )}
                           <input
                             type="file"
                             ref={fileInputRef}
                             hidden
                             accept="image/*"
-                            onChange={(e) => {
-                              const f = e.target.files[0];
-                              if (f) {
-                                const r = new FileReader();
-                                r.onloadend = () =>
-                                  setFormData({
-                                    ...formData,
-                                    avatar: r.result,
-                                  });
-                                r.readAsDataURL(f);
-                              }
-                            }}
+                            onChange={handleAvatarUpload}
                           />
                         </div>
                         <div style={{ textAlign: "center" }}>
@@ -289,30 +336,6 @@ export default function UserProfileModal({
                             >
                               {formData.name}
                             </h2>
-                            <span
-                              onClick={() =>
-                                setFormData({
-                                  ...formData,
-                                  isOnline: !formData.isOnline,
-                                })
-                              }
-                              style={{
-                                padding: "3px 10px",
-                                backgroundColor: formData.isOnline
-                                  ? "#ECFDF5"
-                                  : "#F9FAFB",
-                                color: formData.isOnline
-                                  ? "#10B981"
-                                  : "#9CA3AF",
-                                fontSize: "10px",
-                                fontWeight: "bold",
-                                borderRadius: "15px",
-                                border: "1px solid currentColor",
-                                cursor: "pointer",
-                              }}
-                            >
-                              {formData.isOnline ? "ONLINE" : "OFFLINE"}
-                            </span>
                           </div>
                           <p
                             style={{
@@ -382,35 +405,100 @@ export default function UserProfileModal({
 
                     {/* personal info */}
                     <div style={{ padding: "20px 28px 0" }}>
-                      <p
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: "800",
-                          color: "#9CA3AF",
-                          textTransform: "uppercase",
-                          letterSpacing: "1px",
-                          marginBottom: "16px",
-                        }}
-                      >
-                        Personal Info
-                      </p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                        <p
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: "800",
+                            color: "#9CA3AF",
+                            textTransform: "uppercase",
+                            letterSpacing: "1px",
+                            margin: 0,
+                          }}
+                        >
+                          Personal Info
+                        </p>
+                        {canEdit && (
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setIsEditing(false);
+                                    setFormData({ ...user }); // revert
+                                  }}
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: "600",
+                                    color: "#6B7280",
+                                    background: "#F3F4F6",
+                                    border: "none",
+                                    padding: "4px 10px",
+                                    borderRadius: "12px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleSaveInfo}
+                                  disabled={isSaving}
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: "600",
+                                    color: "#fff",
+                                    background: "#7F6FF5",
+                                    border: "none",
+                                    padding: "4px 10px",
+                                    borderRadius: "12px",
+                                    cursor: "pointer",
+                                    opacity: isSaving ? 0.7 : 1,
+                                  }}
+                                >
+                                  {isSaving ? "Saving..." : "Save"}
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setIsEditing(true)}
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "600",
+                                  color: "#7F6FF5",
+                                  background: "#EEECFF",
+                                  border: "none",
+                                  padding: "4px 10px",
+                                  borderRadius: "12px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       {[
                         {
+                          key: "email",
                           label: "Work Email",
                           val: formData.email,
                           icon: Mail,
                         },
                         {
+                          key: "phone",
                           label: "Phone Number",
                           val: formData.phone,
                           icon: Phone,
                         },
                         {
+                          key: "dept",
                           label: "Department",
                           val: formData.dept,
                           icon: Briefcase,
                         },
                         {
+                          key: "location",
                           label: "Location",
                           val: formData.location,
                           icon: MapPin,
@@ -435,16 +523,33 @@ export default function UserProfileModal({
                               gap: 10,
                             }}
                           >
-                            <item.icon size={15} color="#8A9FE8" />
-                            <span
-                              style={{
-                                fontWeight: "600",
-                                color: "#374151",
-                                fontSize: "14px",
-                              }}
-                            >
-                              {item.val}
-                            </span>
+                            <item.icon size={15} color="#8A9FE8" style={{ flexShrink: 0 }} />
+                            {isEditing ? (
+                              <input
+                                value={item.val ?? ""}
+                                onChange={(e) => setFormData({ ...formData, [item.key]: e.target.value })}
+                                style={{
+                                  fontSize: "13px",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  border: "1px solid #DDD9FF",
+                                  width: "100%",
+                                  outline: "none",
+                                  color: "#374151",
+                                  fontWeight: "500",
+                                }}
+                              />
+                            ) : (
+                              <span
+                                style={{
+                                  fontWeight: "600",
+                                  color: "#374151",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {item.val}
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -699,9 +804,9 @@ export default function UserProfileModal({
                 border: "2px solid white",
               }}
             >
-              {formData.avatar ? (
+              {formData.photo ? (
                 <img
-                  src={`http://localhost:5000${formData.avatar}`}
+                  src={`http://localhost:5000${formData.photo}`}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   alt=""
                 />
@@ -723,19 +828,6 @@ export default function UserProfileModal({
                 >
                   {formData.name}
                 </h2>
-                <span
-                  style={{
-                    padding: "3px 10px",
-                    backgroundColor: formData.isOnline ? "#ECFDF5" : "#F9FAFB",
-                    color: formData.isOnline ? "#10B981" : "#9CA3AF",
-                    fontSize: "10px",
-                    fontWeight: "bold",
-                    borderRadius: "15px",
-                    border: "1px solid currentColor",
-                  }}
-                >
-                  {formData.isOnline ? "ONLINE" : "OFFLINE"}
-                </span>
               </div>
               <p
                 style={{ color: "#9CA3AF", margin: "4px 0", fontSize: "16px" }}

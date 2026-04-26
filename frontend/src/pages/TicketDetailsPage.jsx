@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AssignMemberModal from '../components/AssignMemberModal';
+import Avatar from '../components/Avatar';
 import './ticket-details.css';
 
 /* ── helpers ─────────────────────────────── */
@@ -186,7 +187,7 @@ export default function TicketDetailsPage({ tickets = [], isITUser, user }) {
           <div className="td-card">
             <p className="td-card-title">User Profile</p>
             <div className="td-creator-layout">
-              <div className="td-avatar">{createdBy.name?.charAt(0)}</div>
+              <Avatar photo={createdBy.photo} name={createdBy.name} size={48} />
               <div className="td-creator-grid">
                 <div><div className="td-field-label">Full Name</div><div className="td-field-value">{createdBy.name}</div></div>
                 <div><div className="td-field-label">Role</div><div className="td-field-value">{createdBy.role}</div></div>

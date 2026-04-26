@@ -49,8 +49,8 @@ const ticketSchema = new mongoose.Schema(
 
 // Auto populate
 ticketSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role")
-    .populate("assign_to", "name email role")
+  this.populate("created_by", "name email role photo")
+    .populate("assign_to", "name email role photo")
     .populate("chat_id", "name");
 });
 

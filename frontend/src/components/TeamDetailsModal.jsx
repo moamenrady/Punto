@@ -6,16 +6,7 @@ const ROLE_COLORS = {
   user:    { bg: '#EEF1FD', color: '#534AB7' },
 };
 
-const Avatar = ({ name = '?', size = 36 }) => (
-  <div style={{
-    width: size, height: size, borderRadius: '50%',
-    background: 'linear-gradient(135deg,#8A9FE8,#534AB7)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: `${size * 0.38}px`, fontWeight: 800, color: '#fff', flexShrink: 0,
-  }}>
-    {(name ?? '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-  </div>
-);
+import Avatar from './Avatar';
 
 const fmt = (d) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -147,7 +138,7 @@ const TeamDetailsModal = ({ team, isOpen, onClose, onEdit, isAdmin = false }) =>
                     background: idx % 2 === 0 ? '#FAFAFA' : '#fff',
                     border: '1px solid #F3F4F6',
                   }}>
-                    <Avatar name={m.name ?? '?'} size={38} />
+                    <Avatar photo={m.photo} name={m.name ?? '?'} size={38} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontWeight: 700, fontSize: '0.875rem', color: '#111827', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                         {m.name ?? '—'}

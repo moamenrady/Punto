@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ChatModal from '../components/ChatModal';
 import { Search, MoreVertical, MessageSquare } from 'lucide-react';
+import Avatar from '../components/Avatar';
 
 const GroupChatPage = ({ user, theme, onProfileClick }) => {
     const [myTeam, setMyTeam] = useState(null);
@@ -100,7 +101,7 @@ const GroupChatPage = ({ user, theme, onProfileClick }) => {
                         className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => onProfileClick && onProfileClick(user)}
                     >
-                        <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name || 'U'}&background=random`} alt="Profile" className="w-full h-full object-cover" />
+                        <Avatar photo={user?.avatar || user?.photo} name={user?.name} size={40} className="w-full h-full" />
                     </div>
                     <div className={`flex gap-5 ${isDark ? 'text-[#aebac1]' : 'text-[#54656f]'}`}>
                         <MessageSquare size={20} className="cursor-pointer hover:opacity-80 transition-opacity" />
@@ -129,7 +130,7 @@ const GroupChatPage = ({ user, theme, onProfileClick }) => {
                             className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${waLayout.hover} ${activeChat?.id === myTeam._id ? waLayout.sidebarHeader : ''}`}
                         >
                             <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1">
-                                <img src={`https://ui-avatars.com/api/?name=Team+${myTeam._id.substring(0,2)}&background=random`} alt="Group" className="w-full h-full object-cover" />
+                                <Avatar name={`Team+${myTeam._id.substring(0,2)}`} size={48} className="w-full h-full" />
                             </div>
                             <div className={`flex-1 border-b pb-3 pt-2 ${waLayout.border}`}>
                                 <div className="flex justify-between items-center mb-0.5">
@@ -149,7 +150,7 @@ const GroupChatPage = ({ user, theme, onProfileClick }) => {
                             className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${waLayout.hover} ${activeChat?.data?._id === dm._id ? waLayout.sidebarHeader : ''}`}
                         >
                             <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1">
-                                <img src={dm.photo || `https://ui-avatars.com/api/?name=${dm.name}&background=random`} alt={dm.name} className="w-full h-full object-cover" />
+                                <Avatar photo={dm.photo} name={dm.name} size={48} className="w-full h-full" />
                             </div>
                             <div className={`flex-1 border-b pb-3 pt-2 ${waLayout.border}`}>
                                 <div className="flex justify-between items-center mb-0.5">
