@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import axios from 'axios';
 import { Send, MoreVertical, Phone, Video, Paperclip, Smile, X, Check, Mic, Search, MessageSquare } from 'lucide-react';
+import Avatar from './Avatar';
 
 const socket = io('http://127.0.0.1:5000');
 
@@ -112,7 +113,11 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden shrink-0">
-                            <img src={chatAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            {chatType === 'team' ? (
+                                <Avatar name={`Team+${team?._id?.substring(0, 2) || 'XX'}`} size={40} className="w-full h-full" />
+                            ) : (
+                                <Avatar photo={contact?.photo} name={contact?.name} size={40} className="w-full h-full" />
+                            )}
                         </div>
                         <div className="flex flex-col">
                             <span className="font-medium text-[16px] leading-tight">{chatTitle}</span>
@@ -239,7 +244,11 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                         {/* Profile Picture & Name Section */}
                         <div className={`flex flex-col items-center py-8 px-6 mb-2 shadow-sm ${waTheme.infoSection}`}>
                             <div className="w-[200px] h-[200px] rounded-full bg-gray-300 overflow-hidden mb-5">
-                                <img src={chatType === 'team' ? `https://ui-avatars.com/api/?name=Team+${team?._id?.substring(0, 2)}&background=random&size=200` : chatAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                {chatType === 'team' ? (
+                                    <Avatar name={`Team+${team?._id?.substring(0, 2) || 'XX'}`} size={200} className="w-full h-full" />
+                                ) : (
+                                    <Avatar photo={contact?.photo} name={contact?.name} size={200} className="w-full h-full" />
+                                )}
                             </div>
                             <h2 className={`text-[24px] text-center mb-1 ${waTheme.headerText}`}>{chatTitle}</h2>
                             <p className={`text-[14px] text-center ${isDark ? 'text-[#8696a0]' : 'text-[#667781]'}`}>
@@ -274,7 +283,7 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                                                 className={`flex items-center gap-4 px-6 py-2.5 ${isMe ? '' : waTheme.hover + ' cursor-pointer'} transition-colors`}
                                             >
                                                 <div className="w-[40px] h-[40px] rounded-full overflow-hidden shrink-0">
-                                                    <img src={member.photo || `https://ui-avatars.com/api/?name=${member.name}&background=random`} alt={member.name} className="w-full h-full object-cover" />
+                                                    <Avatar photo={member.photo} name={member.name} size={40} className="w-full h-full" />
                                                 </div>
                                                 <div className={`flex-1 border-b ${waTheme.border} pb-3 pt-1 flex flex-col justify-center h-full`}>
                                                     <div className="flex justify-between items-center">

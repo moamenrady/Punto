@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import Avatar from './Avatar';
 
 const NAV_ITEMS = [
   {
@@ -202,9 +203,7 @@ const Sidebar = ({ user }) => {
         }}>
           {user && !collapsed && (
             <div style={{ display:'flex', alignItems:'center', gap:9, padding:'7px 9px', background:'#F9FAFB', borderRadius:10 }}>
-              <div style={{ width:30, height:30, borderRadius:'50%', background:'linear-gradient(135deg,#8A9FE8,#534AB7)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:800, color:'#fff', flexShrink:0 }}>
-                {user.name?.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() ?? 'U'}
-              </div>
+              <Avatar photo={user?.avatar || user?.photo} name={user?.name} size={30} style={{ borderRadius:'50%', flexShrink:0 }} />
               <div style={{ minWidth:0 }}>
                 <p style={{ margin:0, fontSize:'0.8rem', fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</p>
                 <p style={{ margin:0, fontSize:'0.68rem', color:'#9CA3AF', textTransform:'capitalize' }}>{user.role}</p>

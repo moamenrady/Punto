@@ -43,7 +43,7 @@ const taskSchema = new mongoose.Schema(
 taskSchema.pre(/^find/, function () {
   this.populate("backlog_id", "name")
     .populate("sprint_id", "name status")
-    .populate("created_by", "name email role")
+    .populate("created_by", "name email role photo")
     .populate("assigned_to", "name email role photo");
 });
 

@@ -18,6 +18,7 @@ import ProjectDetailsModal from './ProjectDetailsModal';
 import AddTeamModal        from './AddTeamModal';
 import TeamDetailsModal    from './TeamDetailsModal';
 import Toast, { useToast } from './Toast';
+import Avatar from './Avatar';
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
@@ -61,11 +62,7 @@ const SprintBadge = ({ status = 'planned' }) => {
   const s = SPRINT_STATUS_STYLE[status?.toLowerCase()] ?? SPRINT_STATUS_STYLE.planned;
   return <span style={{ fontSize:'0.72rem', fontWeight:700, padding:'2px 8px', borderRadius:20, background:s.bg, color:s.color }}>{s.label}</span>;
 };
-const Avatar = ({ name = '?', size = 26 }) => (
-  <div style={{ width:size, height:size, borderRadius:'50%', background:'linear-gradient(135deg,#8A9FE8,#6B82D8)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:`${size * 0.38}px`, fontWeight:800, color:'#fff', flexShrink:0 }}>
-    {name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()}
-  </div>
-);
+
 
 const iconBtn = { display:'inline-flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:8, border:'none', background:'transparent', cursor:'pointer', color:'#9CA3AF', transition:'background .15s, color .15s' };
 
@@ -159,7 +156,7 @@ const KanbanCard = ({ task, col, onView, isDragging = false, isOverlay = false }
           ) : (
             assignees.slice(0, 3).map((u, i) => (
               <div key={u._id ?? i} title={u.name ?? '?'} style={{ marginLeft: i > 0 ? -7 : 0, zIndex: 10 - i }}>
-                <Avatar name={u.name ?? '?'} size={22} />
+                <Avatar photo={u.photo} name={u.name ?? '?'} size={22} />
               </div>
             ))
           )}
@@ -878,7 +875,7 @@ const Dashboard = ({ user }) => {
                       <>
                         {cardMembers.slice(0,5).map((m, i) => (
                           <div key={m._id??i} title={m.name??'?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i }}>
-                            <Avatar name={m.name??'?'} size={28} />
+                            <Avatar photo={m.photo} name={m.name??'?'} size={28} />
                           </div>
                         ))}
                         {cardMembers.length > 5 && <span style={{ marginLeft:6, fontSize:'0.72rem', color:'#9CA3AF' }}>+{cardMembers.length-5}</span>}
@@ -999,7 +996,7 @@ const Dashboard = ({ user }) => {
                       <>
                         {members.slice(0,7).map((m, i) => (
                           <div key={m._id??i} title={m.name??'?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i, border:'2px solid #fff', borderRadius:'50%' }}>
-                            <Avatar name={m.name??'?'} size={30} />
+                            <Avatar photo={m.photo} name={m.name??'?'} size={30} />
                           </div>
                         ))}
                         {members.length > 7 && (
@@ -1122,7 +1119,7 @@ const Dashboard = ({ user }) => {
                       <div style={{ display:'flex', alignItems:'center', gap:-4 }}>
                         {(p.members ?? []).slice(0,4).map((m, i) => (
                           <div key={m._id ?? i} title={m.name ?? ''} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 10 - i }}>
-                            <Avatar name={m.name ?? '?'} size={26} />
+                            <Avatar photo={m.photo} name={m.name ?? '?'} size={26} />
                           </div>
                         ))}
                         {(p.members ?? []).length > 4 && (
@@ -1272,7 +1269,7 @@ const Dashboard = ({ user }) => {
                                 <div style={{ display:'flex', alignItems:'center' }}>
                                   {(t.assigned_to ?? []).slice(0,3).map((u, i) => (
                                     <div key={u._id??i} title={u.name??'?'} style={{ marginLeft:i>0?-6:0, zIndex:10-i }}>
-                                      <Avatar name={u.name??'?'} size={24} />
+                                      <Avatar photo={u.photo} name={u.name??'?'} size={24} />
                                     </div>
                                   ))}
                                   {(t.assigned_to??[]).length > 3 && (
@@ -1421,7 +1418,7 @@ const Dashboard = ({ user }) => {
                                   title={t.name}>{t.name}</p>
                                 <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                                   <PriorityBadge priority={t.priority} />
-                                  <Avatar name={t.created_by?.name ?? '?'} size={18} />
+                                  <Avatar photo={t.created_by?.photo} name={t.created_by?.name ?? '?'} size={18} />
                                 </div>
                               </div>
                             ))}
@@ -1630,7 +1627,7 @@ const Dashboard = ({ user }) => {
                           {/* Member info cell */}
                           <td style={{ padding:'10px 16px', whiteSpace:'nowrap' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                              <Avatar name={member.name ?? '?'} size={28} />
+                              <Avatar photo={member.photo} name={member.name ?? '?'} size={28} />
                               <div style={{ minWidth:0 }}>
                                 <p style={{ margin:0, fontSize:'0.8rem', fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{member.name}</p>
                                 <span style={{ fontSize:'0.65rem', fontWeight:700, padding:'1px 5px', borderRadius:20,
@@ -1694,7 +1691,7 @@ const Dashboard = ({ user }) => {
                 {teamSchedule.map(({ member, done, inProg, todo, total, pct }) => (
                   <div key={member._id} className="ds-card" style={{ padding:'18px 22px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
-                      <Avatar name={member.name ?? '?'} size={40} />
+                      <Avatar photo={member.photo} name={member.name ?? '?'} size={40} />
                       <div style={{ flex:1, minWidth:0 }}>
                         <p style={{ margin:0, fontWeight:700, fontSize:'0.9rem', color:'#111827' }}>{member.name}</p>
                         <p style={{ margin:0, fontSize:'0.72rem', color:'#9CA3AF', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{member.email}</p>

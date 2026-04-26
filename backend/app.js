@@ -51,13 +51,12 @@ app.use("/api/v1/schedules", scheduleRoutes);
 app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/teams",    teamRoutes);
 app.use("/api/v1/messages",    messages);
-app.use("/api/v1/users", userRoutes);
-app.use("/api/auth", userRoutes);
-
 // ── الأطول الأول دايما ──
 app.use("/api/v1/users/me/notifications", notificationsRouter);
 app.use("/api/v1/users/me", accountActionsRouter);
 app.use("/api/v1/users/me", profileRouter);
+
+app.use("/api/v1/users", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("OmniSuite Backend is running! 🚀");

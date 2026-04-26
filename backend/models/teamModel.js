@@ -31,7 +31,7 @@ const teamSchema = new mongoose.Schema(
 // Auto-populate members and creator on every find
 teamSchema.pre(/^find/, function () {
   this.populate({ path: 'members',    select: 'name email role photo' })
-      .populate({ path: 'created_by', select: 'name email role' });
+      .populate({ path: 'created_by', select: 'name email role photo' });
 });
 
 module.exports = mongoose.model('Team', teamSchema);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserProfileModal from "./UserProfileModal";
+import Avatar from "./Avatar";
 
 const TicketList = ({
   tickets,
@@ -149,14 +150,7 @@ const TicketList = ({
               style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", overflow: "hidden" }}
               onClick={(e) => handleUserClick(e, ticket.created_by)}
             >
-              <div style={{
-                width: "24px", height: "24px", borderRadius: "50%", 
-                background: "linear-gradient(135deg, #7F6FF5, #3ECFAA)",
-                color: "white", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "10px", fontWeight: "bold", flexShrink: 0
-              }}>
-                {ticket.created_by?.name?.charAt(0) || "?"}
-              </div>
+              <Avatar photo={ticket.created_by?.photo} name={ticket.created_by?.name} size={24} />
               <span style={cellStyle}>{ticket.created_by?.name || "System"}</span>
             </div>
 
@@ -164,14 +158,7 @@ const TicketList = ({
             <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
               {ticket.assign_to?.name ? (
                 <>
-                  <div style={{
-                    width: "24px", height: "24px", borderRadius: "50%", 
-                    background: "#E5E7EB", color: "#4B5563",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "10px", fontWeight: "bold", flexShrink: 0
-                  }}>
-                    {ticket.assign_to.name.charAt(0)}
-                  </div>
+                  <Avatar photo={ticket.assign_to?.photo} name={ticket.assign_to?.name} size={24} />
                   <span style={cellStyle}>{ticket.assign_to.name}</span>
                 </>
               ) : (

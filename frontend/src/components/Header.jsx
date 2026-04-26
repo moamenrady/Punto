@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { Sun, Moon, Bell, MessageSquare, FileText, Search, LayoutDashboard, Package, Settings } from "lucide-react";
+import Avatar from "./Avatar";
 
 const Header = ({
   user,
@@ -184,34 +185,7 @@ const Header = ({
               {user?.name}
             </div>
           </div>
-          <div
-            style={{
-              width: "38px",
-              height: "38px",
-              borderRadius: "50%",
-              backgroundColor: "#EEF1FD",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#8A9FE8",
-              fontWeight: 700,
-              fontSize: "0.85rem",
-              border: "1px solid #E0E7FF",
-              overflow: "hidden",
-            }}
-          >
-            {user?.avatar ? (
-              <img
-                src={user.avatar.startsWith("data:") ? user.avatar : `http://localhost:5000${user.avatar}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              user?.name
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("") ?? "?"
-            )}
-          </div>
+          <Avatar photo={user?.avatar || user?.photo} name={user?.name} size={38} />
         </div>
       </div>
     </header>
