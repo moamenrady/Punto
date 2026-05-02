@@ -29,5 +29,4 @@ router.use(
   authController.protect,
   authController.checkFeature("ticket")
 );
-
 module.exports = router;

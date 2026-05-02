@@ -9,6 +9,6 @@ router.use(authController.protect);
 
 // إنشاء عملية دفع
 router.post("/checkout", paymentController.checkout);
-router.get("/my-features", paymentController.myFeatures);
+
 
 module.exports = router;
