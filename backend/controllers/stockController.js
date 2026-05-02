@@ -1,33 +1,31 @@
-const Stock = require('../models/stockModel'); // Path to the schema we created
-const factory = require('./handlerFactory'); // The file from your screenshot
+const Stock = require('../models/stockModel');
+const factory = require('./handlerFactory');
+const catchAsync = require('../utils/catchAsync');
 
-// Standard CRUD using your factory functions
+// Standard CRUD
 exports.getAllStock = factory.getAll(Stock);
 exports.getOneStock = factory.getOne(Stock);
-// exports.createStock = factory.createOne(Stock);
 exports.updateStock = factory.updateOne(Stock);
 exports.deleteStock = factory.deleteOne(Stock);
 
-// Custom Logic: If you want specific logic for "taking" or "adding" items
-exports.updateStockQuantity = async (req, res, next) => {
-    // This is where you would manually update 'lastAddedDate' 
-    // or 'lastRemovedDate' based on the request body
-};
-
-exports.createStock = async (req, res, next) => {
-  try {
-    // If req.body is an array, it uses insertMany, otherwise it uses create
-    const doc = Array.isArray(req.body) 
-      ? await Stock.insertMany(req.body) 
-      : await Stock.create(req.body);
-
-    res.status(201).json({
-      status: 'success',
-      data: {
-        data: doc
-      }
-    });
-  } catch (err) {
-    next(err); // This will pass the error to your global error handler
+exports.createStock = catchAsync(async (req, res, next) => {
+  // If company_id is available, ensure it's in the body
+  if (req.user?.company_id) {
+    if (Array.isArray(req.body)) {
+      req.body.forEach(item => { item.company_id = req.user.company_id; });
+    } else {
+      req.body.company_id = req.user.company_id;
+    }
   }
-};
+
+  const doc = Array.isArray(req.body) 
+    ? await Stock.insertMany(req.body) 
+    : await Stock.create(req.body);
+
+  res.status(201).json({
+    status: 'success',
+    data: {
+      data: doc
+    }
+  });
+});

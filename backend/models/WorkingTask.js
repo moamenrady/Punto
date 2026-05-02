@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 // Counter model
 const Counter = require("./Counter");
 
-const tableSchema = new mongoose.Schema(
+const workingTaskSchema = new mongoose.Schema(
   {
     // ===============================
     // 🔥 CUSTOM ID
@@ -11,6 +11,16 @@ const tableSchema = new mongoose.Schema(
     custom_id: {
       type: String,
       unique: true,
+    },
+
+    task_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+    },
+
+    team_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
     },
 
     user_id: {
@@ -24,32 +34,28 @@ const tableSchema = new mongoose.Schema(
       required: true,
     },
 
-    filename: String,
-
-    data: [
-      {
-        type: Map,
-        of: String,
-      },
-    ],
+    start_date: Date,
+    end_date: Date,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 //
 // ===============================
 // 🔥 AUTO CUSTOM ID
 // ===============================
-tableSchema.pre("save", async function () {
+workingTaskSchema.pre("save", async function () {
   if (this.custom_id) return;
 
   const counter = await Counter.findOneAndUpdate(
-    { name: "table" },
+    { name: "workingtask" },
     { $inc: { seq: 1 } },
     { new: true, upsert: true }
   );
 
-  this.custom_id = `tbl_${counter.seq}`;
+  this.custom_id = `wkt_${counter.seq}`;
 });
 
-module.exports = mongoose.model("Table", tableSchema);
+module.exports = mongoose.model("WorkingTask", workingTaskSchema);

@@ -44,7 +44,7 @@ const StockManagementPage = ({ currentUserRole }) => {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
 
-  const isAdmin = currentUserRole === 'admin';
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "manager";
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -213,7 +213,7 @@ const StockManagementPage = ({ currentUserRole }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: 0 }}>Stock Management</h1>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#8A9FE8', background: '#EEF1FD', border: '1px solid #C7D2F8', borderRadius: 20, padding: '2px 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {isAdmin ? 'IT Admin' : 'IT User'}
+                {isAdmin ? "Admin / Manager" : "IT User"}
               </span>
             </div>
             <p style={{ color: '#9CA3AF', fontSize: '0.875rem', margin: 0 }}>

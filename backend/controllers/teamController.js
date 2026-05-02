@@ -1,18 +1,15 @@
 const Team       = require('../models/teamModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError   = require('../utils/appError');
+const factory    = require('./handlerFactory');
 
-// GET /api/v1/teams
-exports.getAllTeams = catchAsync(async (req, res) => {
-  const teams = await Team.find().sort('-createdAt');
-  res.status(200).json({
-    status:  'success',
-    results: teams.length,
-    data:    { teams },
-  });
-});
+// Use factory for basic CRUD
+exports.getAllTeams = factory.getAll(Team);
+exports.getTeam = factory.getOne(Team);
+exports.updateTeam = factory.updateOne(Team);
+exports.deleteTeam = factory.deleteOne(Team);
 
-// POST /api/v1/teams
+// CREATE (Custom logic to set created_by)
 exports.createTeam = catchAsync(async (req, res, next) => {
   const { name, description, members } = req.body;
 
@@ -20,87 +17,65 @@ exports.createTeam = catchAsync(async (req, res, next) => {
     return next(new AppError('Team name is required and must be at least 2 characters.', 400));
   }
 
-  const team = await Team.create({
+  // Set created_by and company_id automatically
+  const teamData = {
     name:        name.trim(),
     description: description?.trim() || '',
     members:     Array.isArray(members) ? members : [],
     created_by:  req.user._id,
-  });
+  };
 
-  // Re-fetch to get populated fields (members, created_by)
-  const populated = await Team.findById(team._id);
-  res.status(201).json({ status: 'success', data: { team: populated } });
+  if (req.user?.company_id) teamData.company_id = req.user.company_id;
+
+  const team = await Team.create(teamData);
+
+  res.status(201).json({ status: 'success', data: { team } });
 });
 
-// GET /api/v1/teams/:id
-exports.getTeam = catchAsync(async (req, res, next) => {
-  const team = await Team.findById(req.params.id);
-  if (!team) return next(new AppError('Team not found', 404));
-  res.status(200).json({ status: 'success', data: { team } });
-});
-
-// PATCH /api/v1/teams/:id
-exports.updateTeam = catchAsync(async (req, res, next) => {
-  const allowed = ['name', 'description', 'members'];
-  const update  = {};
-  allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
-
-  const team = await Team.findByIdAndUpdate(req.params.id, update, {
-    new: true, runValidators: true,
-  });
-  if (!team) return next(new AppError('Team not found', 404));
-  res.status(200).json({ status: 'success', data: { team } });
-});
-
-// DELETE /api/v1/teams/:id
-exports.deleteTeam = catchAsync(async (req, res, next) => {
-  const team = await Team.findByIdAndDelete(req.params.id);
-  if (!team) return next(new AppError('Team not found', 404));
-  res.status(204).json({ status: 'success', data: null });
-});
-
-// POST /api/v1/teams/:id/members   body: { userId }
+// ADD MEMBER
 exports.addMember = catchAsync(async (req, res, next) => {
   const { userId } = req.body;
   if (!userId) return next(new AppError('userId is required', 400));
 
-  const team = await Team.findByIdAndUpdate(
-    req.params.id,
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const team = await Team.findOneAndUpdate(
+    filter,
     { $addToSet: { members: userId } },
     { new: true }
   );
-  if (!team) return next(new AppError('Team not found', 404));
+
+  if (!team) return next(new AppError('Team not found in your company', 404));
   res.status(200).json({ status: 'success', data: { team } });
 });
 
-// DELETE /api/v1/teams/:id/members/:userId
+// REMOVE MEMBER
 exports.removeMember = catchAsync(async (req, res, next) => {
-  const team = await Team.findByIdAndUpdate(
-    req.params.id,
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const team = await Team.findOneAndUpdate(
+    filter,
     { $pull: { members: req.params.userId } },
     { new: true }
   );
-  if (!team) return next(new AppError('Team not found', 404));
+
+  if (!team) return next(new AppError('Team not found in your company', 404));
   res.status(200).json({ status: 'success', data: { team } });
 });
 
+// GET USER TEAM
+exports.getUserTeam = catchAsync(async (req, res) => {
+  const { userId } = req.params;
+  const filter = { members: userId };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
 
+  const team = await Team.findOne(filter);
 
+  if (!team) {
+    return res.status(200).json(null);
+  }
 
-exports.getUserTeam = async (req, res) => {
-    try {
-        const { userId } = req.params;
-
-        // البحث عن التيم اللي اليوزر عضو فيه
-        const team = await Team.findOne({ members: userId });
-
-        if (!team) {
-            // Return 200 with null instead of 404 to avoid browser console errors for expected empty states
-            return res.status(200).json(null);
-        }
-
-        res.status(200).json(team);
-    } catch (error) {
-        res.status(500).json({ error: "Internal Server Error", details: error.message });
-    }
-};
+  res.status(200).json(team);
+});

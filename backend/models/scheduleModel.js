@@ -1,43 +1,91 @@
 const mongoose = require("mongoose");
 
-const SHIFT_TYPES = ["morning", "afternoon", "night", "off", "arrived", "timeout"];
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// ===============================
+// 🔥 SHIFT ENUM
+// ===============================
+const SHIFT_TYPES = ["Morning", "Afternoon", "Night", "Off", "Arrived", "Timeout"];
 
-const scheduleSchema = new mongoose.Schema(
+// ===============================
+// 🔥 DAY SCHEMA (per user)
+// ===============================
+const dayShiftSchema = new mongoose.Schema(
   {
-    user_id: {
+    sun: { type: String, enum: SHIFT_TYPES, default: "Off" },
+    mon: { type: String, enum: SHIFT_TYPES, default: "Off" },
+    tue: { type: String, enum: SHIFT_TYPES, default: "Off" },
+    wed: { type: String, enum: SHIFT_TYPES, default: "Off" },
+    thu: { type: String, enum: SHIFT_TYPES, default: "Off" },
+    fri: { type: String, enum: SHIFT_TYPES, default: "Off" },
+    sat: { type: String, enum: SHIFT_TYPES, default: "Off" },
+  },
+  { _id: false }
+);
+
+// ===============================
+// 🔥 MEMBER WEEK ASSIGNMENT
+// ===============================
+const memberScheduleSchema = new mongoose.Schema(
+  {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    project_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
+
+    shifts: {
+      type: dayShiftSchema,
+      required: true,
     },
-    // ISO date string of the Sunday that starts this week
+  },
+  { _id: false }
+);
+
+// ===============================
+// 🔥 WEEKLY SHIFT SCHEDULE
+// ===============================
+const weeklyShiftSchema = new mongoose.Schema(
+  {
+    // 🔥 which team this week belongs to
+    team_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      required: true,
+    },
+
+    company_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
+
+    // 🔥 week range (important for locking logic later)
     week_start: {
       type: Date,
       required: true,
     },
-    entries: [
-      {
-        day:        { type: String, enum: DAYS, required: true },
-        date:       { type: Date, required: true },
-        shift_type: { type: String, enum: SHIFT_TYPES, default: "off" },
-      },
-    ],
+
+    week_end: {
+      type: Date,
+      required: true,
+    },
+
+    // 🔥 snapshot status
+    is_locked: {
+      type: Boolean,
+      default: false,
+    },
+
+    // 🔥 all members shifts for this week
+    members: [memberScheduleSchema],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// Unique schedule per user per project per week
-scheduleSchema.index({ user_id: 1, project_id: 1, week_start: 1 }, { unique: true });
+// ===============================
+// 🔥 INDEX (important for queries per team/week)
+// ===============================
+weeklyShiftSchema.index({ team_id: 1, week_start: 1 }, { unique: true });
 
-scheduleSchema.pre(/^find/, function () {
-  this.populate("user_id", "name email role photo").populate(
-    "project_id",
-    "name"
-  );
-});
-
-module.exports = mongoose.model("Schedule", scheduleSchema);
+module.exports = mongoose.model("WeeklyShift", weeklyShiftSchema);

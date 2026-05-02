@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 // Counter model
 const Counter = require("./Counter");
 
-const messageSchema = new mongoose.Schema(
+const chatSchema = new mongoose.Schema(
   {
     // ===============================
     // 🔥 CUSTOM ID
@@ -13,13 +13,25 @@ const messageSchema = new mongoose.Schema(
       unique: true,
     },
 
-    chat: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Chat",
+    type: {
+      type: String,
+      enum: ["group", "private"],
       required: true,
     },
 
-    sender: {
+    name: {
+      type: String,
+      trim: true,
+    },
+
+    description: String,
+
+    avatar: {
+      data: Buffer,
+      contentType: String,
+    },
+
+    created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -31,37 +43,12 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
-    content: {
-      type: String,
-      trim: true,
-    },
-
-    type: {
-      type: String,
-      enum: ["text", "image", "file", "system"],
-      default: "text",
-    },
-
-    attachments: [
-      {
-        url: String,
-        type: String,
-        size: Number,
-        name: String,
-      },
-    ],
-
-    reply_to: {
+    last_message: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
     },
 
-    edited: {
-      type: Boolean,
-      default: false,
-    },
-
-    deleted_for_everyone: {
+    is_deleted: {
       type: Boolean,
       default: false,
     },
@@ -73,22 +60,16 @@ const messageSchema = new mongoose.Schema(
 // ===============================
 // 🔥 AUTO CUSTOM ID
 // ===============================
-messageSchema.pre("save", async function () {
+chatSchema.pre("save", async function () {
   if (this.custom_id) return;
 
   const counter = await Counter.findOneAndUpdate(
-    { name: "message" },
+    { name: "chat" },
     { $inc: { seq: 1 } },
     { new: true, upsert: true }
   );
 
-  this.custom_id = `msg_${counter.seq}`;
+  this.custom_id = `cht_${counter.seq}`;
 });
 
-//
-// ===============================
-// 🔥 INDEX (FAST PAGINATION)
-// ===============================
-messageSchema.index({ chat: 1, createdAt: -1 });
-
-module.exports = mongoose.model("Message", messageSchema);
+module.exports = mongoose.model("Chat", chatSchema);

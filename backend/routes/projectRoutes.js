@@ -6,11 +6,13 @@ const authController = require("../controllers/authController");
 
 const router = express.Router();
 
+// PROTECT ALL ROUTES
+router.use(authController.protect);
+
 router
   .route("/")
   .get(projectController.getAllProjects)
   .post(
-    authController.protect,
     baseController.setCreatedBy,
     projectController.createProject
   );
@@ -18,20 +20,20 @@ router
 router
   .route("/:id")
   .get(projectController.getProject)
-  .patch(authController.protect, projectController.updateProject)
-  .delete(authController.protect, projectController.deleteProject);
+  .patch(projectController.updateProject)
+  .delete(projectController.deleteProject);
 
 router
   .route("/:id/members")
-  .post(authController.protect, projectController.addMember);
+  .post(projectController.addMember);
 
 router
   .route("/:id/members/:userId")
-  .delete(authController.protect, projectController.removeMember);
+  .delete(projectController.removeMember);
 
 // All tasks across every backlog of a project
 router
   .route("/:id/tasks")
-  .get(authController.protect, taskController.getProjectTasks);
+  .get(taskController.getProjectTasks);
 
 module.exports = router;

@@ -4,6 +4,9 @@ const authController = require("../controllers/authController");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const { protect, getMe } = require('../controllers/authController');
+const multer = require("multer");
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const Router = express.Router();
 
@@ -48,15 +51,17 @@ Router.get("/me", userController.getMe, userController.getUser);
 Router.patch("/updateMe", userController.updateMe);
 Router.delete("/deleteMe", userController.deleteMe);
 
-Router.use(authController.restrictTo("admin"));
+Router.use(authController.restrictTo("admin", "manager"));
 Router.route("/")
   .get(userController.getAllUsers)
-  .post(userController.createUser);
+  .post(upload.single("photo"), userController.createUser);
 
 Router.route("/:id")
   .get(userController.getUser)
-  .patch(userController.updateUser)
+  .patch(upload.single("photo"), userController.updateUser)
   .delete(userController.deleteUser);
+
+Router.get("/:id/photo", userController.getUserPhoto);
 
 
 module.exports = Router;

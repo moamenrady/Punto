@@ -1,6 +1,7 @@
 const Sprint = require("../models/sprintModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const factory = require("./handlerFactory");
 
 // Middleware: set project_id from params if missing in body
 exports.setProjectId = (req, res, next) => {
@@ -9,64 +10,25 @@ exports.setProjectId = (req, res, next) => {
   next();
 };
 
-// CREATE
-exports.createSprint = catchAsync(async (req, res, next) => {
-  const sprint = await Sprint.create(req.body);
-
-  res.status(201).json({
-    status: "success",
-    data: { sprint },
-  });
-});
+// Use factory for CRUD
+exports.createSprint = factory.createOne(Sprint);
+exports.getSprint = factory.getOne(Sprint);
+exports.updateSprint = factory.updateOne(Sprint);
+exports.deleteSprint = factory.deleteOne(Sprint);
 
 // GET ALL
 exports.getAllSprints = catchAsync(async (req, res, next) => {
   const filter = {};
   if (req.params.projectId) filter.project_id = req.params.projectId;
+  
+  // Mandatory company scope
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
   const sprints = await Sprint.find(filter);
 
   res.status(200).json({
     status: "success",
     results: sprints.length,
     data: { sprints },
-  });
-});
-
-// GET ONE
-exports.getSprint = catchAsync(async (req, res, next) => {
-  const sprint = await Sprint.findById(req.params.id);
-
-  if (!sprint) return next(new AppError("Sprint not found", 404));
-
-  res.status(200).json({
-    status: "success",
-    data: { sprint },
-  });
-});
-
-// UPDATE
-exports.updateSprint = catchAsync(async (req, res, next) => {
-  const sprint = await Sprint.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!sprint) return next(new AppError("Sprint not found", 404));
-
-  res.status(200).json({
-    status: "success",
-    data: { sprint },
-  });
-});
-
-// DELETE
-exports.deleteSprint = catchAsync(async (req, res, next) => {
-  const sprint = await Sprint.findByIdAndDelete(req.params.id);
-
-  if (!sprint) return next(new AppError("Sprint not found", 404));
-
-  res.status(204).json({
-    status: "success",
-    data: null,
   });
 });

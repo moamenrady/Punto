@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 // Counter model
 const Counter = require("./Counter");
 
-const messageSchema = new mongoose.Schema(
+const chatMemberSchema = new mongoose.Schema(
   {
     // ===============================
     // 🔥 CUSTOM ID
@@ -19,7 +19,7 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
-    sender: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -31,40 +31,28 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
-    content: {
+    role: {
       type: String,
-      trim: true,
+      enum: ["admin", "member"],
+      default: "member",
     },
 
-    type: {
-      type: String,
-      enum: ["text", "image", "file", "system"],
-      default: "text",
+    joined_at: {
+      type: Date,
+      default: Date.now,
     },
 
-    attachments: [
-      {
-        url: String,
-        type: String,
-        size: Number,
-        name: String,
-      },
-    ],
-
-    reply_to: {
+    last_read_message: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
     },
 
-    edited: {
+    muted: {
       type: Boolean,
       default: false,
     },
 
-    deleted_for_everyone: {
-      type: Boolean,
-      default: false,
-    },
+    left_at: Date,
   },
   { timestamps: true }
 );
@@ -73,22 +61,23 @@ const messageSchema = new mongoose.Schema(
 // ===============================
 // 🔥 AUTO CUSTOM ID
 // ===============================
-messageSchema.pre("save", async function () {
+chatMemberSchema.pre("save", async function () {
   if (this.custom_id) return;
 
   const counter = await Counter.findOneAndUpdate(
-    { name: "message" },
+    { name: "chatmember" },
     { $inc: { seq: 1 } },
     { new: true, upsert: true }
   );
 
-  this.custom_id = `msg_${counter.seq}`;
+  this.custom_id = `cm_${counter.seq}`;
 });
 
 //
 // ===============================
-// 🔥 INDEX (FAST PAGINATION)
+// 🔥 INDEXES
 // ===============================
-messageSchema.index({ chat: 1, createdAt: -1 });
+chatMemberSchema.index({ chat: 1, user: 1 }, { unique: true });
+chatMemberSchema.index({ user: 1 });
 
-module.exports = mongoose.model("Message", messageSchema);
+module.exports = mongoose.model("ChatMember", chatMemberSchema);

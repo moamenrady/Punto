@@ -20,7 +20,7 @@ const buildWeekEntries = (weekStart) => {
   });
 };
 
-// ── GET my schedule (current week or ?week_start=YYYY-MM-DD) ─────────────────
+// ── GET my schedule ─────────────────
 exports.getMySchedule = catchAsync(async (req, res, next) => {
   const weekStart = req.query.week_start
     ? getWeekStart(new Date(req.query.week_start))
@@ -30,10 +30,10 @@ exports.getMySchedule = catchAsync(async (req, res, next) => {
 
   const filter = { user_id: req.user.id, week_start: weekStart };
   if (projectId) filter.project_id = projectId;
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
 
   let schedule = await Schedule.findOne(filter);
 
-  // If no schedule exists yet, return an empty template (don't save yet)
   if (!schedule) {
     return res.status(200).json({
       status: "success",
@@ -41,6 +41,7 @@ exports.getMySchedule = catchAsync(async (req, res, next) => {
         schedule: {
           user_id: req.user.id,
           project_id: projectId || null,
+          company_id: req.user.company_id,
           week_start: weekStart,
           entries: buildWeekEntries(weekStart),
         },
@@ -51,16 +52,19 @@ exports.getMySchedule = catchAsync(async (req, res, next) => {
   res.status(200).json({ status: "success", data: { schedule } });
 });
 
-// ── GET team schedules for a project (current or specified week) ─────────────
+// ── GET team schedules ─────────────
 exports.getProjectSchedules = catchAsync(async (req, res, next) => {
   const weekStart = req.query.week_start
     ? getWeekStart(new Date(req.query.week_start))
     : getWeekStart();
 
-  const schedules = await Schedule.find({
+  const filter = {
     project_id: req.params.projectId,
     week_start: weekStart,
-  });
+  };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const schedules = await Schedule.find(filter);
 
   res.status(200).json({
     status: "success",
@@ -69,7 +73,7 @@ exports.getProjectSchedules = catchAsync(async (req, res, next) => {
   });
 });
 
-// ── CREATE or UPSERT a schedule entry (admin) ────────────────────────────────
+// ── UPSERT schedule ────────────────────────────────
 exports.upsertSchedule = catchAsync(async (req, res, next) => {
   const { user_id, project_id, week_start, entries } = req.body;
   if (!user_id || !week_start) {
@@ -77,21 +81,30 @@ exports.upsertSchedule = catchAsync(async (req, res, next) => {
   }
 
   const ws = getWeekStart(new Date(week_start));
+  
+  const query = { user_id, project_id: project_id || null, week_start: ws };
+  if (req.user?.company_id) query.company_id = req.user.company_id;
+
+  const updateData = { ...query, entries };
 
   const schedule = await Schedule.findOneAndUpdate(
-    { user_id, project_id: project_id || null, week_start: ws },
-    { user_id, project_id: project_id || null, week_start: ws, entries },
+    query,
+    updateData,
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   );
 
   res.status(200).json({ status: "success", data: { schedule } });
 });
 
-// ── UPDATE a single day entry ─────────────────────────────────────────────────
+// ── UPDATE single entry ─────────────────────────────────────────────────
 exports.updateScheduleEntry = catchAsync(async (req, res, next) => {
   const { day, shift_type } = req.body;
-  const schedule = await Schedule.findById(req.params.id);
-  if (!schedule) return next(new AppError("Schedule not found", 404));
+  
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const schedule = await Schedule.findOne(filter);
+  if (!schedule) return next(new AppError("Schedule not found in your company", 404));
 
   const entry = schedule.entries.find((e) => e.day === day);
   if (!entry) return next(new AppError(`Day "${day}" not found in schedule`, 404));
@@ -102,8 +115,13 @@ exports.updateScheduleEntry = catchAsync(async (req, res, next) => {
   res.status(200).json({ status: "success", data: { schedule } });
 });
 
-// ── DELETE a schedule ─────────────────────────────────────────────────────────
+// ── DELETE ─────────────────────────────────────────────────────────
 exports.deleteSchedule = catchAsync(async (req, res, next) => {
-  await Schedule.findByIdAndDelete(req.params.id);
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const schedule = await Schedule.findOneAndDelete(filter);
+  if (!schedule) return next(new AppError("Schedule not found in your company", 404));
+
   res.status(204).json({ status: "success", data: null });
 });

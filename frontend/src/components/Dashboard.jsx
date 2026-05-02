@@ -259,9 +259,9 @@ const DroppableColumn = ({ col, tasks, onView }) => {
 // ─── Main Dashboard ─────────────────────────────────────────────────────────────
 const Dashboard = ({ user }) => {
   // Non-admin users get their own tailored view
-  if (user?.role !== 'admin') return <UserDashboard user={user} />;
+  if (user?.role !== "admin" && user?.role !== "manager") return <UserDashboard user={user} />;
 
-  const isAdmin = true;
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
 
   // ── toast notifications ──
   const { toasts, close: closeToast, success: toastSuccess, error: toastError } = useToast();

@@ -1,37 +1,90 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
+
+// Counter model
+const Counter = require("./Counter");
+
+const teamMemberSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    role: {
+      type: String,
+      enum: ["admin", "member"],
+      default: "member",
+    },
+
+    joined_at: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
 
 const teamSchema = new mongoose.Schema(
   {
+    // ===============================
+    // 🔥 CUSTOM ID
+    // ===============================
+    custom_id: {
+      type: String,
+      unique: true,
+    },
+
     name: {
       type: String,
-      required: [true, 'Team name is required'],
+      required: [true, "Team must have a name"],
       trim: true,
-      minlength: [2, 'Team name must be at least 2 characters'],
     },
+
     description: {
       type: String,
-      default: '',
-      trim: true,
     },
-    members: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
+
+    members: [teamMemberSchema],
+
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
+      required: true,
+    },
+
+    company_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
       required: true,
     },
   },
   { timestamps: true }
 );
 
-// Auto-populate members and creator on every find
-teamSchema.pre(/^find/, function () {
-  this.populate({ path: 'members',    select: 'name email role photo' })
-      .populate({ path: 'created_by', select: 'name email role photo' });
+//
+// ===============================
+// 🔥 AUTO CUSTOM ID
+// ===============================
+teamSchema.pre("save", async function () {
+  if (this.custom_id) return;
+
+  const counter = await Counter.findOneAndUpdate(
+    { name: "team" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  this.custom_id = `tm_${counter.seq}`;
 });
 
-module.exports = mongoose.model('Team', teamSchema);
+//
+// ===============================
+// 🔥 POPULATE
+// ===============================
+teamSchema.pre(/^find/, function () {
+  this.populate("created_by", "name email role")
+    .populate("members.user", "name email role");
+});
+
+module.exports = mongoose.model("Team", teamSchema);

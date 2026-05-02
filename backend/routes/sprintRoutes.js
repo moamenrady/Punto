@@ -5,11 +5,13 @@ const baseController = require("../controllers/baseController");
 
 const router = express.Router({ mergeParams: true });
 
+// PROTECT ALL ROUTES
+router.use(authController.protect);
+
 router
   .route("/")
   .get(sprintController.getAllSprints)
   .post(
-    authController.protect,
     sprintController.setProjectId,
     baseController.setCreatedBy,
     sprintController.createSprint
@@ -18,7 +20,7 @@ router
 router
   .route("/:id")
   .get(sprintController.getSprint)
-  .patch(authController.protect, sprintController.updateSprint)
-  .delete(authController.protect, sprintController.deleteSprint);
+  .patch(sprintController.updateSprint)
+  .delete(sprintController.deleteSprint);
 
 module.exports = router;

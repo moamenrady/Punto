@@ -28,7 +28,6 @@ export default function VertexLoginPage({
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    teamId: "",
   });
   const [errors, setErrors] = useState({});
 
@@ -36,59 +35,88 @@ export default function VertexLoginPage({
     let e = {};
     if (!formData.email) e.email = "Email is required";
     if (!formData.password) e.password = "Password is required";
-    if (!formData.teamId) e.teamId = "Team ID is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
-// This is your function with the persistence logic added
-const handleLogin = async (e) => {
-  if (e) e.preventDefault();
-  if (!validate()) return;
 
-  setIsLoading(true);
-  setApiError("");
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault();
+    if (!validate()) return;
 
-  try {
-    const response = await axios.post(
-      "http://localhost:5000/api/v1/users/login",
-      {
-        email: formData.email,
-        password: formData.password,
+    setIsLoading(true);
+    setApiError("");
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/v1/users/login",
+        {
+          email: formData.email,
+          password: formData.password,
+        }
+      );
+
+      if (response.data.status === "success") {
+        const token = response.data.token;
+        const userData = response.data.data?.user || response.data.user; 
+
+        if (!userData) {
+          throw new Error("User data missing from response.");
+        }
+
+        // 1. Save the token for API calls
+        localStorage.setItem("token", token);
+
+        // 2. Set user state
+        setUser({
+          _id:      userData._id, 
+          name:     userData.name     ?? "",
+          email:    userData.email    ?? "",
+          role:     userData.role     ?? "",
+          company_id: userData.company_id ?? null,
+          phone:    userData.phone    ?? "+20 100 000 0000",
+          dept:     userData.dept     ?? "IT Department",
+          location: userData.location ?? "",
+          isOnline: true,
+          avatar:   userData.photo    ?? null,
+        });
+
+        // 3. Redirect based on company membership and role
+        if (userData.company_id) {
+          if (userData.role === "manager" || userData.role === "admin") {
+            navigate("/control-panel");
+          } else {
+            navigate("/tickets");
+          }
+        } else {
+          navigate("/landing");
+        }
       }
-    );
-
-    if (response.data.status === "success") {
-      const token = response.data.token;
-      const userData = response.data.data?.user || response.data.user; 
-
-      if (!userData) {
-        throw new Error("User data missing from response.");
-      }
-
-      // 1. Save the token for API calls
-      localStorage.setItem("token", token);
-
-      // 2. This call now triggers the 10-hour save logic in App.jsx
-      setUser({
-        _id:      userData._id, 
-        name:     userData.name     ?? "",
-        email:    userData.email    ?? "",
-        role:     userData.role     ?? "",
-        phone:    userData.phone    ?? "+20 100 000 0000",
-        dept:     userData.dept     ?? "IT Department",
-        location: userData.location ?? "",
-        isOnline: true,
-        avatar:   userData.photo    ?? null,
-      });
-
-      navigate("/tickets");
+    } catch (err) {
+      setApiError(err.response?.data?.message || err.message || "Login failed.");
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    setApiError(err.response?.data?.message || err.message || "Login failed.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
+
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setApiError("");
+    setApiSuccess("");
+    try {
+      const response = await axios.post("http://localhost:5000/api/v1/users/forgotPassword", {
+        email: formData.email
+      });
+      if (response.data.status === "success") {
+        setApiSuccess("Reset link sent to your email!");
+      }
+    } catch (err) {
+      setApiError(err.response?.data?.message || "Something went wrong.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const socialHover = {
     y: -2,
     boxShadow: isDarkMode
@@ -147,12 +175,7 @@ const handleLogin = async (e) => {
                   </button>
                   {errors.password && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.password}</p>}
                 </div>
-                <div>
-                  <input type="text" placeholder="Team ID / invitation Code" value={formData.teamId} onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
-                    className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] transition-all ${theme.input} ${theme.textP} ${errors.teamId ? "border-red-500" : theme.border} focus:ring-1`}
-                    style={{ "--tw-ring-color": theme.primary }} />
-                  {errors.teamId && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.teamId}</p>}
-                </div>
+                
                 {apiError && <p className="text-red-500 text-[11px] text-center font-bold italic">{apiError}</p>}
                 <motion.button whileHover={{ y: -2, boxShadow: isDarkMode ? "0px 10px 25px rgba(0,0,0,0.4)" : "0px 10px 25px rgba(83, 74, 183, 0.2)" }}
                   whileTap={{ scale: 0.98 }} type="submit" disabled={isLoading} className={`w-full py-3.5 rounded-xl text-white font-bold text-[13px] transition-all bg-gradient-to-r ${theme.btn}`}>

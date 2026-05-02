@@ -1,7 +1,18 @@
 const mongoose = require("mongoose");
 
+// Counter model
+const Counter = require("./Counter");
+
 const projectSchema = new mongoose.Schema(
   {
+    // ===============================
+    // 🔥 CUSTOM ID
+    // ===============================
+    custom_id: {
+      type: String,
+      unique: true,
+    },
+
     name: {
       type: String,
       required: [true, "A project must have a name"],
@@ -20,22 +31,37 @@ const projectSchema = new mongoose.Schema(
       required: true,
     },
 
-    members: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    company_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-// auto populate created_by and members
-projectSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role photo").populate(
-    "members",
-    "name email role photo"
+//
+// ===============================
+// 🔥 AUTO GENERATE CUSTOM ID
+// ===============================
+projectSchema.pre("save", async function () {
+  if (this.custom_id) return;
+
+  const counter = await Counter.findOneAndUpdate(
+    { name: "project" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
   );
+
+  this.custom_id = `prj_${counter.seq}`;
+});
+
+//
+// ===============================
+// 🔥 POPULATE
+// ===============================
+projectSchema.pre(/^find/, function () {
+  this.populate("created_by", "name email role");
 });
 
 module.exports = mongoose.model("Project", projectSchema);

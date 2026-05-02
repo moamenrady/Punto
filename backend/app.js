@@ -27,7 +27,9 @@ const accountActionsRouter = require("./routes/accountActions");
 const notificationsRouter = require("./routes/notifications");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const teamRoutes     = require("./routes/teamRoutes");
-const messages       = require("./routes/messages")
+const messages       = require("./routes/messages");
+const planRoutes       = require("./routes/planRoutes");
+const companyRoutes    = require("./routes/companyRoutes");
 // Middleware
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
@@ -51,6 +53,8 @@ app.use("/api/v1/schedules", scheduleRoutes);
 app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/teams",    teamRoutes);
 app.use("/api/v1/messages",    messages);
+app.use("/api/v1/plans",       planRoutes);
+app.use("/api/v1/companies",   companyRoutes);
 // ── الأطول الأول دايما ──
 app.use("/api/v1/users/me/notifications", notificationsRouter);
 app.use("/api/v1/users/me", accountActionsRouter);

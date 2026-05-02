@@ -20,7 +20,6 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
     email: "",
     password: "",
     passwordConfirm: "",
-    teamId: "",
   });
   const [errors, setErrors] = useState({});
 
@@ -75,7 +74,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
       className={`min-h-screen flex flex-col items-center justify-center p-6 transition-all duration-500 ${theme.bg}`}
     >
       <button
-        onClick={() => navigate("/signup")}
+        onClick={() => navigate("/login")}
         className={`fixed top-6 left-6 p-2.5 rounded-full border shadow-sm z-50 ${isDarkMode ? "bg-[#1E1B3A] border-[#2E2B5A]" : "bg-white border-[#DDD9FF]"}`}
       >
         <ArrowLeft size={20} style={{ color: theme.primary }} />
@@ -104,28 +103,37 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
             <LightLogo />
           )}
           <h1 className="text-3xl font-bold mb-2 mt-4 text-[#534AB7]">
-            Join Your Team
+            Create Your Account
           </h1>
+          <p className={`text-[13px] ${theme.textM}`}>
+            Join our platform and start managing your workspace
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${theme.border} focus:ring-1`}
-          />
+          <div>
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${errors.name ? "border-red-500" : theme.border} focus:ring-1`}
+            />
+            {errors.name && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.name}</p>}
+          </div>
 
-          <input
-            type="email"
-            placeholder="Work Email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${theme.border} focus:ring-1`}
-          />
+          <div>
+            <input
+              type="email"
+              placeholder="Work Email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${errors.email ? "border-red-500" : theme.border} focus:ring-1`}
+            />
+            {errors.email && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.email}</p>}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
@@ -136,7 +144,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
-                className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${theme.border}`}
+                className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${errors.password ? "border-red-500" : theme.border}`}
               />
               <button
                 type="button"
@@ -145,6 +153,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
+              {errors.password && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.password}</p>}
             </div>
 
             <div className="relative">
@@ -155,7 +164,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
                 onChange={(e) =>
                   setFormData({ ...formData, passwordConfirm: e.target.value })
                 }
-                className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${theme.border}`}
+                className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${errors.passwordConfirm ? "border-red-500" : theme.border}`}
               />
               <button
                 type="button"
@@ -164,18 +173,9 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
               >
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
+              {errors.passwordConfirm && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.passwordConfirm}</p>}
             </div>
           </div>
-
-          <input
-            type="text"
-            placeholder="Team ID"
-            value={formData.teamId}
-            onChange={(e) =>
-              setFormData({ ...formData, teamId: e.target.value })
-            }
-            className={`w-full px-4 py-3 rounded-xl border outline-none text-[13px] ${theme.input} ${theme.textP} ${theme.border}`}
-          />
 
           {apiError && (
             <p className="bg-red-50 text-red-500 text-[11px] p-3 rounded-xl text-center">

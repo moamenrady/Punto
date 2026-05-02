@@ -34,8 +34,9 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     req.body,
     "name",
     "email",
-    "plan_id",
-    "team_id"
+    "phone",
+    "dept",
+    "location"
   );
 
   // 3) تحديث اليوزر
@@ -61,9 +62,143 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
   });
 });
 
-// CRUD operations using factory functions
-exports.getAllUsers = factory.getAll(User);
-exports.getUser = factory.getOne(User);
-exports.createUser = factory.createOne(User);
-exports.updateUser = factory.updateOne(User);
-exports.deleteUser = factory.deleteOne(User);
+// ===============================
+// ✅ GET ALL USERS (scoped by company)
+// ===============================
+exports.getAllUsers = catchAsync(async (req, res, next) => {
+  const filter = {};
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const users = await User.find(filter)
+    .select("-photo")
+    .populate("company_id")
+    .populate("team_id");
+
+  res.status(200).json({
+    status: "success",
+    results: users.length,
+    data: {
+      users,
+    },
+  });
+});
+
+// ===============================
+// ✅ GET ONE USER
+// ===============================
+exports.getUser = catchAsync(async (req, res, next) => {
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const user = await User.findOne(filter)
+    .select("-photo")
+    .populate("company_id")
+    .populate("team_id");
+
+  if (!user) {
+    return next(new AppError("User not found in your company", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+    },
+  });
+});
+
+// ===============================
+// ✅ GET USER PHOTO
+// ===============================
+exports.getUserPhoto = catchAsync(async (req, res, next) => {
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const user = await User.findOne(filter);
+
+  if (!user || !user.photo?.data) {
+    return next(new AppError("No image found for this user", 404));
+  }
+
+  res.set("Content-Type", user.photo.contentType);
+  res.send(user.photo.data);
+});
+
+// ===============================
+// ✅ CREATE USER (with company support)
+// ===============================
+exports.createUser = catchAsync(async (req, res, next) => {
+  const userData = { ...req.body };
+
+  if (req.user?.company_id) {
+    userData.company_id = req.user.company_id;
+  }
+
+  if (req.file) {
+    userData.photo = {
+      data: req.file.buffer,
+      contentType: req.file.mimetype,
+    };
+  }
+
+  const newUser = await User.create(userData);
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      user: newUser,
+    },
+  });
+});
+
+// ===============================
+// ✅ UPDATE USER
+// ===============================
+exports.updateUser = catchAsync(async (req, res, next) => {
+  const updateData = { ...req.body };
+
+  if (req.file) {
+    updateData.photo = {
+      data: req.file.buffer,
+      contentType: req.file.mimetype,
+    };
+  }
+
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const user = await User.findOneAndUpdate(filter, updateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!user) {
+    return next(new AppError("User not found in your company", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+    },
+  });
+});
+
+// ===============================
+// ✅ DELETE USER
+// ===============================
+exports.deleteUser = catchAsync(async (req, res, next) => {
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const user = await User.findOneAndDelete(filter);
+
+  if (!user) {
+    return next(new AppError("User not found in your company", 404));
+  }
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});

@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 // Counter model
 const Counter = require("./Counter");
 
-const tableSchema = new mongoose.Schema(
+const planSchema = new mongoose.Schema(
   {
     // ===============================
     // 🔥 CUSTOM ID
@@ -13,23 +13,24 @@ const tableSchema = new mongoose.Schema(
       unique: true,
     },
 
-    user_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-
-    company_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
+    name: {
+      type: String,
       required: true,
     },
 
-    filename: String,
-
-    data: [
+    value: {
+      type: Number,
+      required: true,
+    },
+    features: [
       {
-        type: Map,
-        of: String,
+        type: String,
+        enum: [
+          "Project Management",
+          "Chat System",
+          "Ticketing System",
+          "Stock Management",
+        ],
       },
     ],
   },
@@ -38,18 +39,18 @@ const tableSchema = new mongoose.Schema(
 
 //
 // ===============================
-// 🔥 AUTO CUSTOM ID
+// 🔥 AUTO GENERATE CUSTOM ID
 // ===============================
-tableSchema.pre("save", async function () {
+planSchema.pre("save", async function () {
   if (this.custom_id) return;
 
   const counter = await Counter.findOneAndUpdate(
-    { name: "table" },
+    { name: "plan" },
     { $inc: { seq: 1 } },
     { new: true, upsert: true }
   );
 
-  this.custom_id = `tbl_${counter.seq}`;
+  this.custom_id = `pln_${counter.seq}`;
 });
 
-module.exports = mongoose.model("Table", tableSchema);
+module.exports = mongoose.model("Plan", planSchema);

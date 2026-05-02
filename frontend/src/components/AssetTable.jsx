@@ -12,7 +12,7 @@ const truncate = (str, max = 24) =>
   str && str.length > max ? str.slice(0, max) + '…' : str;
 
 const AssetTable = ({ assets, currentUserRole, onViewAsset, onEditAsset, onDeleteAsset, onReduceAsset }) => {
-  const isAdmin = currentUserRole === 'admin';
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "manager";
 
   if (!assets.length) {
     return (

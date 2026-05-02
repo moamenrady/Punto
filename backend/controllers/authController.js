@@ -17,9 +17,7 @@ exports.signup = catchAsync(async (req, res, next) => {
     password: req.body.password,
     passwordChangedAt: Date.now(),
     confirmPassword: req.body.confirmPassword,
-    role: req.body.role, // هنقفله بعدين
-    // plan_id: req.body.plan_id,  // optional
-    // team_id: req.body.team_id,  // optional
+    role: req.body.role,
   });
 
   const token = signToken(newUser._id);
@@ -65,6 +63,7 @@ exports.login = catchAsync(async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        company_id: user.company_id,
       },
     },
   });
@@ -107,6 +106,16 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 5) grant access
   req.user = currentUser;
+
+  // 6) Verify company membership (Extra Security)
+  if (currentUser.company_id) {
+    const Company = require("../models/companyModel");
+    const company = await Company.findById(currentUser.company_id);
+    if (company && !company.company_users.includes(currentUser._id)) {
+      return next(new AppError("Security alert: You are not officially registered in this company's user list.", 403));
+    }
+  }
+
   next();
 });
 

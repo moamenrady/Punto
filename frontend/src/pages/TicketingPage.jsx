@@ -30,7 +30,7 @@ export default function TicketingPage({
   const [showOpenOnly, setShowOpenOnly] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 60000);

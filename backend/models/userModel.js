@@ -3,8 +3,22 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const validator = require("validator");
 
+// Counter model
+const Counter = require("./Counter");
+
+// ===============================
+// 🔥 USER SCHEMA
+// ===============================
 const userSchema = new mongoose.Schema(
   {
+    // ===============================
+    // 🔥 CUSTOM ID (NEW)
+    // ===============================
+    custom_id: {
+      type: String,
+      unique: true,
+    },
+
     name: {
       type: String,
       required: [true, "User must have a name"],
@@ -18,10 +32,16 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       validate: [validator.isEmail, "Please provide a valid email"],
     },
-photo:    { type: String, default: "" },
-phone:    { type: String, default: "" },
-dept:     { type: String, default: "" },
-location: { type: String, default: "" },
+
+    photo: {
+      data: Buffer,
+      contentType: String,
+    },
+
+    phone: { type: String, default: "" },
+    dept: { type: String, default: "" },
+    location: { type: String, default: "" },
+
     role: {
       type: String,
       enum: ["admin", "manager", "user"],
@@ -39,7 +59,6 @@ location: { type: String, default: "" },
       type: String,
       required: [true, "Please confirm your password"],
       validate: {
-        // works only on CREATE & SAVE
         validator: function (el) {
           return el === this.password;
         },
@@ -47,9 +66,9 @@ location: { type: String, default: "" },
       },
     },
 
-    plan_id: {
+    company_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Plan",
+      ref: "Company",
     },
 
     team_id: {
@@ -66,20 +85,34 @@ location: { type: String, default: "" },
       default: true,
       select: false,
     },
-
   },
-
-  
   {
     timestamps: true,
   }
 );
 
-// Encrypt password before saving
+// ===============================
+// 🔥 AUTO GENERATE CUSTOM ID
+// ===============================
+userSchema.pre("save", async function () {
+  if (this.custom_id) return;
+
+  const counter = await Counter.findOneAndUpdate(
+    { name: "user" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  this.custom_id = `usr_${counter.seq}`;
+});
+
+// ===============================
+// 🔥 PASSWORD HASH
+// ===============================
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);
-  this.confirmPassword = undefined; // never saved in DB
+  this.confirmPassword = undefined;
 });
 
 userSchema.pre("save", function () {
@@ -87,12 +120,16 @@ userSchema.pre("save", function () {
   this.passwordChangedAt = Date.now() - 1000;
 });
 
+// ===============================
+// 🔥 METHODS
+// ===============================
 userSchema.methods.correctPassword = async function (
   candidatePassword,
   userPassword
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
+
 userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
@@ -103,7 +140,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   }
   return false;
 };
-// Generate password reset token send to user's email
+
 userSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
 
@@ -112,16 +149,16 @@ userSchema.methods.createPasswordResetToken = function () {
     .update(resetToken)
     .digest("hex");
 
-  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
 };
 
+// ===============================
+// 🔥 ACTIVE FILTER
+// ===============================
 userSchema.pre(/^find/, function () {
   this.find({ active: { $ne: false } });
 });
 
 module.exports = mongoose.model("User", userSchema);
-
-// const User = mongoose.model('User', userSchema);
-// module.exports = User;

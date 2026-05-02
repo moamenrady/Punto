@@ -1,6 +1,7 @@
 const Backlog = require("../models/backlogModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const factory = require("./handlerFactory");
 
 exports.setProjectId = (req, res, next) => {
   if (!req.body.project_id) {
@@ -9,20 +10,18 @@ exports.setProjectId = (req, res, next) => {
   next();
 };
 
-exports.createBacklog = catchAsync(async (req, res, next) => {
-  const backlog = await Backlog.create(req.body);
-
-  res.status(201).json({
-    status: "success",
-    data: { backlog },
-  });
-});
+// Use factory for CRUD
+exports.createBacklog = factory.createOne(Backlog);
+exports.getBacklog = factory.getOne(Backlog);
+exports.updateBacklog = factory.updateOne(Backlog);
+exports.deleteBacklog = factory.deleteOne(Backlog);
 
 exports.getAllBacklogs = catchAsync(async (req, res, next) => {
-  // When called from the nested route /projects/:projectId/backlogs
-  // only return backlogs that belong to that project
   const filter = {};
   if (req.params.projectId) filter.project_id = req.params.projectId;
+  
+  // Mandatory company scope
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
 
   const backlogs = await Backlog.find(filter);
 
@@ -31,37 +30,4 @@ exports.getAllBacklogs = catchAsync(async (req, res, next) => {
     results: backlogs.length,
     data: { backlogs },
   });
-});
-
-exports.getBacklog = catchAsync(async (req, res, next) => {
-  const backlog = await Backlog.findById(req.params.id);
-
-  if (!backlog) return next(new AppError("Backlog not found", 404));
-
-  res.status(200).json({
-    status: "success",
-    data: { backlog },
-  });
-});
-
-exports.updateBacklog = catchAsync(async (req, res, next) => {
-  const backlog = await Backlog.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!backlog) return next(new AppError("Backlog not found", 404));
-
-  res.status(200).json({
-    status: "success",
-    data: { backlog },
-  });
-});
-
-exports.deleteBacklog = catchAsync(async (req, res, next) => {
-  const backlog = await Backlog.findByIdAndDelete(req.params.id);
-
-  if (!backlog) return next(new AppError("Backlog not found", 404));
-
-  res.status(204).json({ status: "success", data: null });
 });

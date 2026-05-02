@@ -5,14 +5,16 @@ const baseController = require("../controllers/baseController");
 
 const router = express.Router({ mergeParams: true });
 
+// PROTECT ALL ROUTES
+router.use(authController.protect);
+
 // Standalone route — must be before /:id to avoid conflict
-router.get("/my", authController.protect, taskController.getMyTasks);
+router.get("/my", taskController.getMyTasks);
 
 router
   .route("/")
   .get(taskController.getAllTasks)
   .post(
-    authController.protect,
     baseController.setCreatedBy,
     taskController.setBacklogOrSprintId,
     taskController.createTask
@@ -21,7 +23,7 @@ router
 router
   .route("/:id")
   .get(taskController.getTask)
-  .patch(authController.protect, taskController.updateTask)
-  .delete(authController.protect, taskController.deleteTask);
+  .patch(taskController.updateTask)
+  .delete(taskController.deleteTask);
 
 module.exports = router;

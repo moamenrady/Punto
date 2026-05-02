@@ -7,6 +7,11 @@ const notificationSettingsSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  company_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+  },
   ticket_assigned:    { type: Boolean, default: true },
   ticket_status:      { type: Boolean, default: true },
   sla_warning:        { type: Boolean, default: true },

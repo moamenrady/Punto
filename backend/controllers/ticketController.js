@@ -37,12 +37,17 @@ exports.deleteTicket = factory.deleteOne(Ticket);
 //   });
 // });
 
-exports.assignTicket = catchAsync(async (req, res) => {
-  const ticket = await Ticket.findByIdAndUpdate(
-    req.params.id,
+exports.assignTicket = catchAsync(async (req, res, next) => {
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const ticket = await Ticket.findOneAndUpdate(
+    filter,
     { assign_to: req.body.assign_to, status: "in_progress" },
     { new: true, runValidators: true }
   );
+
+  if (!ticket) return next(new AppError("Ticket not found in your company", 404));
 
   res.status(200).json({
     status: "success",

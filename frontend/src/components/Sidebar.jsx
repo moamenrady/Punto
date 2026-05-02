@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 
-const NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   {
     to: '/dashboard',
     label: 'Project Management',
+    featureName: 'Project Management',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   {
     to: '/tickets',
     label: 'Ticketing System',
+    featureName: 'Ticketing System',
     end: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -30,6 +32,7 @@ const NAV_ITEMS = [
   {
     to: '/stock',
     label: 'Stock Management',
+    featureName: 'Stock Management',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -41,6 +44,7 @@ const NAV_ITEMS = [
   {
     to: '/chatmodal',
     label: 'Group Chat',
+    featureName: 'Chat System',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -48,18 +52,9 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Reports & Analytics',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10"/>
-        <line x1="12" y1="20" x2="12" y2="4"/>
-        <line x1="6" y1="20" x2="6" y2="14"/>
-      </svg>
-    ),
-  },
-  {
     to: '/settings',
     label: 'Settings',
+    alwaysShow: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -69,10 +64,16 @@ const NAV_ITEMS = [
   },
 ];
 
-const Sidebar = ({ user }) => {
+const Sidebar = ({ user, company }) => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
+  );
+
+  const activeFeatures = company?.plan_id?.features || [];
+  
+  const navItems = ALL_NAV_ITEMS.filter(item => 
+    item.alwaysShow || activeFeatures.includes(item.featureName)
   );
 
   const toggle = () => {
@@ -91,11 +92,6 @@ const Sidebar = ({ user }) => {
   const W = collapsed ? 72 : 260;
 
   return (
-    /*
-     * Wrapper: position:relative so the toggle button (absolute inside it)
-     * can poke out to the RIGHT of the <aside> without being clipped,
-     * because the wrapper itself has NO overflow restriction.
-     */
     <div style={{
       position: 'relative',
       flexShrink: 0,
@@ -105,7 +101,6 @@ const Sidebar = ({ user }) => {
       transition: 'width .28s cubic-bezier(.4,0,.2,1), min-width .28s cubic-bezier(.4,0,.2,1)',
     }}>
 
-      {/* ── The actual sidebar panel ── */}
       <aside style={{
         width: '100%',
         height: '100%',
@@ -114,12 +109,12 @@ const Sidebar = ({ user }) => {
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '2px 0 8px rgba(0,0,0,0.04)',
-        overflow: 'hidden',   /* clips text during collapse — does NOT clip the button */
+        overflow: 'hidden',
         position: 'absolute',
         top: 0, left: 0, bottom: 0,
       }}>
 
-        {/* Logo */}
+        {/* Logo & Company Name */}
         <div style={{
           padding: collapsed ? '0 16px' : '0 20px',
           display: 'flex', alignItems: 'center',
@@ -132,16 +127,19 @@ const Sidebar = ({ user }) => {
             width: 36, height: 36, background: '#8A9FE8', borderRadius: 9,
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <span style={{ color:'#fff', fontWeight:800, fontSize:'1rem' }}>V</span>
+            <span style={{ color:'#fff', fontWeight:800, fontSize:'1rem' }}>
+              {company?.name?.[0].toUpperCase() || 'V'}
+            </span>
           </div>
           <span style={{
-            color: '#8A9FE8', fontWeight: 700, fontSize: '1.15rem',
+            color: '#8A9FE8', fontWeight: 700, fontSize: '1.1rem',
             letterSpacing: '-0.01em', whiteSpace: 'nowrap',
             opacity: collapsed ? 0 : 1,
             transition: 'opacity .2s',
             overflow: 'hidden',
+            textTransform: 'uppercase'
           }}>
-            VERTEX
+            {company?.name || 'OMNISUITE'}
           </span>
         </div>
 
@@ -152,7 +150,7 @@ const Sidebar = ({ user }) => {
           flexGrow: 1, overflowY: 'auto', overflowX: 'hidden',
           transition: 'padding .28s',
         }}>
-          {NAV_ITEMS.map(item => {
+          {navItems.map(item => {
             const inner = (active = false) => (
               <div
                 title={collapsed ? item.label : undefined}
@@ -227,15 +225,14 @@ const Sidebar = ({ user }) => {
         </div>
       </aside>
 
-      {/* ── Toggle button — outside <aside> so overflow:hidden can't clip it ── */}
       <button
         onClick={toggle}
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         style={{
           position: 'absolute',
           top: 18,
-          right: -14,          /* half-outside the sidebar edge */
-          zIndex: 999,          /* always on top of everything */
+          right: -14,
+          zIndex: 999,
           width: 28,
           height: 28,
           borderRadius: '50%',
@@ -249,8 +246,6 @@ const Sidebar = ({ user }) => {
           outline: 'none',
           transition: 'box-shadow .2s, background .2s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background='#EEF1FD'; e.currentTarget.style.boxShadow='0 3px 10px rgba(83,74,183,0.28)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background='#fff'; e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.18), 0 1px 3px rgba(0,0,0,0.1)'; }}
       >
         <svg
           viewBox="0 0 24 24" width="13" height="13"
