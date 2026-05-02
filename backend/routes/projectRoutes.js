@@ -36,4 +36,9 @@ router
   .route("/:id/tasks")
   .get(taskController.getProjectTasks);
 
+router.use(
+  authController.protect,
+  authController.checkFeature("project")
+);
+
 module.exports = router;

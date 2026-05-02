@@ -25,5 +25,9 @@ router.patch(
   authController.restrictTo("admin", "manager"),
   ticketController.assignTicket,
 );
+router.use(
+  authController.protect,
+  authController.checkFeature("ticket")
+);
 
 module.exports = router;

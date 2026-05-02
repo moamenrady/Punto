@@ -244,3 +244,17 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     data: { user: updatedUser }
   });
 });
+exports.checkFeature = (featureName) => {
+  return async (req, res, next) => {
+    const user = await User.findById(req.user.id);
+
+    if (!user.features.includes(featureName)) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You did not purchase this feature"
+      });
+    }
+
+    next();
+  };
+};

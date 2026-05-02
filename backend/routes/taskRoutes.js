@@ -26,4 +26,9 @@ router
   .patch(taskController.updateTask)
   .delete(taskController.deleteTask);
 
+router.use(
+  authController.protect,
+  authController.checkFeature("task")
+); 
+
 module.exports = router;

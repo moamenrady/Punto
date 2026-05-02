@@ -75,6 +75,10 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
     },
+    features: {
+      type: [String],
+      default: [],
+    },
 
     passwordChangedAt: Date,
     passwordResetToken: String,

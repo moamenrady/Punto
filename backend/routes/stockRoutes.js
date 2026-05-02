@@ -18,4 +18,9 @@ router
   .patch(authController.restrictTo('admin'), stockController.updateStock)
   .delete(authController.restrictTo('admin'), stockController.deleteStock);
 
+  router.use(
+  authController.protect,
+  authController.checkFeature("stock")
+);
+
 module.exports = router;

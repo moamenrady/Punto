@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
 const passport = require("./config/passport");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 const morgan = require("morgan");
 const app = express();
@@ -55,6 +56,7 @@ app.use("/api/v1/teams",    teamRoutes);
 app.use("/api/v1/messages",    messages);
 app.use("/api/v1/plans",       planRoutes);
 app.use("/api/v1/companies",   companyRoutes);
+app.use("/api/v1/payments", paymentRoutes);
 // ── الأطول الأول دايما ──
 app.use("/api/v1/users/me/notifications", notificationsRouter);
 app.use("/api/v1/users/me", accountActionsRouter);
