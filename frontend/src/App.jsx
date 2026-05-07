@@ -254,7 +254,7 @@ function AppContent() {
             user.company_id ? (
               <Navigate to={user.role === "manager" || user.role === "admin" ? "/control-panel" : "/tickets"} replace />
             ) : (
-              <Navigate to="/landing" replace />
+              <Navigate to="/create-company" replace />
             )
           ) : (
             <Navigate to="/landing" replace />
