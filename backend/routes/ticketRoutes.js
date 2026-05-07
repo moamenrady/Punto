@@ -7,6 +7,7 @@ const router = express.Router();
 
 // PROTECT ALL ROUTES
 router.use(authController.protect);
+router.use(authController.checkFeature("Ticketing System"));
 
 router
   .route("/")
@@ -25,8 +26,12 @@ router.patch(
   authController.restrictTo("admin", "manager"),
   ticketController.assignTicket,
 );
-router.use(
-  authController.protect,
-  authController.checkFeature("ticket")
-);
+
+// ── Ticket Analytics ──
+router.get("/analytics/weekly-trends", ticketController.getWeeklyTrends);
+router.get("/analytics/kpis", ticketController.getDashboardKPIs);
+router.get("/analytics/categories", ticketController.getTicketsByCategory);
+router.get("/analytics/resolution", ticketController.getResolutionAnalytics);
+
+
 module.exports = router;

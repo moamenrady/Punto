@@ -3,6 +3,10 @@ const router = express.Router();
 const Message = require("../models/Message");
 const mongoose = require('mongoose');
 const User = require('../models/userModel');
+const authController = require('../controllers/authController');
+
+router.use(authController.protect);
+router.use(authController.checkFeature("Chat System"));
 
 router.get('/dms/user/:userId', async (req, res) => {
     try {

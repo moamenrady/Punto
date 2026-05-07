@@ -63,11 +63,17 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
 });
 
 // ===============================
-// ✅ GET ALL USERS (scoped by company)
+// ✅ GET ALL USERS (scoped by company, with optional search)
 // ===============================
 exports.getAllUsers = catchAsync(async (req, res, next) => {
   const filter = {};
   if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  // Support ?search= for name/email filtering
+  if (req.query.search) {
+    const searchRegex = new RegExp(req.query.search, "i");
+    filter.$or = [{ name: searchRegex }, { email: searchRegex }];
+  }
 
   const users = await User.find(filter)
     .select("-photo")
@@ -200,5 +206,150 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
   res.status(204).json({
     status: "success",
     data: null,
+  });
+});
+
+// ===============================
+// 📊 USER ANALYTICS
+// ===============================
+
+exports.getUserDemographics = catchAsync(async (req, res, next) => {
+  const demographics = await User.aggregate([
+    {
+      $facet: {
+        totalUsers: [{ $count: "count" }],
+        roleDistribution: [
+          {
+            $group: {
+              _id: "$role",
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $project: {
+              role: "$_id",
+              count: 1,
+              _id: 0,
+            },
+          },
+          { $sort: { count: -1 } },
+        ],
+      },
+    },
+  ]);
+
+  const total = demographics[0].totalUsers[0]?.count || 0;
+  const roles = demographics[0].roleDistribution;
+
+  const rolePercentages = roles.map((r) => ({
+    role: r.role,
+    count: r.count,
+    percentage: Math.round((r.count / total) * 100),
+  }));
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      totalUsers: total,
+      roleDistribution: rolePercentages,
+    },
+  });
+});
+
+exports.getUserGrowthTrend = catchAsync(async (req, res, next) => {
+  const growth = await User.aggregate([
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+        newUsers: { $sum: 1 },
+      },
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } },
+    {
+      $project: {
+        period: {
+          $concat: [
+            { $toString: "$_id.year" },
+            "-",
+            {
+              $cond: [
+                { $lt: ["$_id.month", 10] },
+                { $concat: ["0", { $toString: "$_id.month" }] },
+                { $toString: "$_id.month" },
+              ],
+            },
+          ],
+        },
+        newUsers: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: { growth },
+  });
+});
+
+exports.getChurnRiskList = catchAsync(async (req, res, next) => {
+  const churnThreshold = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+  const atRiskUsers = await User.aggregate([
+    { $match: { updatedAt: { $lt: churnThreshold }, active: true } },
+    {
+      $lookup: {
+        from: "tasks",
+        localField: "_id",
+        foreignField: "created_by",
+        as: "userTasks",
+      },
+    },
+    {
+      $project: {
+        custom_id: 1,
+        name: 1,
+        taskCount: { $size: "$userTasks" },
+        daysInactive: {
+          $round: [
+            {
+              $divide: [
+                { $subtract: [new Date(), "$updatedAt"] },
+                1000 * 60 * 60 * 24,
+              ],
+            },
+            0,
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        riskScorePercentage: {
+          $min: [99, { $add: [40, { $multiply: ["$daysInactive", 2] }] }],
+        },
+      },
+    },
+    {
+      $addFields: {
+        riskLevel: {
+          $cond: [
+            { $gte: ["$riskScorePercentage", 80] },
+            "CRITICAL",
+            "HIGH",
+          ],
+        },
+      },
+    },
+    { $sort: { daysInactive: -1 } },
+    { $limit: 10 },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: { atRiskUsers },
   });
 });

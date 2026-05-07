@@ -8,6 +8,7 @@ const router = express.Router();
 
 // PROTECT ALL ROUTES
 router.use(authController.protect);
+router.use(authController.checkFeature("Project Management"));
 
 router
   .route("/")
@@ -35,10 +36,5 @@ router
 router
   .route("/:id/tasks")
   .get(taskController.getProjectTasks);
-
-router.use(
-  authController.protect,
-  authController.checkFeature("project")
-);
 
 module.exports = router;

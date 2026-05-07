@@ -63,5 +63,10 @@ Router.route("/:id")
 
 Router.get("/:id/photo", userController.getUserPhoto);
 
+// ── User Analytics (admin/manager) ──
+Router.get("/analytics/demographics", userController.getUserDemographics);
+Router.get("/analytics/growth", userController.getUserGrowthTrend);
+Router.get("/analytics/churn-risk", userController.getChurnRiskList);
+
 
 module.exports = Router;

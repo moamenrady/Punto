@@ -105,7 +105,7 @@ const ProjectDetailsModal = ({ isOpen, onClose, project, stats = {}, isAdmin, on
                             <p style={{ color:'#D1D5DB', fontSize:'0.85rem', margin:0 }}>No team members added yet</p>
                         ) : (
                             <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                                {members.map(m => (
+                                {members.filter(Boolean).map(m => (
                                     <div key={m._id} title={`${m.name} (${m.email})`}
                                         style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px 6px 8px', background:'#F9FAFB', border:'1px solid #E9EBF0', borderRadius:20 }}>
                                         <div style={{ width:26, height:26, borderRadius:'50%', background:'linear-gradient(135deg,#8A9FE8,#6B82D8)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.68rem', fontWeight:800, color:'#fff', flexShrink:0 }}>

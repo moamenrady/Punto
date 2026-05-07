@@ -30,9 +30,9 @@ const fmt    = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit
 const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '—';
 
 const normalizeStatus = (s = '') => {
-  const l = s.toLowerCase().replace(/_/g, ' ');
-  if (l === 'open' || l === 'to do' || l === '') return 'To Do';
-  if (l === 'in progress')                        return 'In Progress';
+  const l = s.toLowerCase().replace(/_/g, '').replace(/\s/g, '');
+  if (l === 'open' || l === 'todo' || l === '')  return 'To Do';
+  if (l === 'inprogress')                        return 'In Progress';
   if (l === 'completed' || l === 'done' || l === 'closed') return 'Completed';
   return s;
 };
@@ -317,9 +317,12 @@ const UserDashboard = ({ user }) => {
     const newStatus = COL_STATUS[targetKey];
     if (normalizeStatus(task.status) === newStatus) return;
     const backlogId = task.backlog_id?._id ?? task.backlog_id;
+    const STATUS_API = { 'To Do': 'todo', 'In Progress': 'in_progress', 'Completed': 'completed' };
+    const apiStatus = STATUS_API[newStatus] || newStatus.toLowerCase();
+
     try {
-      await projectService.updateTask(backlogId, task._id, { status: newStatus });
-      setAllProjectTasks(prev => prev.map(t => t._id===task._id ? {...t, status:newStatus} : t));
+      await projectService.updateTask(backlogId, task._id, { status: apiStatus });
+      setAllProjectTasks(prev => prev.map(t => t._id===task._id ? {...t, status: apiStatus} : t));
     } catch(e) { alert(e.message); }
   };
 

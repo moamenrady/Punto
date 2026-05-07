@@ -5,6 +5,7 @@ const authController = require("../controllers/authController");
 const router = express.Router({ mergeParams: true });
 
 router.use(authController.protect);
+router.use(authController.checkFeature("Project Management"));
 
 // Current user's own schedule
 router.get("/me", scheduleController.getMySchedule);
@@ -15,17 +16,17 @@ router.get("/project/:projectId", scheduleController.getProjectSchedules);
 // Admin-only: create / update / delete
 router.post(
   "/",
-  authController.restrictTo("admin"),
+  authController.restrictTo("admin", "manager"),
   scheduleController.upsertSchedule
 );
 router.patch(
   "/:id/entry",
-  authController.restrictTo("admin"),
+  authController.restrictTo("admin", "manager"),
   scheduleController.updateScheduleEntry
 );
 router.delete(
   "/:id",
-  authController.restrictTo("admin"),
+  authController.restrictTo("admin", "manager"),
   scheduleController.deleteSchedule
 );
 

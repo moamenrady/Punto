@@ -36,7 +36,10 @@ const AddTeamModal = ({ isOpen, onClose, onSubmit, editTeam = null }) => {
     if (isEdit) {
       setName(editTeam.name ?? '');
       setDescription(editTeam.description ?? '');
-      setSelectedMembers(editTeam.members ?? []);
+      // Flatten members: backend returns [{ user: { _id, name... }, role... }]
+      // We want to store the User objects in selectedMembers
+      const flattened = (editTeam.members ?? []).map(m => m.user).filter(Boolean);
+      setSelectedMembers(flattened);
     } else {
       setName('');
       setDescription('');
@@ -50,16 +53,21 @@ const AddTeamModal = ({ isOpen, onClose, onSubmit, editTeam = null }) => {
       .finally(() => setLoadingUsers(false));
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── live filter: name, email, _id ── */
+  /* ── live filter: name, email, _id + exclude selected ── */
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return allUsers;
-    return allUsers.filter(u =>
+    
+    // Always exclude users who are already in the selectedMembers list
+    const selectedIds = new Set(selectedMembers.map(m => m._id));
+    const available = allUsers.filter(u => !selectedIds.has(u._id));
+
+    if (!q) return available;
+    return available.filter(u =>
       u.name?.toLowerCase().includes(q)  ||
       u.email?.toLowerCase().includes(q) ||
       u._id?.toLowerCase().includes(q)
     );
-  }, [allUsers, search]);
+  }, [allUsers, search, selectedMembers]);
 
   const isSelected   = id  => selectedMembers.some(m => m._id === id);
   const toggleMember = user => setSelectedMembers(prev =>

@@ -21,6 +21,7 @@ import CreateTicketModal from "./components/CreateTicketModal";
 import UserProfileModal from "./components/UserProfileModal";
 import Settings from "./pages/Settings";
 import TeamChat from "./pages/GroupChatPage"
+import ReportsPage from "./pages/ReportsPage"
 
 function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, setUser }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -60,7 +61,8 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
       });
       const data = await response.json();
       if (response.ok) {
-        setTickets(Array.isArray(data) ? data : (data.tickets || []));
+        // Backend returns { status: "success", data: { data: [...] } }
+        setTickets(data.data?.data || data.tickets || (Array.isArray(data) ? data : []));
       }
     } catch (error) {
       console.error("Failed to refresh tickets:", error);
@@ -137,6 +139,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
                 />
               }
             />
+            <Route path="/reports" element={<ReportsPage theme={themeObj} user={user} />} />
             <Route path="/settings" element={<Settings refreshUser={(updated) => setUser({ ...user, ...updated })} />} />
             <Route path="/" element={<Navigate to={isManager ? "/control-panel" : "/tickets"} replace />} />
           </Routes>

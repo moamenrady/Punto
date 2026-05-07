@@ -7,6 +7,7 @@ const router = express.Router({ mergeParams: true });
 
 // PROTECT ALL ROUTES
 router.use(authController.protect);
+router.use(authController.checkFeature("Project Management"));
 
 router
   .route("/")

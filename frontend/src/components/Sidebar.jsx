@@ -52,6 +52,18 @@ const ALL_NAV_ITEMS = [
     ),
   },
   {
+    to: '/reports',
+    label: 'Reports & Analytics',
+    adminOnly: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+        <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     label: 'Settings',
     alwaysShow: true,
@@ -72,9 +84,10 @@ const Sidebar = ({ user, company }) => {
 
   const activeFeatures = company?.plan_id?.features || [];
   
-  const navItems = ALL_NAV_ITEMS.filter(item => 
-    item.alwaysShow || activeFeatures.includes(item.featureName)
-  );
+  const navItems = ALL_NAV_ITEMS.filter(item => {
+    if (item.adminOnly) return user?.role === 'admin' || user?.role === 'manager';
+    return item.alwaysShow || activeFeatures.includes(item.featureName);
+  });
 
   const toggle = () => {
     const next = !collapsed;

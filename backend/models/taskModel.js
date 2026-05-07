@@ -43,6 +43,13 @@ const taskSchema = new mongoose.Schema(
       default: null,
     },
 
+    assigned_to: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     assigned: { type: Boolean, default: false },
 
     backlog_id: {
@@ -146,7 +153,8 @@ taskSchema.pre("findOneAndUpdate", async function () {
 // ===============================
 taskSchema.pre(/^find/, function () {
   this.populate("backlog_id", "name")
-    .populate("sprint_id", "name status");
+    .populate("sprint_id", "name status")
+    .populate("assigned_to", "name email role");
 });
 
 taskSchema.pre(/^find/, function () {

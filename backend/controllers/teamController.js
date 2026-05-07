@@ -6,7 +6,32 @@ const factory    = require('./handlerFactory');
 // Use factory for basic CRUD
 exports.getAllTeams = factory.getAll(Team);
 exports.getTeam = factory.getOne(Team);
-exports.updateTeam = factory.updateOne(Team);
+// Custom Update Team to handle member format transformation
+exports.updateTeam = catchAsync(async (req, res, next) => {
+  const filter = { _id: req.params.id };
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  // Transform members if present in request body
+  if (req.body.members && Array.isArray(req.body.members)) {
+    req.body.members = req.body.members.map(m => 
+      (typeof m === 'string' ? { user: m } : m)
+    );
+  }
+
+  const team = await Team.findOneAndUpdate(filter, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  if (!team) {
+    return next(new AppError('No team found with that ID in your company', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: { team }
+  });
+});
 exports.deleteTeam = factory.deleteOne(Team);
 
 // CREATE (Custom logic to set created_by)
@@ -18,10 +43,15 @@ exports.createTeam = catchAsync(async (req, res, next) => {
   }
 
   // Set created_by and company_id automatically
+  // Transform plain IDs into { user: id } objects expected by teamMemberSchema
+  const memberDocs = Array.isArray(members)
+    ? members.map(m => (typeof m === 'string' ? { user: m } : m))
+    : [];
+
   const teamData = {
     name:        name.trim(),
     description: description?.trim() || '',
-    members:     Array.isArray(members) ? members : [],
+    members:     memberDocs,
     created_by:  req.user._id,
   };
 
@@ -40,9 +70,15 @@ exports.addMember = catchAsync(async (req, res, next) => {
   const filter = { _id: req.params.id };
   if (req.user?.company_id) filter.company_id = req.user.company_id;
 
+  // Check if user is already a member
+  const existing = await Team.findOne({ ...filter, 'members.user': userId });
+  if (existing) {
+    return res.status(200).json({ status: 'success', data: { team: existing } });
+  }
+
   const team = await Team.findOneAndUpdate(
     filter,
-    { $addToSet: { members: userId } },
+    { $push: { members: { user: userId } } },
     { new: true }
   );
 
@@ -57,7 +93,7 @@ exports.removeMember = catchAsync(async (req, res, next) => {
 
   const team = await Team.findOneAndUpdate(
     filter,
-    { $pull: { members: req.params.userId } },
+    { $pull: { members: { user: req.params.userId } } },
     { new: true }
   );
 

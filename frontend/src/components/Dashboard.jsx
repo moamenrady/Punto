@@ -24,14 +24,14 @@ import Avatar from './Avatar';
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
 
 const normalizeStatus = (s = '') => {
-  const l = s.toLowerCase().replace(/_/g, ' ');
-  if (l === 'open' || l === 'to do' || l === '')  return 'To Do';
-  if (l === 'in progress')                         return 'In Progress';
+  const l = s.toLowerCase().replace(/_/g, '').replace(/\s/g, '');
+  if (l === 'open' || l === 'todo' || l === '')  return 'To Do';
+  if (l === 'inprogress')                        return 'In Progress';
   if (l === 'completed' || l === 'done' || l === 'closed') return 'Completed';
   return s;
 };
 
-const STATUS_API = { 'To Do': 'To Do', 'In Progress': 'In Progress', 'Completed': 'Completed' };
+const STATUS_API = { 'To Do': 'todo', 'In Progress': 'in_progress', 'Completed': 'completed' };
 
 const PRIORITY_STYLE = {
   high:   { bg: '#FEE2E2', color: '#DC2626', label: 'High' },
@@ -611,7 +611,7 @@ const Dashboard = ({ user }) => {
         name,
         description,
         priority: priority.toLowerCase(),
-        status: 'To Do',
+        status: 'todo',
         sprint_id: sprintId || undefined,
         assigned_to: assignedTo?.length ? assignedTo : undefined,
       });
@@ -623,8 +623,9 @@ const Dashboard = ({ user }) => {
 
   const handleUpdateTaskStatus = async (task, newStatus) => {
     const backlogId = task.backlog_id?._id ?? task.backlog_id;
+    const apiStatus = STATUS_API[newStatus] ?? newStatus;
     try {
-      await projectService.updateTask(backlogId, task._id, { status: newStatus });
+      await projectService.updateTask(backlogId, task._id, { status: apiStatus });
       setTasksByBacklog(prev => {
         const bTasks = (prev[backlogId] ?? []).map(t => t._id === task._id ? { ...t, status: newStatus } : t);
         return { ...prev, [backlogId]: bTasks };
@@ -873,7 +874,7 @@ const Dashboard = ({ user }) => {
                       <span style={{ fontSize:'0.75rem', color:'#D1D5DB' }}>No members</span>
                     ) : (
                       <>
-                        {cardMembers.slice(0,5).map((m, i) => (
+                        {cardMembers.filter(Boolean).slice(0,5).map((m, i) => (
                           <div key={m._id??i} title={m.name??'?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i }}>
                             <Avatar photo={m.photo} name={m.name??'?'} size={28} />
                           </div>
@@ -994,11 +995,14 @@ const Dashboard = ({ user }) => {
                       <span style={{ fontSize:'0.78rem', color:'#D1D5DB', fontStyle:'italic' }}>No members yet</span>
                     ) : (
                       <>
-                        {members.slice(0,7).map((m, i) => (
-                          <div key={m._id??i} title={m.name??'?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i, border:'2px solid #fff', borderRadius:'50%' }}>
-                            <Avatar photo={m.photo} name={m.name??'?'} size={30} />
-                          </div>
-                        ))}
+                        {members.filter(m => m && m.user).slice(0,7).map((m, i) => {
+                          const u = m.user;
+                          return (
+                            <div key={u._id ?? i} title={u.name ?? '?'} style={{ marginLeft:i>0?-8:0, zIndex:10-i, border:'2px solid #fff', borderRadius:'50%' }}>
+                              <Avatar photo={u.photo} name={u.name ?? '?'} size={30} />
+                            </div>
+                          );
+                        })}
                         {members.length > 7 && (
                           <div style={{ marginLeft:4, fontSize:'0.72rem', color:'#9CA3AF', fontWeight:600 }}>+{members.length-7}</div>
                         )}
@@ -1117,13 +1121,13 @@ const Dashboard = ({ user }) => {
                     </td>
                     <td style={{ padding:'14px 20px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:-4 }}>
-                        {(p.members ?? []).slice(0,4).map((m, i) => (
+                        {(p.members ?? []).filter(Boolean).slice(0,4).map((m, i) => (
                           <div key={m._id ?? i} title={m.name ?? ''} style={{ marginLeft: i > 0 ? -8 : 0, zIndex: 10 - i }}>
                             <Avatar photo={m.photo} name={m.name ?? '?'} size={26} />
                           </div>
                         ))}
                         {(p.members ?? []).length > 4 && (
-                          <span style={{ fontSize:'0.7rem', color:'#9CA3AF', marginLeft:6 }}>+{p.members.length - 4}</span>
+                          <span style={{ fontSize:'0.7rem', color:'#9CA3AF', marginLeft:6 }}>+{(p.members ?? []).length - 4}</span>
                         )}
                         {(p.members ?? []).length === 0 && (
                           <span style={{ fontSize:'0.78rem', color:'#D1D5DB' }}>—</span>

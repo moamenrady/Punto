@@ -36,6 +36,13 @@ const projectSchema = new mongoose.Schema(
       ref: "Company",
       required: true,
     },
+
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
@@ -61,7 +68,8 @@ projectSchema.pre("save", async function () {
 // 🔥 POPULATE
 // ===============================
 projectSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role");
+  this.populate("created_by", "name email role")
+    .populate("members", "name email role");
 });
 
 module.exports = mongoose.model("Project", projectSchema);

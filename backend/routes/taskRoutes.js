@@ -7,6 +7,7 @@ const router = express.Router({ mergeParams: true });
 
 // PROTECT ALL ROUTES
 router.use(authController.protect);
+router.use(authController.checkFeature("Project Management"));
 
 // Standalone route — must be before /:id to avoid conflict
 router.get("/my", taskController.getMyTasks);
@@ -26,9 +27,5 @@ router
   .patch(taskController.updateTask)
   .delete(taskController.deleteTask);
 
-router.use(
-  authController.protect,
-  authController.checkFeature("task")
-); 
 
 module.exports = router;

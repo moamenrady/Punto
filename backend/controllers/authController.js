@@ -246,12 +246,25 @@ exports.updateMe = catchAsync(async (req, res, next) => {
 });
 exports.checkFeature = (featureName) => {
   return async (req, res, next) => {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).populate({
+      path: 'company_id',
+      populate: { path: 'plan_id' }
+    });
 
-    if (!user.features.includes(featureName)) {
+    if (!user) {
+      return res.status(401).json({ status: "fail", message: "User not found" });
+    }
+
+    // 1) Check direct user features
+    const hasFeature = user.features.includes(featureName);
+    
+    // 2) Check company plan features
+    const hasPlanFeature = user.company_id?.plan_id?.features?.includes(featureName);
+
+    if (!hasFeature && !hasPlanFeature) {
       return res.status(403).json({
         status: "fail",
-        message: "You did not purchase this feature"
+        message: `You did not purchase this feature: ${featureName}`
       });
     }
 

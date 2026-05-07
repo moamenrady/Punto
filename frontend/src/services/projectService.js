@@ -26,12 +26,13 @@ const parseBacklogs  = (json) => json?.data?.backlogs  ?? json?.data?.data ?? []
 const parseTasks     = (json) => json?.data?.tasks     ?? json?.data?.data ?? [];
 const parseUsers     = (json) => Array.isArray(json)   ? json
                                : json?.data?.users     ?? json?.data?.data ?? json?.data ?? [];
+const parseTeams     = (json) => json?.data?.teams     ?? json?.data?.data ?? [];
 
 export const projectService = {
   // ── Projects ────────────────────────────────────────────────────────────────
   getProjects:   ()           => request('GET',    '/projects').then(parseProjects),
-  createProject: (data)       => request('POST',   '/projects', data).then(j => j?.data?.project ?? j?.data),
-  updateProject: (id, data)   => request('PATCH',  `/projects/${id}`, data).then(j => j?.data?.project ?? j?.data),
+  createProject: (data)       => request('POST',   '/projects', data).then(j => j?.data?.doc ?? j?.data?.project ?? j?.data),
+  updateProject: (id, data)   => request('PATCH',  `/projects/${id}`, data).then(j => j?.data?.doc ?? j?.data?.project ?? j?.data),
   deleteProject: (id)         => request('DELETE', `/projects/${id}`),
 
   // ── Project Members ─────────────────────────────────────────────────────────
@@ -40,20 +41,20 @@ export const projectService = {
 
   // ── Sprints (nested under project) ──────────────────────────────────────────
   getSprints:    (pid)           => request('GET',    `/projects/${pid}/sprints`).then(parseSprints),
-  createSprint:  (pid, data)     => request('POST',   `/projects/${pid}/sprints`, data).then(j => j?.data?.sprint ?? j?.data),
-  updateSprint:  (pid, sid, data)=> request('PATCH',  `/projects/${pid}/sprints/${sid}`, data).then(j => j?.data?.sprint ?? j?.data),
+  createSprint:  (pid, data)     => request('POST',   `/projects/${pid}/sprints`, data).then(j => j?.data?.doc ?? j?.data?.sprint ?? j?.data),
+  updateSprint:  (pid, sid, data)=> request('PATCH',  `/projects/${pid}/sprints/${sid}`, data).then(j => j?.data?.doc ?? j?.data?.sprint ?? j?.data),
   deleteSprint:  (pid, sid)      => request('DELETE', `/projects/${pid}/sprints/${sid}`),
 
   // ── Backlogs (nested under project) ─────────────────────────────────────────
   getBacklogs:   (pid)           => request('GET',    `/projects/${pid}/backlogs`).then(parseBacklogs),
-  createBacklog: (pid, data)     => request('POST',   `/projects/${pid}/backlogs`, data).then(j => j?.data?.backlog ?? j?.data),
+  createBacklog: (pid, data)     => request('POST',   `/projects/${pid}/backlogs`, data).then(j => j?.data?.doc ?? j?.data?.backlog ?? j?.data),
   deleteBacklog: (pid, bid)      => request('DELETE', `/projects/${pid}/backlogs/${bid}`),
 
   // ── Tasks (nested under backlog) ─────────────────────────────────────────────
   getTasksByBacklog: (bid)            => request('GET',    `/backlogs/${bid}/tasks`).then(parseTasks),
   getProjectTasks:   (pid)            => request('GET',    `/projects/${pid}/tasks`).then(parseTasks),
-  createTask:        (bid, data)      => request('POST',   `/backlogs/${bid}/tasks`, data).then(j => j?.data?.task ?? j?.data),
-  updateTask:        (bid, tid, data) => request('PATCH',  `/backlogs/${bid}/tasks/${tid}`, data).then(j => j?.data?.task ?? j?.data),
+  createTask:        (bid, data)      => request('POST',   `/backlogs/${bid}/tasks`, data).then(j => j?.data?.doc ?? j?.data?.task ?? j?.data),
+  updateTask:        (bid, tid, data) => request('PATCH',  `/backlogs/${bid}/tasks/${tid}`, data).then(j => j?.data?.doc ?? j?.data?.task ?? j?.data),
   deleteTask:        (bid, tid)       => request('DELETE', `/backlogs/${bid}/tasks/${tid}`),
 
   // ── Users (admin: search all users) ─────────────────────────────────────────
@@ -66,9 +67,9 @@ export const projectService = {
   getMyTasks: () => request('GET', '/tasks/my').then(j => j?.data?.tasks ?? []),
 
   // ── Teams ────────────────────────────────────────────────────────────────────
-  getTeams:        ()           => request('GET',    '/teams').then(j => j?.data?.teams ?? []),
-  createTeam:      (data)       => request('POST',   '/teams', data).then(j => j?.data?.team ?? j?.data),
-  updateTeam:      (id, data)   => request('PATCH',  `/teams/${id}`, data).then(j => j?.data?.team ?? j?.data),
+  getTeams:        ()           => request('GET',    '/teams').then(parseTeams),
+  createTeam:      (data)       => request('POST',   '/teams', data).then(j => j?.data?.doc ?? j?.data?.team ?? j?.data),
+  updateTeam:      (id, data)   => request('PATCH',  `/teams/${id}`, data).then(j => j?.data?.doc ?? j?.data?.team ?? j?.data),
   deleteTeam:      (id)         => request('DELETE', `/teams/${id}`),
   addTeamMember:   (tid, userId) => request('POST',  `/teams/${tid}/members`, { userId }).then(j => j?.data?.team ?? j?.data),
   removeTeamMember:(tid, userId) => request('DELETE', `/teams/${tid}/members/${userId}`).then(j => j?.data?.team ?? j?.data),

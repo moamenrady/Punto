@@ -56,8 +56,8 @@ export default function CreateTicketModal({ onClose, onSubmit, user }) {
       description: formData.description,
       priority: formData.priority.toLowerCase(),
       status: "open",
-      created_by: user?._id, // Sending the ID from the automated user info
-      // If the checkbox is checked, we set assign_to to current user ID
+      created_by: user?._id,
+      category: formData.category,
       assign_to: formData.assignToMe ? user?._id : null
     };
 

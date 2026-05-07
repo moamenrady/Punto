@@ -129,22 +129,23 @@ const TeamDetailsModal = ({ team, isOpen, onClose, onEdit, isAdmin = false }) =>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
-              {members.map((m, idx) => {
+              {members.filter(m => m && m.user).map((m, idx) => {
+                const u = m.user;
                 const roleStyle = ROLE_COLORS[m.role] ?? ROLE_COLORS.user;
                 return (
-                  <div key={m._id ?? idx} style={{
+                  <div key={u._id ?? idx} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 14px', borderRadius: 10,
                     background: idx % 2 === 0 ? '#FAFAFA' : '#fff',
                     border: '1px solid #F3F4F6',
                   }}>
-                    <Avatar photo={m.photo} name={m.name ?? '?'} size={38} />
+                    <Avatar photo={u.photo} name={u.name ?? '?'} size={38} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontWeight: 700, fontSize: '0.875rem', color: '#111827', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        {m.name ?? '—'}
+                        {u.name ?? '—'}
                       </p>
                       <p style={{ margin: 0, fontSize: '0.72rem', color: '#9CA3AF', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        {m.email ?? '—'}
+                        {u.email ?? '—'}
                       </p>
                     </div>
                     <span style={{

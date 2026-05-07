@@ -11,15 +11,30 @@ import { projectService } from '../services/projectService';
  */
 const AddMemberModal = ({ isOpen, onClose, project, onMembersChange }) => {
     const [query, setQuery]           = useState('');
+    const [allUsers, setAllUsers]     = useState([]);
     const [results, setResults]       = useState([]);
     const [searching, setSearching]   = useState(false);
     const [searchErr, setSearchErr]   = useState('');
     const [actionMap, setActionMap]   = useState({}); // userId → 'adding'|'removing'
     const debounceRef = useRef(null);
 
-    // Reset when modal opens
+    // Load all company users when modal opens
     useEffect(() => {
-        if (isOpen) { setQuery(''); setResults([]); setSearchErr(''); setActionMap({}); }
+        if (isOpen) {
+            setQuery(''); setResults([]); setSearchErr(''); setActionMap({});
+            (async () => {
+                try {
+                    setSearching(true);
+                    const users = await projectService.searchUsers('');
+                    setAllUsers(users);
+                    setResults(users);
+                } catch (e) {
+                    setSearchErr(e.message);
+                } finally {
+                    setSearching(false);
+                }
+            })();
+        }
     }, [isOpen]);
 
     if (!isOpen || !project) return null;
@@ -29,19 +44,21 @@ const AddMemberModal = ({ isOpen, onClose, project, onMembersChange }) => {
     const handleSearch = (val) => {
         setQuery(val);
         setSearchErr('');
-        clearTimeout(debounceRef.current);
-        if (!val.trim()) { setResults([]); return; }
-        debounceRef.current = setTimeout(async () => {
-            try {
-                setSearching(true);
-                const users = await projectService.searchUsers(val.trim());
-                setResults(users);
-            } catch (e) {
-                setSearchErr(e.message);
-            } finally {
-                setSearching(false);
-            }
-        }, 400);
+        
+        // Exclude current project members from the search results
+        const available = allUsers.filter(u => !memberIds.has(u._id));
+
+        if (!val.trim()) {
+            setResults(available);
+            return;
+        }
+        // Filter locally from already-loaded users
+        const lower = val.toLowerCase();
+        const filtered = available.filter(u =>
+            u.name?.toLowerCase().includes(lower) ||
+            u.email?.toLowerCase().includes(lower)
+        );
+        setResults(filtered);
     };
 
     const handleAdd = async (user) => {
@@ -147,23 +164,23 @@ const AddMemberModal = ({ isOpen, onClose, project, onMembersChange }) => {
                         {searchErr && <p style={{ margin:'4px 0 0', fontSize:'0.75rem', color:'#DC2626' }}>{searchErr}</p>}
                     </div>
 
-                    {/* Search results */}
-                    {query.trim() && (
-                        <div>
-                            <p style={{ margin:'0 0 6px', fontSize:'0.75rem', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                                Search Results
-                            </p>
-                            {searching ? (
-                                <p style={{ textAlign:'center', color:'#9CA3AF', fontSize:'0.85rem', padding:'12px 0' }}>Searching…</p>
-                            ) : results.length === 0 ? (
-                                <p style={{ textAlign:'center', color:'#9CA3AF', fontSize:'0.85rem', padding:'12px 0' }}>No users found</p>
-                            ) : (
-                                results.map(u => (
+                    {/* Search results / All users */}
+                    <div>
+                        <p style={{ margin:'0 0 6px', fontSize:'0.75rem', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                            {query.trim() ? 'Search Results' : 'All Users'}
+                        </p>
+                        {searching ? (
+                            <p style={{ textAlign:'center', color:'#9CA3AF', fontSize:'0.85rem', padding:'12px 0' }}>Loading…</p>
+                        ) : results.length === 0 ? (
+                            <p style={{ textAlign:'center', color:'#9CA3AF', fontSize:'0.85rem', padding:'12px 0' }}>No users found</p>
+                        ) : (
+                            <div style={{ maxHeight:220, overflowY:'auto' }}>
+                                {results.map(u => (
                                     <UserRow key={u._id} user={u} isMember={memberIds.has(u._id)} />
-                                ))
-                            )}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Current members */}
                     <div>
