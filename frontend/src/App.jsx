@@ -257,7 +257,7 @@ function AppContent() {
               <Navigate to="/landing" replace />
             )
           ) : (
-            <Navigate to="/login" replace />
+            <Navigate to="/landing" replace />
           )
         }
       />
