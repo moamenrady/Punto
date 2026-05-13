@@ -596,15 +596,11 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
             className="relative flex items-center justify-center w-10 h-10 rounded-full border border-[var(--border-subtle)] text-[var(--text-main)] hover:bg-[var(--bg-elevated)] transition-all duration-300 hover:scale-105"
             title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
-
+            {/* Sun icon */}
             <svg
               className={`absolute w-5 h-5 transition-all duration-500 ease-in-out ${isDarkMode ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-50"}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"
             >
               <circle cx="12" cy="12" r="5"></circle>
               <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -616,34 +612,59 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
               <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
               <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
-
-            {/* أيكونة القمر (تظهر في اللايت مود للتحويل للدارك) */}
+            {/* Moon icon */}
             <svg
               className={`absolute w-5 h-5 transition-all duration-500 ease-in-out ${!isDarkMode ? "opacity-100 rotate-0 scale-100" : "opacity-0 rotate-90 scale-50"}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
           </button>
-          <Link
-            to="/login"
-            className="btn-sm-outline hidden md:flex items-center justify-center"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/signup"
-            className="btn-sm-primary flex items-center justify-center"
-          >
-            Get Started Free
-          </Link>
+
+          {user && !user.company_id ? (
+            /* Logged in but no company yet — guide them to create one */
+            <>
+              <span
+                className="hidden md:flex items-center gap-1.5 text-sm font-medium"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" opacity="0.2"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+                Hi, {user.name?.split(" ")[0]}
+              </span>
+              <Link
+                to="/create-company"
+                className="btn-sm-primary flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Create Company
+              </Link>
+            </>
+          ) : !user ? (
+            /* Not logged in — show Sign In + Get Started */
+            <>
+              <Link
+                to="/login"
+                className="btn-sm-outline hidden md:flex items-center justify-center"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="btn-sm-primary flex items-center justify-center"
+              >
+                Get Started Free
+              </Link>
+            </>
+          ) : null}
         </div>
       </nav>
+
 
       {/* HERO SECTION */}
       <section className="hero" id="home">

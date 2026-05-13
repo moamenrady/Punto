@@ -1,0 +1,7 @@
+PUNTO
+
+
+the Project Section 
+
+the project is attached to the company and so you can't create a project without having a company also the company id 
+is taken from the token of the user who are trying to create the project so that not anyone can create a project in any company he should first login in and from his token we will see if he have a company or not and if yes we will then check if he purchased the project section or not if yes the the project will be added 

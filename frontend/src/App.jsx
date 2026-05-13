@@ -10,6 +10,9 @@ import SetupEnvironment from "./pages/SetupEnvironment";
 import LandingPage from "./pages/LandingPage";
 import CreateCompanyPage from "./pages/CreateCompanyPage";
 import CompanyControlPanel from "./pages/CompanyControlPanel";
+import GoogleAuthHandler from "./pages/GoogleAuthHandler";
+import VerificationSent from "./pages/VerificationSent";
+import EmailVerificationHandler from "./pages/EmailVerificationHandler";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -228,6 +231,9 @@ function AppContent() {
       <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
       <Route path="/landing" element={<LandingPage {...commonProps} />} />
       <Route path="/create-company" element={<CreateCompanyPage {...commonProps} />} />
+      <Route path="/auth/google/success" element={<GoogleAuthHandler {...commonProps} />} />
+      <Route path="/verification-sent" element={<VerificationSent {...commonProps} />} />
+      <Route path="/verify-email/:token" element={<EmailVerificationHandler {...commonProps} />} />
 
       <Route
         path="/*"

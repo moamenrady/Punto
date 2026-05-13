@@ -10,6 +10,7 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState("");
     const [showInfo, setShowInfo] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef();
 
     const isDark = theme.bg.includes('12102A') || theme.bg.includes('dark');
@@ -45,6 +46,14 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
     };
 
     useEffect(() => {
+        if (chatType === 'ai') {
+            const savedMessages = localStorage.getItem('ai_chat_history');
+            if (savedMessages) {
+                setMessages(JSON.parse(savedMessages));
+            }
+            return;
+        }
+
         socket.emit('join_chat', chatId);
 
         axios.get(`http://127.0.0.1:5000/api/v1/messages/${chatId}`)
@@ -53,7 +62,6 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
 
         const handleReceive = (msg) => {
             setMessages(prev => {
-                // Ensure no duplicate messages based on _id
                 if(prev.find(m => m._id === msg._id)) return prev;
                 return [...prev, msg];
             });
@@ -64,12 +72,68 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
         return () => {
             socket.off('receive_message', handleReceive);
         };
-    }, [chatId]);
+    }, [chatId, chatType]);
 
     useEffect(() => scrollRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
 
-    const send = () => {
+    const send = async () => {
         if (!text.trim()) return;
+
+        if (chatType === 'ai') {
+            const userMessage = {
+                _id: Date.now().toString(),
+                senderId: user._id,
+                senderName: user.name,
+                text: text,
+                createdAt: new Date().toISOString()
+            };
+
+            setMessages(prev => {
+                const updated = [...prev, userMessage];
+                localStorage.setItem('ai_chat_history', JSON.stringify(updated));
+                return updated;
+            });
+            setText("");
+            setIsTyping(true);
+
+            try {
+                const response = await axios.post("https://ahmedradwan-production.up.railway.app/chat", {
+                    query: text,
+                    user_role: user.role || 'user',
+                    user_id: user._id
+                }, { timeout: 30000 });
+
+                const aiResponseText = response.data.response || "I received an empty response from my server. Please try again.";
+
+                const aiMessage = {
+                    _id: (Date.now() + 1).toString(),
+                    senderId: 'ai_assistant',
+                    senderName: 'AI Assistant',
+                    text: aiResponseText,
+                    createdAt: new Date().toISOString()
+                };
+
+                setMessages(prev => {
+                    const updated = [...prev, aiMessage];
+                    localStorage.setItem('ai_chat_history', JSON.stringify(updated));
+                    return updated;
+                });
+            } catch (err) {
+                console.error("AI Chat Error:", err);
+                const errorMessage = {
+                    _id: (Date.now() + 1).toString(),
+                    senderId: 'ai_assistant',
+                    senderName: 'AI Assistant',
+                    text: "Sorry, I'm having trouble connecting to my brain right now. Please try again later.",
+                    createdAt: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, errorMessage]);
+            } finally {
+                setIsTyping(false);
+            }
+            return;
+        }
+
         socket.emit('send_message', { 
             chatId, 
             teamId: chatType === 'team' ? team?._id : undefined,
@@ -92,28 +156,31 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
         return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Derived info based on chat type
-    const chatTitle = chatType === 'team' ? (team?.name || 'Team Chat') : (contact?.name || 'Direct Message');
-    const chatSubTitle = chatType === 'team' 
-        ? (team?.members?.map(m => m.name.split(' ')[0]).join(', ') || 'tap here for team info') 
-        : (contact?.email || 'tap here for contact info');
+    const chatTitle = chatType === 'ai' ? 'Chat with AI' : (chatType === 'team' ? (team?.name || 'Team Chat') : (contact?.name || 'Direct Message'));
+    const chatSubTitle = chatType === 'ai' 
+        ? 'Active • OmniSuite Assistant'
+        : (chatType === 'team' 
+            ? (team?.members?.map(m => m.name.split(' ')[0]).join(', ') || 'tap here for team info') 
+            : (contact?.email || 'tap here for contact info'));
     
-    const chatAvatarUrl = chatType === 'team' 
-        ? `https://ui-avatars.com/api/?name=Team+${team?._id?.substring(0, 2) || 'XX'}&background=random`
-        : (contact?.photo || `https://ui-avatars.com/api/?name=${contact?.name}&background=random`);
-
     return (
         <div className="w-full h-full flex overflow-hidden">
-            {/* Main Chat Pane */}
             <div className={`flex-1 flex flex-col overflow-hidden relative ${waTheme.chatBg}`}>
-                {/* Header */}
                 <div 
                     className={`${waTheme.headerBg} ${waTheme.headerText} px-4 py-2.5 flex items-center justify-between border-b ${waTheme.border} z-10 shrink-0 h-[60px] cursor-pointer`}
                     onClick={() => setShowInfo(!showInfo)}
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden shrink-0">
-                            {chatType === 'team' ? (
+                            {chatType === 'ai' ? (
+                                <div className="w-full h-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white">
+                                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+                                        <path d="M12 8v4"/>
+                                        <path d="M12 16h.01"/>
+                                    </svg>
+                                </div>
+                            ) : chatType === 'team' ? (
                                 <Avatar name={`Team+${team?._id?.substring(0, 2) || 'XX'}`} size={40} className="w-full h-full" />
                             ) : (
                                 <Avatar photo={contact?.photo} name={contact?.name} size={40} className="w-full h-full" />
@@ -138,7 +205,6 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                     </div>
                 </div>
 
-                {/* Chat Area */}
                 <div className={`flex-1 overflow-y-auto p-4 sm:p-8 space-y-2 ${waTheme.chatBg}`}
                      style={{
                          backgroundImage: isDark ? 'none' : 'url("https://w0.peakpx.com/wallpaper/818/148/HD-wallpaper-whatsapp-background-cool-dark-green-new-theme-whatsapp.jpg")',
@@ -161,7 +227,7 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                             <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-[2px]`}>
                                 <div className={`relative max-w-[85%] sm:max-w-[65%] px-2.5 py-1.5 rounded-lg shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] flex flex-col ${isMe ? waTheme.myBubble + ' rounded-tr-none' : waTheme.otherBubble + ' rounded-tl-none'}`}>
                                     
-                                    {showName && chatType === 'team' && (
+                                    {showName && (chatType === 'team' || chatType === 'ai') && (
                                         <span className={`text-[13px] font-medium mb-0.5 ${isDark ? 'text-[#53bdeb]' : 'text-[#128c7e]'}`}>
                                             {m.senderName}
                                         </span>
@@ -185,10 +251,23 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                             </div>
                         );
                     })}
+
+                    {isTyping && (
+                        <div className="flex flex-col items-start mb-2">
+                            <div className={`relative px-3 py-2 rounded-lg shadow-sm flex flex-col ${waTheme.otherBubble} rounded-tl-none`}>
+                                <span className={`text-[13px] font-medium mb-1 ${isDark ? 'text-[#53bdeb]' : 'text-[#128c7e]'}`}>AI Assistant</span>
+                                <div className="flex gap-1 items-center h-4 px-1">
+                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div ref={scrollRef} />
                 </div>
 
-                {/* Input Area */}
                 <div className={`${waTheme.inputBg} px-4 py-2.5 flex items-end gap-3 shrink-0 min-h-[62px]`}>
                     <button className={`p-2 rounded-full hover:bg-black/5 transition-colors ${waTheme.icon} shrink-0`}>
                         <Smile size={26} strokeWidth={1.5} />
@@ -228,11 +307,8 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                 </div>
             </div>
 
-            {/* Info Pane (Team or Contact) */}
             {showInfo && (
                 <div className={`w-[320px] lg:w-[380px] flex flex-col border-l ${waTheme.border} ${waTheme.infoBg} transition-all duration-300 z-20`}>
-                    
-                    {/* Info Header */}
                     <div className={`h-[60px] flex items-center px-4 gap-4 ${waTheme.headerBg} ${waTheme.headerText} shrink-0 border-b ${waTheme.border}`}>
                         <button onClick={() => setShowInfo(false)} className={`hover:bg-black/5 p-1 rounded-full transition-colors ${waTheme.icon}`}>
                             <X size={24} />
@@ -241,10 +317,17 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
-                        {/* Profile Picture & Name Section */}
                         <div className={`flex flex-col items-center py-8 px-6 mb-2 shadow-sm ${waTheme.infoSection}`}>
                             <div className="w-[200px] h-[200px] rounded-full bg-gray-300 overflow-hidden mb-5">
-                                {chatType === 'team' ? (
+                                {chatType === 'ai' ? (
+                                    <div className="w-full h-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white">
+                                        <svg viewBox="0 0 24 24" width="100" height="100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+                                            <path d="M12 8v4"/>
+                                            <path d="M12 16h.01"/>
+                                        </svg>
+                                    </div>
+                                ) : chatType === 'team' ? (
                                     <Avatar name={`Team+${team?._id?.substring(0, 2) || 'XX'}`} size={200} className="w-full h-full" />
                                 ) : (
                                     <Avatar photo={contact?.photo} name={contact?.name} size={200} className="w-full h-full" />
@@ -252,11 +335,10 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                             </div>
                             <h2 className={`text-[24px] text-center mb-1 ${waTheme.headerText}`}>{chatTitle}</h2>
                             <p className={`text-[14px] text-center ${isDark ? 'text-[#8696a0]' : 'text-[#667781]'}`}>
-                                {chatType === 'team' ? `Team group • ${team?.members?.length || 0} members` : contact?.email}
+                                {chatType === 'ai' ? 'OmniSuite Virtual Assistant' : (chatType === 'team' ? `Team group • ${team?.members?.length || 0} members` : contact?.email)}
                             </p>
                         </div>
 
-                        {/* Description Section (Only for Team) */}
                         {chatType === 'team' && (
                             <div className={`px-6 py-4 mb-2 shadow-sm ${waTheme.infoSection}`}>
                                 <div className={`text-[14px] mb-2 ${isDark ? 'text-[#00a884]' : 'text-[#008069]'}`}>Description</div>
@@ -266,13 +348,11 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                             </div>
                         )}
 
-                        {/* Members List Section (Only for Team) */}
                         {chatType === 'team' && (
                             <div className={`shadow-sm pb-4 ${waTheme.infoSection}`}>
                                 <div className={`px-6 py-4 text-[14px] ${isDark ? 'text-[#8696a0]' : 'text-[#667781]'}`}>
                                     {team?.members?.length || 0} members
                                 </div>
-                                
                                 <div className="flex flex-col">
                                     {team?.members?.map((member, idx) => {
                                         const isMe = member._id === user._id;
@@ -307,15 +387,14 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                             </div>
                         )}
 
-                        {/* Contact Specific Section */}
-                        {chatType === 'dm' && (
+                        {(chatType === 'dm' || chatType === 'ai') && (
                             <div className={`px-6 py-4 mb-2 shadow-sm ${waTheme.infoSection} flex flex-col gap-4`}>
                                 <div className={`flex flex-col gap-1 ${waTheme.headerText}`}>
-                                    <span className="text-[16px]">Role: {contact?.role || 'User'}</span>
+                                    <span className="text-[16px]">Role: {chatType === 'ai' ? 'Assistant' : (contact?.role || 'User')}</span>
                                 </div>
                                 <div className="border-t border-b py-4 my-2 border-dashed border-gray-300 dark:border-gray-700">
                                     <p className={`text-[14px] ${isDark ? 'text-[#8696a0]' : 'text-[#667781]'} text-center`}>
-                                        End-to-end encrypted direct messaging channel.
+                                        {chatType === 'ai' ? 'AI-powered support for your workspace.' : 'End-to-end encrypted direct messaging channel.'}
                                     </p>
                                 </div>
                             </div>
