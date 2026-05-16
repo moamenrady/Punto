@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 const token = () => localStorage.getItem("token");
 const API = "http://localhost:5000/api/v1";
-const C = {
+
+// Mutable module-level theme — updated at top of Settings render
+// so all sub-component closures see the current palette.
+let C = {
   bg: "#F5F4FF",
   white: "#ffffff",
   border: "#E8E6FF",
@@ -15,6 +18,23 @@ const C = {
   text: "#1E1B3A",
   muted: "#9CA3AF",
   footerBg: "#FAFAFF",
+};
+
+const LIGHT_C = { ...C };
+const DARK_C = {
+  bg: "#080a10",
+  white: "#111827",
+  border: "#1e2336",
+  borderLight: "#1e2336",
+  rowBorder: "#1a1f2e",
+  primary: "#8A9FE8",
+  primaryHov: "#7F77DD",
+  accent: "#a5b4fc",
+  accentBg: "rgba(99,102,241,0.1)",
+  accentBd: "rgba(99,102,241,0.25)",
+  text: "#e2e8f0",
+  muted: "#64748b",
+  footerBg: "#0f1117",
 };
 
 function Toggle({ value, onChange, loading, defaultOn = false }) {
@@ -87,17 +107,19 @@ function Badge({ type, children }) {
   );
 }
 
-const inp = {
-  width: "100%",
-  fontSize: 13,
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: `1px solid ${C.accentBd}`,
-  backgroundColor: C.white,
-  color: C.text,
-  outline: "none",
-  boxSizing: "border-box",
-};
+// Use ES5 getters so each property reads the CURRENT C at render time
+// (C is mutated by the Settings component before sub-components are called).
+const inp = Object.defineProperties({}, {
+  width:           { get() { return "100%"; },                              enumerable: true },
+  fontSize:        { get() { return 13; },                                  enumerable: true },
+  padding:         { get() { return "10px 14px"; },                         enumerable: true },
+  borderRadius:    { get() { return 10; },                                  enumerable: true },
+  border:          { get() { return `1px solid ${C.accentBd}`; },           enumerable: true },
+  backgroundColor: { get() { return C.white; },                             enumerable: true },
+  color:           { get() { return C.text; },                              enumerable: true },
+  outline:         { get() { return "none"; },                              enumerable: true },
+  boxSizing:       { get() { return "border-box"; },                        enumerable: true },
+});
 
 function Card({ children }) {
   return (
@@ -1003,7 +1025,9 @@ const TABS = [
   { id: "danger", label: "Account Actions" },
 ];
 
-export default function Settings({ refreshUser }) {
+export default function Settings({ refreshUser, isDarkMode }) {
+  // Sync module-level C before any sub-component renders
+  C = isDarkMode ? DARK_C : LIGHT_C;
   const [active, setActive] = useState("profile");
   
   const PAGES = {

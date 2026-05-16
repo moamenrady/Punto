@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { Sun, Moon, Bell, MessageSquare, FileText, Search, LayoutDashboard, Package, Settings } from "lucide-react";
+import { Sun, Moon, Bell, MessageSquare, FileText, Search, LayoutDashboard, Package, Settings, BarChart2 } from "lucide-react";
 import Avatar from "./Avatar";
 
 const Header = ({
@@ -13,20 +13,40 @@ const Header = ({
 }) => {
   const location = useLocation();
 
-  const roleLabel = user?.role === "admin" ? "Admin" : "User";
-  const roleBg = user?.role === "admin" ? "#EEF1FD" : "#F0FDF4";
-  const roleColor = user?.role === "admin" ? "#534AB7" : "#15803D";
-  const roleBorder = user?.role === "admin" ? "#C7D2F8" : "#BBF7D0";
+  const ROLE_MAP = {
+    admin:   { label: "Admin",   bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
+    manager: { label: "Manager", bg: "#FFF7ED", color: "#D97706", border: "#FDE68A" },
+    agent:   { label: "Agent",   bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
+    member:  { label: "Member",  bg: "#F0FDF4", color: "#16A34A", border: "#BBF7D0" },
+    user:    { label: "User",    bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0" },
+  };
+  const roleCfg   = ROLE_MAP[user?.role] || ROLE_MAP.user;
+  const roleLabel = roleCfg.label;
+  const roleBg    = roleCfg.bg;
+  const roleColor = roleCfg.color;
+  const roleBorder= roleCfg.border;
 
   const getPageInfo = (path) => {
-    if (path.startsWith("/dashboard")) return { title: "Dashboard", Icon: LayoutDashboard };
-    if (path.startsWith("/stock")) return { title: "Stock Management", Icon: Package };
-    if (path.startsWith("/chatmodal")) return { title: "Chat System", Icon: MessageSquare };
-    if (path.startsWith("/settings")) return { title: "Settings", Icon: Settings };
-    return { title: "Ticketing System", Icon: FileText };
+    if (path.startsWith("/dashboard"))  return { title: "Dashboard",            Icon: LayoutDashboard, placeholder: "Search dashboards..." };
+    if (path.startsWith("/stock"))      return { title: "Stock Management",      Icon: Package,         placeholder: "Search items, SKUs, or categories..." };
+    if (path.startsWith("/chatmodal"))  return { title: "Chat System",           Icon: MessageSquare,   placeholder: "Search messages or channels..." };
+    if (path.startsWith("/settings"))   return { title: "Settings",              Icon: Settings,        placeholder: "Search settings..." };
+    if (path.startsWith("/reports"))    return { title: "Reports & Analytics",   Icon: BarChart2,       placeholder: "Search charts, team metrics, or analysis..." };
+    return                                     { title: "Ticketing System",      Icon: FileText,        placeholder: "Search by ID, title, category, or user..." };
   };
 
-  const { title: pageTitle, Icon: PageIcon } = getPageInfo(location.pathname);
+  const { title: pageTitle, Icon: PageIcon, placeholder: searchPlaceholder } = getPageInfo(location.pathname);
+
+  const dark = theme === "dark";
+  const hBg     = dark ? "#0f1117"            : "#FFFFFF";
+  const hBorder = dark ? "#1e2336"            : "#E9EBF0";
+  const hText   = dark ? "#e2e8f0"            : "#111827";
+  const hMuted  = dark ? "#94a3b8"            : "#9CA3AF";
+  const hIcon   = dark ? "#64748b"            : "#6B7280";
+  const iBg     = dark ? "#1a1f2e"            : "#F9FAFB";
+  const iBorder = dark ? "rgba(255,255,255,0.08)" : "#E5E7EB";
+  const btnBg   = dark ? "#1a1f2e"            : "#F9FAFB";
+  const btnBdr  = dark ? "rgba(255,255,255,0.08)" : "#E9EBF0";
 
   return (
     <header
@@ -37,14 +57,14 @@ const Header = ({
         justifyContent: "space-between",
         padding: "0 32px",
         height: "70px",
-        backgroundColor: "#FFFFFF",
-        borderBottom: "1px solid #E9EBF0",
+        backgroundColor: hBg,
+        borderBottom: `1px solid ${hBorder}`,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <PageIcon size={18} color="#8A9FE8" />
         <span
-          style={{ fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}
+          style={{ fontSize: "0.95rem", fontWeight: 600, color: hText }}
         >
           {pageTitle}
         </span>
@@ -60,7 +80,7 @@ const Header = ({
       >
         <Search
           size={18}
-          color="#9CA3AF"
+          color={hMuted}
           style={{
             position: "absolute",
             left: 10,
@@ -70,15 +90,16 @@ const Header = ({
         />
         <input
           type="text"
-          placeholder="Search by ID, title, category, or user..."
+          placeholder={searchPlaceholder}
           value={searchQuery}
           onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
           style={{
             width: "100%",
             padding: "10px 16px 10px 45px",
             borderRadius: "30px",
-            border: "1px solid #E5E7EB",
-            backgroundColor: "#F9FAFB",
+            border: `1px solid ${iBorder}`,
+            backgroundColor: iBg,
+            color: hText,
             fontSize: "0.85rem",
             outline: "none",
           }}
@@ -101,7 +122,7 @@ const Header = ({
             border: `1px solid ${roleBorder}`,
           }}
         >
-          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9CA3AF" }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: hMuted }}>
             ROLE:
           </span>
           <span
@@ -121,15 +142,15 @@ const Header = ({
           style={{
             padding: "8px",
             borderRadius: "12px",
-            border: "1px solid #E9EBF0",
-            background: "#F9FAFB",
+            border: `1px solid ${btnBdr}`,
+            background: btnBg,
             cursor: "pointer",
           }}
         >
           {theme === "light" ? (
-            <Sun size={20} color="#6B7280" />
+            <Sun size={20} color={hIcon} />
           ) : (
-            <Moon size={20} color="#6B7280" />
+            <Moon size={20} color={hIcon} />
           )}
         </button>
 
@@ -138,11 +159,11 @@ const Header = ({
           style={{
             padding: "8px",
             borderRadius: "12px",
-            border: "1px solid #E9EBF0",
-            background: "#F9FAFB",
+            border: `1px solid ${btnBdr}`,
+            background: btnBg,
           }}
         >
-          <MessageSquare size={20} color="#6B7280" />
+          <MessageSquare size={20} color={hIcon} />
         </button>
 
         <button
@@ -150,11 +171,11 @@ const Header = ({
           style={{
             padding: "8px",
             borderRadius: "12px",
-            border: "1px solid #E9EBF0",
-            background: "#F9FAFB",
+            border: `1px solid ${btnBdr}`,
+            background: btnBg,
           }}
         >
-          <Bell size={20} color="#6B7280" />
+          <Bell size={20} color={hIcon} />
         </button>
 
         <div
@@ -164,7 +185,7 @@ const Header = ({
             alignItems: "center",
             gap: 12,
             paddingLeft: 16,
-            borderLeft: "1px solid #E9EBF0",
+            borderLeft: `1px solid ${hBorder}`,
             cursor: "pointer",
           }}
         >
@@ -173,14 +194,14 @@ const Header = ({
               style={{
                 fontSize: "0.65rem",
                 fontWeight: 800,
-                color: "#9CA3AF",
+                color: hMuted,
                 textTransform: "uppercase",
               }}
             >
               {roleLabel}
             </div>
             <div
-              style={{ fontSize: "0.9rem", fontWeight: 700, color: "#000000" }}
+              style={{ fontSize: "0.9rem", fontWeight: 700, color: hText }}
             >
               {user?.name}
             </div>

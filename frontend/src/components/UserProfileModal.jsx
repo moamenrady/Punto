@@ -25,7 +25,24 @@ const priorityBg = {
 };
 const ACCENT_BG = "#F5F4FF";
 
-const TicketRow = ({ t }) => {
+// Derive dark-mode variants at call time
+const getThemeTokens = (theme) => {
+  const d = theme?.bg?.includes('12102A') || document.documentElement.classList.contains('dark');
+  return {
+    isDark: d,
+    panelBg:  d ? '#111827' : '#ffffff',
+    accentBg: d ? '#1a1f2e' : '#F5F4FF',
+    cardBg:   d ? '#1a1f2e' : '#ffffff',
+    cardBdr:  d ? '#1e2336' : '#EDE9FE',
+    textP:    d ? '#e2e8f0' : '#1F2937',
+    textM:    d ? '#94a3b8' : '#6B7280',
+    inputBg:  d ? '#0f1117' : '#F9FAFB',
+    inputBdr: d ? '#1e2336' : '#E5E7EB',
+    rowBdr:   d ? '#1e2336' : '#F3F4F6',
+  };
+};
+
+const TicketRow = ({ t, tk = {} }) => {
   const p = t.priority?.toLowerCase();
   return (
     <div
@@ -35,8 +52,8 @@ const TicketRow = ({ t }) => {
         alignItems: "center",
         padding: "11px 16px",
         borderRadius: "14px",
-        border: "1px solid #EDE9FE",
-        backgroundColor: "#fff",
+        border: `1px solid ${tk.cardBdr || "#EDE9FE"}`,
+        backgroundColor: tk.cardBg || "#fff",
       }}
     >
       <div style={{ display: "flex", gap: "10px", minWidth: 0 }}>
@@ -169,6 +186,8 @@ export default function UserProfileModal({
     (t) => t.status?.toLowerCase() === "closed",
   ).length;
 
+  const tk = getThemeTokens(theme);
+
   if (isMe) {
     return createPortal(
       <AnimatePresence>
@@ -202,8 +221,8 @@ export default function UserProfileModal({
                 bottom: 0,
                 zIndex: 99999,
                 width: "420px",
-                backgroundColor: "#fff",
-                boxShadow: "-20px 0 60px rgba(0,0,0,0.1)",
+                backgroundColor: tk.panelBg,
+                boxShadow: tk.isDark ? "-20px 0 60px rgba(0,0,0,0.5)" : "-20px 0 60px rgba(0,0,0,0.1)",
                 display: "flex",
                 flexDirection: "column",
                 overflowY: "auto",
@@ -226,7 +245,7 @@ export default function UserProfileModal({
                     {/* top */}
                     <div
                       style={{
-                        backgroundColor: ACCENT_BG,
+                        backgroundColor: tk.accentBg,
                         padding: "36px 28px 28px",
                       }}
                     >

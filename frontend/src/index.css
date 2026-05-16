@@ -1041,3 +1041,154 @@ body {
     font-size: 1.2rem;
   }
 }
+/* ── Analytics Dashboard Styles ─────────────────────────────────────────── */
+.an-glass {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+}
+.an-glass-hover { transition: border-color 0.2s, background 0.2s; }
+.an-glass-hover:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.12);
+}
+.an-kpi { position: relative; overflow: hidden; }
+.an-kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 12px 12px 0 0;
+}
+.an-glow-orange::before { background: linear-gradient(90deg,#f97316,#fb923c); }
+.an-glow-blue::before   { background: linear-gradient(90deg,#3b82f6,#60a5fa); }
+.an-glow-green::before  { background: linear-gradient(90deg,#22c55e,#4ade80); }
+.an-glow-purple::before { background: linear-gradient(90deg,#a855f7,#c084fc); }
+.an-glow-red::before    { background: linear-gradient(90deg,#ef4444,#f87171); }
+.an-glow-cyan::before   { background: linear-gradient(90deg,#06b6d4,#22d3ee); }
+.an-glow-amber::before  { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+.an-ai-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  background: rgba(168,85,247,0.15);
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 20px;
+  font-size: 10px; font-weight: 600; color: #c084fc;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.an-page { background: #0d0f14; min-height: 100%; padding: 24px; }
+.an-page ::-webkit-scrollbar { width: 4px; height: 4px; }
+.an-page ::-webkit-scrollbar-track { background: transparent; }
+.an-page ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* ── Global smooth theme transitions ───────────────────────── */
+.top-header,
+.sidebar,
+aside,
+.icon-btn,
+.main-wrapper,
+input,
+button {
+  transition: background 0.2s ease, background-color 0.2s ease,
+              border-color 0.2s ease, color 0.2s ease !important;
+}
+
+/* ── Dark mode: Header ───────────────────────────────────────── */
+html.dark .top-header {
+  background: rgba(11,13,20,0.97) !important;
+  border-bottom: 1px solid rgba(30,36,56,0.9) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* ── Dark mode: Sidebar ──────────────────────────────────────── */
+html.dark .sidebar,
+html.dark aside {
+  background: rgba(10,12,18,0.98) !important;
+  border-right: 1px solid rgba(30,36,56,0.9) !important;
+}
+
+/* ── Dark mode: Icon buttons ─────────────────────────────────── */
+html.dark .icon-btn {
+  background: rgba(26,30,46,0.8) !important;
+  border-color: rgba(255,255,255,0.07) !important;
+  color: #8b95b0 !important;
+}
+html.dark .icon-btn:hover {
+  background: rgba(37,43,59,0.9) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #e8ecf4 !important;
+}
+
+/* ── Dark mode: Content/page background ──────────────────────── */
+html.dark .content-area {
+  background-color: #0b0d14 !important;
+}
+
+/* ── Dark mode: Root CSS variables (deep navy — matches Reports glassmorphic palette) */
+html.dark {
+  --bg-main:      #0b0d14;   /* deep midnight navy — base canvas */
+  --bg-sidebar:   #10121a;   /* slightly lighter navy for sidebar */
+  --bg-card:      #13161f;   /* card surface — translucent navy */
+  --bg-elevated:  #1a1e2e;   /* elevated surface (modals, inputs) */
+  --text-dark:    #e8ecf4;   /* primary text — crisp white-blue */
+  --text-muted:   #8b95b0;   /* secondary text */
+  --text-light:   #535c75;   /* tertiary / disabled */
+  --border-color: #1e2438;   /* subtle navy border */
+  --primary:      #8A9FE8;   /* brand accent */
+}
+
+/* ── Dark mode: main content scroll area ─────────────────────── */
+html.dark .main-wrapper { background: #080a10; }
+html.dark .p-4 { background: #080a10; }
+
+/* ── Dark mode: legacy .modal-content / .modal-overlay ──────── */
+html.dark .modal-content {
+  background: #111827 !important;
+  border-color: #1e2336 !important;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6) !important;
+}
+html.dark .modal-overlay { background-color: rgba(0,0,0,0.7) !important; }
+html.dark .modal-close { background: #1a1f2e !important; border-color: #1e2336 !important; color: #94a3b8 !important; }
+html.dark .modal-header-title { color: #e2e8f0 !important; }
+html.dark .form-input, html.dark .form-select, html.dark .form-textarea {
+  background: #1a1f2e !important; border-color: #1e2336 !important; color: #e2e8f0 !important;
+}
+html.dark .form-label { color: #94a3b8 !important; }
+html.dark .btn-outline { background: #1a1f2e !important; border-color: #1e2336 !important; color: #94a3b8 !important; }
+
+/* ── Dark mode: ticket table ─────────────────────────────────── */
+html.dark .ticket-table-row { background-color: #111827 !important; border-color: #1e2336 !important; }
+html.dark .ticket-table th { color: #64748b !important; background-color: #0f1117 !important; }
+html.dark .ticket-title-text { color: #e2e8f0 !important; }
+html.dark .ticket-meta-value { color: #e2e8f0 !important; }
+html.dark .ticket-created-by-name { color: #e2e8f0 !important; }
+html.dark .ticket-created-by-role { color: #64748b !important; }
+html.dark .view-button { background-color: #1a1f2e !important; border-color: #1e2336 !important; color: #8A9FE8 !important; }
+html.dark .ticket-table-row:hover .view-button { background-color: rgba(138,159,232,0.1) !important; }
+html.dark .category-pill { background-color: #1a1f2e !important; border-color: #1e2336 !important; color: #94a3b8 !important; }
+
+/* ── Dark mode: DonutChartWidget & KPI cards ─────────────────── */
+html.dark .ds-card {
+  background: rgba(19,22,31,0.88) !important;
+  border-color: rgba(30,36,56,0.8) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* ── Dark mode: input/select/textarea fallback (non-ds classes) ─ */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark select,
+html.dark textarea {
+  background-color: #1a1f2e !important;
+  border-color: #1e2336 !important;
+  color: #e2e8f0 !important;
+}
+
+/* ── Dark mode: Stock/Asset table ────────────────────────────── */
+html.dark table { background: transparent !important; }
+html.dark thead tr { background-color: #111827 !important; }
+html.dark tbody tr { background-color: #0d1017 !important; }
+html.dark tbody tr:hover { background-color: #1a1f2e !important; }
+html.dark th { color: #64748b !important; border-color: #1e2336 !important; }
+html.dark td { color: #e2e8f0 !important; border-color: #1e2336 !important; }

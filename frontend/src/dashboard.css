@@ -1061,6 +1061,85 @@
   }
 }
 
+/* ============================================================
+   DARK MODE OVERRIDES — html.dark
+   ============================================================ */
+
+/* ── Typography contrast ──────────────────────────────────────── */
+/* CSS !important overrides React inline style color values */
+html.dark .page-content-wrapper h1,
+html.dark .page-content-wrapper h2,
+html.dark .page-content-wrapper h3,
+html.dark .page-content-wrapper h4 { color: #e2e8f0 !important; }
+
+html.dark .board-header p,
+html.dark .dashboard-welcome p { color: #94a3b8 !important; }
+
+html.dark .landing-project-card p { color: #e2e8f0 !important; }
+html.dark .landing-project-card span { color: #94a3b8; }
+
+html.dark .ds-card > p { color: #e2e8f0 !important; }
+
+html.dark .sprint-tasks-table td { color: #cbd5e1 !important; }
+html.dark .tasks-table td { color: #cbd5e1 !important; }
+
+html.dark select { background: #1a1f2e !important; color: #e2e8f0 !important; border-color: #1e2336 !important; }
+html.dark .tabs-row button { color: #94a3b8; }
+
+/* Sprint header */
+html.dark .sprint-header { background: #1a1f2e !important; }
+html.dark .sprint-header:hover { background: #252b3b !important; }
+
+/* Tasks table thead */
+html.dark .tasks-table thead { background: #1a1f2e !important; }
+html.dark .tasks-table tr:hover td { background: #1a1f2e !important; }
+
+/* Sprint tasks table hover */
+html.dark .sprint-tasks-table tr:hover td { background: #1a1f2e !important; }
+
+/* Kanban column background — translucent navy */
+html.dark .kanboard-column { background: rgba(26,30,46,0.7) !important; }
+html.dark .kanboard-card {
+  background: rgba(19,22,31,0.9) !important;
+  border-color: rgba(30,36,56,0.8) !important;
+  backdrop-filter: blur(6px);
+}
+html.dark .kanboard-card-title { color: #e8ecf4 !important; }
+
+/* Add sprint button hover */
+html.dark .add-sprint-btn:hover { background: rgba(138,159,232,0.08) !important; border-color: #8A9FE8 !important; }
+
+/* Landing project card divider */
+html.dark .landing-project-card { border-bottom-color: rgba(30,36,56,0.8) !important; }
+
+/* Overview card */
+html.dark .overview-card { background: rgba(19,22,31,0.9) !important; border-color: rgba(30,36,56,0.8) !important; }
+html.dark .overview-card-info h3 { color: #e8ecf4 !important; }
+
+/* Team chart card */
+html.dark .team-chart-card { background: rgba(19,22,31,0.9) !important; border-color: rgba(30,36,56,0.8) !important; }
+html.dark .team-chart-card h3 { color: #e8ecf4 !important; }
+
+/* Report card */
+html.dark .report-card { background: rgba(19,22,31,0.9) !important; border-color: rgba(30,36,56,0.8) !important; }
+html.dark .report-card span { color: #e8ecf4 !important; }
+
+/* Sprint card */
+html.dark .sprint-card { background: rgba(19,22,31,0.9) !important; border-color: rgba(30,36,56,0.8) !important; }
+
+/* View tab */
+html.dark .view-tab { color: #64748b; }
+html.dark .view-tab:hover { color: #94a3b8; }
+html.dark .view-tab.active { color: #8A9FE8; }
+html.dark .dashboard-view-tabs { border-bottom-color: #1e2336; }
+
+/* Team member row */
+html.dark .team-member-row { border-color: #1e2336 !important; }
+html.dark .team-member-row:hover { background: #1a1f2e !important; }
+
+/* Cancel button */
+html.dark .btn-cancel { background: #1a1f2e !important; border-color: #1e2336 !important; color: #94a3b8 !important; }
+
 /* ─────────── Small mobile (≤ 420px) ─────────── */
 @media (max-width: 420px) {
   .landing-stats-grid {
