@@ -13,6 +13,29 @@ const Header = ({
 }) => {
   const location = useLocation();
 
+const roleLabel = user?.role === "admin" ? "Admin" 
+                : user?.role === "manager" ? "Manager" 
+                : "User";
+  const roleBg    = user?.role === "admin"   ? "#EEF1FD" 
+                : user?.role === "manager" ? "#FEF3C7" : "#F0FDF4";
+const roleColor = user?.role === "admin"   ? "#534AB7" 
+                : user?.role === "manager" ? "#D97706" : "#15803D";
+const roleBorder= user?.role === "admin"   ? "#C7D2F8" 
+                : user?.role === "manager" ? "#FDE68A" : "#BBF7D0";
+// في أول الملف، أضف أيقونة custom
+const EditIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={18} height={18}>
+    <path d="M12 20h9"/>
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+  </svg>
+);
+  const getPageInfo = (path) => {
+    if (path.startsWith("/dashboard")) return { title: "Project Management", Icon: LayoutDashboard };
+    if (path.startsWith("/stock")) return { title: "Stock Management", Icon: Package };
+    if (path.startsWith("/control-panel")) return { title: "Control Panel",       Icon: EditIcon};
+    if (path.startsWith("/chatmodal")) return { title: "Chat System", Icon: MessageSquare };
+    if (path.startsWith("/settings")) return { title: "Settings", Icon: Settings };
+    return { title: "Ticketing System", Icon: FileText };
   const ROLE_MAP = {
     admin:   { label: "Admin",   bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
     manager: { label: "Manager", bg: "#FFF7ED", color: "#D97706", border: "#FDE68A" },

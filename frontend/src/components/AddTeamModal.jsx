@@ -59,7 +59,7 @@ const AddTeamModal = ({ isOpen, onClose, onSubmit, editTeam = null }) => {
     
     // Always exclude users who are already in the selectedMembers list
     const selectedIds = new Set(selectedMembers.map(m => m._id));
-    const available = allUsers.filter(u => !selectedIds.has(u._id));
+const available = allUsers.filter(u => !selectedIds.has(u._id) && u.role !== 'manager' && u.role !== 'admin');
 
     if (!q) return available;
     return available.filter(u =>

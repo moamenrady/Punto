@@ -81,7 +81,7 @@ export default function SignUpRole({ isDarkMode, setIsDarkMode, theme }) {
                 className="font-bold text-[15px] mb-1"
                 style={{ color: isDarkMode ? "#E2E0FF" : "#1E1B3A" }}
               >
-                Admin
+                Campany
               </h3>
               <p className={`text-[11px] leading-tight ${theme.textM}`}>
                 Create and manage teams and projects

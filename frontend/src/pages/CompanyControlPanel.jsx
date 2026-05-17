@@ -34,7 +34,7 @@ export default function CompanyControlPanel({ theme, company }) {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto"style={{ backgroundColor: "#F3F4F6", minHeight: "100vh" }}>
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-3xl font-extrabold flex items-center gap-3" style={{ color: theme.textP }}>
@@ -43,7 +43,7 @@ export default function CompanyControlPanel({ theme, company }) {
           </h1>
           <p className={`${theme.textM} mt-2`}>Manage your organization, team members, and subscription.</p>
         </div>
-        <div className={`px-4 py-2 rounded-xl border ${theme.border} bg-opacity-5`} style={{ backgroundColor: `${theme.primary}10` }}>
+        <div className={`px-4 py-2 rounded-xl border ${theme.border} bg-opacity-5`} style={{ backgroundColor: `${theme.primary}20` }}>
           <span className="text-xs font-bold uppercase tracking-widest" style={{ color: theme.primary }}>
             {company?.plan_id?.name || "Active Plan"}
           </span>
