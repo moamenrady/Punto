@@ -1,55 +1,59 @@
 const mongoose = require("mongoose");
 
-// Counter model
-const Counter = require("./Counter");
-
-const tableSchema = new mongoose.Schema(
+const stockSchema = new mongoose.Schema(
   {
-    // ===============================
-    // 🔥 CUSTOM ID
-    // ===============================
-    custom_id: {
+    name: {
       type: String,
-      unique: true,
+      required: [true, "Asset Name is required"],
     },
-
-    user_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+    sku: {
+      type: String,
+      required: [true, "SKU is required"],
     },
-
+    vendor: {
+      type: String,
+      required: [true, "Vendor is required"],
+    },
+    category: {
+      type: String,
+      required: [true, "Category is required"],
+    },
+    unit: {
+      type: String,
+      required: [true, "Unit is required"], // مثلا pcs
+    },
+    quantity: {
+      type: Number,
+      required: [true, "Quantity is required"],
+      default: 0,
+    },
+    minimumThreshold: {
+      type: Number,
+      required: [true, "Min Threshold is required"],
+      default: 5,
+    },
+    cost: {
+      type: Number,
+      required: [true, "Unit Cost is required"],
+      default: 0,
+    },
+    currency: {
+      type: String,
+      required: [true, "Currency is required"],
+      enum: ["SAR", "USD", "EUR", "GBP", "AED"], // عشان نقيد اليوزر بالعملات دي بس
+      default: "SAR",
+    },
+    location: {
+      type: String,
+      // الـ location مكتوب في الصورة إنه optional (اختياري) فمش هنعمله required
+    },
     company_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
     },
-
-    filename: String,
-
-    data: [
-      {
-        type: Map,
-        of: String,
-      },
-    ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-//
-// ===============================
-// 🔥 AUTO CUSTOM ID
-// ===============================
-tableSchema.pre("save", async function () {
-  if (this.custom_id) return;
-
-  const counter = await Counter.findOneAndUpdate(
-    { name: "table" },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  );
-
-  this.custom_id = `tbl_${counter.seq}`;
-});
-
-module.exports = mongoose.model("Table", tableSchema);
+module.exports = mongoose.model("Stock", stockSchema);
