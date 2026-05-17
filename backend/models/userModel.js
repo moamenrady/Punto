@@ -89,6 +89,12 @@ const userSchema = new mongoose.Schema(
       default: true,
       select: false,
     },
+    isVerified: {
+      type: Boolean,
+      default: true, // Default to true for existing users, we'll set it to false for new signups
+    },
+    verificationToken: String,
+    verificationExpires: Date,
   },
   {
     timestamps: true,

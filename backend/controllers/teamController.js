@@ -104,7 +104,7 @@ exports.removeMember = catchAsync(async (req, res, next) => {
 // GET USER TEAM
 exports.getUserTeam = catchAsync(async (req, res) => {
   const { userId } = req.params;
-  const filter = { members: userId };
+  const filter = { 'members.user': userId };
   if (req.user?.company_id) filter.company_id = req.user.company_id;
 
   const team = await Team.findOne(filter);

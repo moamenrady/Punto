@@ -51,7 +51,14 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 4) send token
+  // 4) check if verified
+  if (user.isVerified === false) {
+    return next(
+      new AppError("Please verify your email address before logging in.", 401),
+    );
+  }
+
+  // 5) send token
   const token = signToken(user._id);
 
   res.status(200).json({
@@ -104,15 +111,40 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 5) grant access
+  // 5) check if verified
+  // Use originalUrl.split('?')[0] to strip cache-busting query params.
+  // req.path is NOT reliable here because it's relative to the router mount point
+  // (e.g. profileRouter mounted at /api/v1/users/me sees req.path as "/")
+  const cleanPath = req.originalUrl.split("?")[0];
+  if (currentUser.isVerified === false && cleanPath !== "/api/v1/users/me") {
+    return next(
+      new AppError(
+        "Please verify your email address to access this resource.",
+        401,
+      ),
+    );
+  }
+
+  // 6) grant access
   req.user = currentUser;
+
+  // console.log("=============================");
+  // console.log("USER:", req.user);
+  // console.log("ROLE:", req.user?.role);
+  // console.log("COMPANY:", req.user?.company_id);
+  // console.log("=============================");
 
   // 6) Verify company membership (Extra Security)
   if (currentUser.company_id) {
     const Company = require("../models/companyModel");
     const company = await Company.findById(currentUser.company_id);
     if (company && !company.company_users.includes(currentUser._id)) {
-      return next(new AppError("Security alert: You are not officially registered in this company's user list.", 403));
+      return next(
+        new AppError(
+          "Security alert: You are not officially registered in this company's user list.",
+          403,
+        ),
+      );
     }
   }
 
@@ -209,15 +241,54 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.verifyEmail = catchAsync(async (req, res, next) => {
+  // 1) Hash token from params
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(req.params.token)
+    .digest("hex");
+
+  // 2) Find user by token + not expired
+  const user = await User.findOne({
+    verificationToken: hashedToken,
+    verificationExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return next(new AppError("Token is invalid or has expired", 400));
+  }
+
+  // 3) Update user verification status
+  user.isVerified = true;
+  user.verificationToken = undefined;
+  user.verificationExpires = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  // 4) Send new JWT
+  const token = signToken(user._id);
+
+  res.status(200).json({
+    status: "success",
+    token,
+    data: {
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        company_id: user.company_id,
+      },
+    },
+  });
+});
 
 exports.getMe = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
   res.status(200).json({
     status: "success",
-    data: { user }
+    data: { user },
   });
 });
-
 
 //update-pass
 exports.updateMe = catchAsync(async (req, res, next) => {
@@ -233,38 +304,40 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     if (req.body[field] !== undefined) filteredBody[field] = req.body[field];
   });
 
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user.id,
-    filteredBody,
-    { new: true, runValidators: true }
-  );
+  const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
+    new: true,
+    runValidators: true,
+  });
 
   res.status(200).json({
     status: "success",
-    data: { user: updatedUser }
+    data: { user: updatedUser },
   });
 });
 exports.checkFeature = (featureName) => {
   return async (req, res, next) => {
     const user = await User.findById(req.user.id).populate({
-      path: 'company_id',
-      populate: { path: 'plan_id' }
+      path: "company_id",
+      populate: { path: "plan_id" },
     });
 
     if (!user) {
-      return res.status(401).json({ status: "fail", message: "User not found" });
+      return res
+        .status(401)
+        .json({ status: "fail", message: "User not found" });
     }
 
     // 1) Check direct user features
     const hasFeature = user.features.includes(featureName);
-    
+
     // 2) Check company plan features
-    const hasPlanFeature = user.company_id?.plan_id?.features?.includes(featureName);
+    const hasPlanFeature =
+      user.company_id?.plan_id?.features?.includes(featureName);
 
     if (!hasFeature && !hasPlanFeature) {
       return res.status(403).json({
         status: "fail",
-        message: `You did not purchase this feature: ${featureName}`
+        message: `You did not purchase this feature: ${featureName}`,
       });
     }
 

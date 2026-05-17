@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Users, Settings, Plus, LayoutDashboard, ShieldCheck, Mail, Loader2 } from "lucide-react";
+import { Settings, Plus, LayoutDashboard, ShieldCheck, Mail, Loader2 } from "lucide-react";
 import axios from "axios";
 
-export default function CompanyControlPanel({ theme, user, company }) {
-  const [users, setUsers] = useState([]);
+export default function CompanyControlPanel({ theme, company }) {
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUserId, setNewUserId] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -23,11 +21,11 @@ export default function CompanyControlPanel({ theme, user, company }) {
       const token = localStorage.getItem("token");
       await axios.post(
         "http://localhost:5000/api/v1/companies/add-user",
-        { userId: newUserId },
+        { email: newUserEmail },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMsg("User added successfully!");
-      setNewUserId("");
+      setNewUserEmail("");
     } catch (err) {
       setMsg(err.response?.data?.message || "Failed to add user");
     } finally {
@@ -93,19 +91,17 @@ export default function CompanyControlPanel({ theme, user, company }) {
           </div>
 
           {showAddUser && (
-            <motion.form 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }}
+            <form
               onSubmit={handleAddUser} 
               className="mb-8 space-y-4"
             >
               <div className="relative">
                 <Mail className="absolute left-4 top-3.5 opacity-40" size={18} />
                 <input 
-                  type="text" 
-                  placeholder="Enter User ID to invite" 
-                  value={newUserId}
-                  onChange={(e) => setNewUserId(e.target.value)}
+                  type="email" 
+                  placeholder="Enter user email to invite" 
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
                   className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border outline-none ${theme.border} bg-white`}
                 />
               </div>
@@ -117,7 +113,7 @@ export default function CompanyControlPanel({ theme, user, company }) {
                 {isLoading ? <Loader2 className="animate-spin" /> : "Confirm Add"}
               </button>
               {msg && <p className={`text-center text-xs font-bold ${msg.includes("success") ? "text-green-500" : "text-red-500"}`}>{msg}</p>}
-            </motion.form>
+            </form>
           )}
 
           <div className="space-y-4">

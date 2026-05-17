@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import axios from "axios";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import LoginPage from "./pages/LoginPage";
 import SignUpRole from "./pages/SignUpRole";
@@ -11,6 +12,9 @@ import SetupEnvironment from "./pages/SetupEnvironment";
 import LandingPage from "./pages/LandingPage";
 //import CreateCompanyPage from "./pages/CreateCompanyPage";
 import CompanyControlPanel from "./pages/CompanyControlPanel";
+import GoogleAuthHandler from "./pages/GoogleAuthHandler";
+import VerificationSent from "./pages/VerificationSent";
+import EmailVerificationHandler from "./pages/EmailVerificationHandler";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -23,6 +27,8 @@ import UserProfileModal from "./components/UserProfileModal";
 import Settings from "./pages/Settings";
 import TeamChat from "./pages/GroupChatPage"
 import ReportsPage from "./pages/ReportsPage"
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } });
 
 function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, setUser }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -141,8 +147,8 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
                 />
               }
             />
-            <Route path="/reports" element={<ReportsPage theme={themeObj} user={user} />} />
-            <Route path="/settings" element={<Settings refreshUser={(updated) => setUser({ ...user, ...updated })} />} />
+            <Route path="/reports" element={<ReportsPage theme={themeObj} user={user} isDarkMode={isDarkMode} />} />
+            <Route path="/settings" element={<Settings refreshUser={(updated) => setUser({ ...user, ...updated })} isDarkMode={isDarkMode} />} />
             <Route path="/" element={<Navigate to={isManager ? "/control-panel" : "/tickets"} replace />} />
           </Routes>
         </div>
@@ -172,8 +178,23 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
 
 
 function AppContent() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [theme, setTheme] = useState("light");
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => localStorage.getItem('theme') === 'dark'
+  );
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem('theme') || 'light'
+  );
+
+  // Sync isDarkMode → document root class + localStorage on every change
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   const [user, setUserState] = useState(() => {
     const savedUser = localStorage.getItem("vertex_user");
@@ -235,6 +256,10 @@ function AppContent() {
       <Route path="/landing" element={<LandingPage {...commonProps} />} />
      
 
+      <Route path="/create-company" element={<CreateCompanyPage {...commonProps} />} />
+      <Route path="/auth/google/success" element={<GoogleAuthHandler {...commonProps} />} />
+      <Route path="/verification-sent" element={<VerificationSent {...commonProps} />} />
+      <Route path="/verify-email/:token" element={<EmailVerificationHandler {...commonProps} />} />
 
       <Route
         path="/*"
@@ -274,8 +299,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

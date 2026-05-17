@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar';
 
 const GroupChatPage = ({ user, theme, onProfileClick }) => {
     const [myTeam, setMyTeam] = useState(null);
-    const [activeChat, setActiveChat] = useState(null); // { type: 'team' | 'dm', data: any, id: string }
+    const [activeChat, setActiveChat] = useState(null); // { type: 'team' | 'dm' | 'ai', data: any, id: string }
     const [activeDMs, setActiveDMs] = useState([]); // List of users
     const [loading, setLoading] = useState(true);
 
@@ -122,51 +122,74 @@ const GroupChatPage = ({ user, theme, onProfileClick }) => {
                 </div>
 
                 {/* Chat List */}
-                <div className="flex-1 overflow-y-auto">
-                    {/* Team Chat Item */}
-                    {myTeam && (
-                        <div 
-                            onClick={handleOpenTeam}
-                            className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${waLayout.hover} ${activeChat?.id === myTeam._id ? waLayout.sidebarHeader : ''}`}
-                        >
-                            <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1">
-                                <Avatar name={`Team+${myTeam._id.substring(0,2)}`} size={48} className="w-full h-full" />
-                            </div>
-                            <div className={`flex-1 border-b pb-3 pt-2 ${waLayout.border}`}>
-                                <div className="flex justify-between items-center mb-0.5">
-                                    <h3 className={`font-normal text-[17px] ${waLayout.textMain} truncate`}>{myTeam.name}</h3>
-                                    <span className={`text-[12px] ${waLayout.textSec}`}>Group</span>
-                                </div>
-                                <p className={`text-[14px] ${waLayout.textSec} truncate`}>{myTeam.description || 'Welcome to the team chat!'}</p>
-                            </div>
+                <div className="flex flex-col h-full overflow-hidden">
+                    {/* Fixed AI Chat Item */}
+                    <div 
+                        onClick={() => setActiveChat({ type: 'ai', id: 'ai_chat' })}
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b ${waLayout.border} ${waLayout.hover} ${activeChat?.id === 'ai_chat' ? waLayout.sidebarHeader : ''}`}
+                    >
+                        <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1 bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shadow-lg">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+                                <path d="M12 8v4"/>
+                                <path d="M12 16h.01"/>
+                            </svg>
                         </div>
-                    )}
-                    
-                    {/* Active DMs Items */}
-                    {activeDMs.map(dm => (
-                        <div 
-                            key={dm._id}
-                            onClick={() => handleStartDM(dm)}
-                            className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${waLayout.hover} ${activeChat?.data?._id === dm._id ? waLayout.sidebarHeader : ''}`}
-                        >
-                            <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1">
-                                <Avatar photo={dm.photo} name={dm.name} size={48} className="w-full h-full" />
+                        <div className="flex-1 pb-3 pt-2">
+                            <div className="flex justify-between items-center mb-0.5">
+                                <h3 className={`font-bold text-[17px] ${waLayout.textMain} truncate`}>Chat with AI</h3>
+                                <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#00a884] text-white font-bold uppercase tracking-wider">Assistant</span>
                             </div>
-                            <div className={`flex-1 border-b pb-3 pt-2 ${waLayout.border}`}>
-                                <div className="flex justify-between items-center mb-0.5">
-                                    <h3 className={`font-normal text-[17px] ${waLayout.textMain} truncate`}>{dm.name}</h3>
-                                    <span className={`text-[12px] ${waLayout.textSec}`}>Direct</span>
-                                </div>
-                                <p className={`text-[14px] ${waLayout.textSec} truncate`}>{dm.email}</p>
-                            </div>
+                            <p className={`text-[14px] ${waLayout.textSec} truncate italic`}>Ask anything about your workspace...</p>
                         </div>
-                    ))}
+                    </div>
 
-                    {!myTeam && activeDMs.length === 0 && (
-                        <div className={`p-8 text-center ${waLayout.textSec}`}>
-                            No active chats.
-                        </div>
-                    )}
+                    <div className="flex-1 overflow-y-auto">
+                        {/* Team Chat Item */}
+                        {myTeam && (
+                            <div 
+                                onClick={handleOpenTeam}
+                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${waLayout.hover} ${activeChat?.id === myTeam._id ? waLayout.sidebarHeader : ''}`}
+                            >
+                                <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1">
+                                    <Avatar name={`Team+${myTeam._id.substring(0,2)}`} size={48} className="w-full h-full" />
+                                </div>
+                                <div className={`flex-1 border-b pb-3 pt-2 ${waLayout.border}`}>
+                                    <div className="flex justify-between items-center mb-0.5">
+                                        <h3 className={`font-normal text-[17px] ${waLayout.textMain} truncate`}>{myTeam.name}</h3>
+                                        <span className={`text-[12px] ${waLayout.textSec}`}>Group</span>
+                                    </div>
+                                    <p className={`text-[14px] ${waLayout.textSec} truncate`}>{myTeam.description || 'Welcome to the team chat!'}</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Active DMs Items */}
+                        {activeDMs.map(dm => (
+                            <div 
+                                key={dm._id}
+                                onClick={() => handleStartDM(dm)}
+                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${waLayout.hover} ${activeChat?.data?._id === dm._id ? waLayout.sidebarHeader : ''}`}
+                            >
+                                <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 ml-1">
+                                    <Avatar photo={dm.photo} name={dm.name} size={48} className="w-full h-full" />
+                                </div>
+                                <div className={`flex-1 border-b pb-3 pt-2 ${waLayout.border}`}>
+                                    <div className="flex justify-between items-center mb-0.5">
+                                        <h3 className={`font-normal text-[17px] ${waLayout.textMain} truncate`}>{dm.name}</h3>
+                                        <span className={`text-[12px] ${waLayout.textSec}`}>Direct</span>
+                                    </div>
+                                    <p className={`text-[14px] ${waLayout.textSec} truncate`}>{dm.email}</p>
+                                </div>
+                            </div>
+                        ))}
+
+                        {!myTeam && activeDMs.length === 0 && (
+                            <div className={`p-8 text-center ${waLayout.textSec}`}>
+                                No active chats.
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
