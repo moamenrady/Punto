@@ -395,7 +395,7 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
     const phrases = [
       "Project Management",
       "Smart Ticketing",
-      "Inventory Control",
+      "Stock Control",
       "Team Collaboration",
       "AI Automation",
     ];
@@ -1052,7 +1052,7 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
                 <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h3>Inventory Control</h3>
+            <h3>Stock Control</h3>
             <p>
               Real-time stock tracking, automated reordering, multi-warehouse
               support, and supplier management in one place.
@@ -1343,7 +1343,7 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
                 </td>
               </tr>
               <tr>
-                <td>Inventory Control</td>
+                <td>Stock Control</td>
                 <td className="vertex-col-cell">
                   <span className="check-yes">✓</span>
                 </td>
@@ -1646,7 +1646,7 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
           <div className="testi-card">
             <div className="testi-quote-icon">"</div>
             <p className="testi-text">
-              Inventory management used to be our biggest headache. Vertex fixed
+              Stock management used to be our biggest headache. Vertex fixed
               it overnight. Our stock accuracy went from 78% to 99.2%.
             </p>
             <div className="testi-author">

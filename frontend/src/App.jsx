@@ -4,11 +4,12 @@ import { AuthProvider } from "./context/AuthContext";
 import axios from "axios";
 
 import LoginPage from "./pages/LoginPage";
+import SignUpRole from "./pages/SignUpRole";
 import UserRegister from "./pages/UserRegister";
 import AdminRegister from "./pages/AdminRegister";
 import SetupEnvironment from "./pages/SetupEnvironment";
 import LandingPage from "./pages/LandingPage";
-import CreateCompanyPage from "./pages/CreateCompanyPage";
+//import CreateCompanyPage from "./pages/CreateCompanyPage";
 import CompanyControlPanel from "./pages/CompanyControlPanel";
 
 import Sidebar from "./components/Sidebar";
@@ -76,7 +77,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
   }, [API_URL]);
 
   const openProfile = (userData) => {
-    setSelectedUser(userData || user);
+  setSelectedUser(userData && userData._id ? userData : user);
     setIsProfileOpen(true);
   };
 
@@ -108,7 +109,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
               }
             />
             <Route path="/dashboard" element={<Dashboard theme={themeObj} user={user} />} />
-            <Route path="/control-panel" element={<CompanyControlPanel theme={themeObj} user={user} company={company} />} />
+            
             <Route
               path="/stock"
               element={
@@ -118,6 +119,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
                 />
               }
             />
+            <Route path="/control-panel" element={<CompanyControlPanel theme={themeObj} user={user} />} />
             <Route
               path="/chatmodal"
               element={
@@ -149,11 +151,13 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
       <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        user={selectedUser || user}
+        user={selectedUser?._id ? selectedUser : user}
+        
         setUser={setUser}
         currentUser={user}
         allTickets={tickets}
         theme={themeObj}
+        
       />
       {isCreateOpen && (
         <CreateTicketModal
@@ -165,6 +169,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
     </div>
   );
 }
+
 
 function AppContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -223,11 +228,13 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage {...commonProps} />} />
-      <Route path="/signup" element={<UserRegister {...commonProps} />} />
+      <Route path="/signup" element={<SignUpRole {...commonProps} />} />
       <Route path="/signup/admin" element={<AdminRegister {...commonProps} />} />
+      <Route path="/signup/user" element={<UserRegister {...commonProps} />} />
       <Route path="/setup" element={<SetupEnvironment {...commonProps} />} />
       <Route path="/landing" element={<LandingPage {...commonProps} />} />
-      <Route path="/create-company" element={<CreateCompanyPage {...commonProps} />} />
+     
+
 
       <Route
         path="/*"

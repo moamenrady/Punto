@@ -128,17 +128,11 @@ const CreateSprintModal = ({ isOpen, onClose, onSubmit }) => {
 
                         {/* Status */}
                         <div className="ds-form-group">
-                            <label className="ds-label">Status</label>
-                            <select
-                                className="ds-select"
-                                value={form.status}
-                                onChange={e => set('status', e.target.value)}
-                            >
-                                <option value="planned">Planned</option>
-                                <option value="active">Active</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </div>
+    <label className="ds-label">Status</label>
+    <div style={{ padding:'10px 14px', borderRadius:8, border:'1px solid #E9EBF0', background:'#F9FAFB', fontSize:'0.85rem', color:'#6B7280' }}>
+        Planned <span style={{ fontSize:'0.72rem', color:'#9CA3AF', marginLeft:6 }}>(can be changed after creation)</span>
+    </div>
+</div>
 
                     </div>
                     <div className="ds-modal-footer">
