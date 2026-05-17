@@ -256,7 +256,7 @@ function AppContent() {
       <Route path="/landing" element={<LandingPage {...commonProps} />} />
      
 
-      <Route path="/create-company" element={<CreateCompanyPage {...commonProps} />} />
+      
       <Route path="/auth/google/success" element={<GoogleAuthHandler {...commonProps} />} />
       <Route path="/verification-sent" element={<VerificationSent {...commonProps} />} />
       <Route path="/verify-email/:token" element={<EmailVerificationHandler {...commonProps} />} />
