@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { Sun, Moon, Bell, MessageSquare, FileText, Search, LayoutDashboard, Package, Settings, BarChart2, Shield } from "lucide-react";
+import { Sun, Moon, Bell, MessageSquare, FileText, Search, LayoutDashboard, Package, Settings, BarChart2, PenLine } from "lucide-react";
 import Avatar from "./Avatar";
 
 const Header = ({
@@ -27,12 +27,12 @@ const Header = ({
   const roleBorder= roleCfg.border;
 
   const getPageInfo = (path) => {
-    if (path.startsWith("/dashboard"))  return { title: "Project Management",            Icon: LayoutDashboard, placeholder: "Search dashboards..." };
+    if (path.startsWith("/dashboard"))  return { title: "Project Management",            Icon: LayoutDashboard, placeholder: "Search Projects..." };
     if (path.startsWith("/stock"))      return { title: "Stock Management",      Icon: Package,         placeholder: "Search items, SKUs, or categories..." };
     if (path.startsWith("/chatmodal"))  return { title: "Chat System",           Icon: MessageSquare,   placeholder: "Search messages or channels..." };
     if (path.startsWith("/settings"))   return { title: "Settings",              Icon: Settings,        placeholder: "Search settings..." };
     if (path.startsWith("/reports"))    return { title: "Reports & Analytics",   Icon: BarChart2,       placeholder: "Search charts, team metrics, or analysis..." };
-    if (path.startsWith("/control-panel"))    return { title: "Control Panel",   Icon: Shield,       placeholder: "Search ..." };
+    if (path.startsWith("/control-panel"))    return { title: "Control Panel",   Icon: PenLine,       placeholder: "Search ..." };
     return                                     { title: "Ticketing System",      Icon: FileText,        placeholder: "Search by ID, title, category, or user..." };
   };
 
