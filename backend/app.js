@@ -70,8 +70,11 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 // ── الأطول الأول دايما ──
 app.use("/api/v1/users/me/notifications", notificationsRouter);
-app.use("/api/v1/users/me", accountActionsRouter);
-app.use("/api/v1/users/me", profileRouter);
+// app.use("/api/v1/users/me", accountActionsRouter);
+// app.use("/api/v1/users/me", profileRouter);
+
+app.use("/api/v1/users/me/account", accountActionsRouter);
+app.use("/api/v1/users/me/profile", profileRouter);
 
 app.use("/api/v1/users", userRoutes);
 

@@ -5,7 +5,7 @@ const User = require("../models/userModel");
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "name email phone photo dept location role company_id isVerified"
+      "name email phone photo dept location role company_id isVerified",
     );
     if (!user) return res.status(404).json({ message: "User not found" });
     // Return both `user` and `doc` for backward compatibility
@@ -26,10 +26,10 @@ exports.updateProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { name, email, phone, dept, location },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select("name email phone photo dept location role");
 
-    res.json({ status: "success", data: { doc: user } });
+    res.json({ status: "success", data: { user, doc: user } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -43,13 +43,16 @@ exports.uploadAvatar = async (req, res) => {
 
     const photoUrl = `/uploads/avatars/${req.file.filename}`;
 
+    // شيلنا الـ select("photo") عشان يرجع اليوزر بكل بياناته للفرونت إند
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { photo: photoUrl },
-      { new: true }
-    ).select("photo");
+      { new: true, runValidators: true }, // new: true بترجع اليوزر بعد التحديث
+    );
 
-    res.json({ status: "success", data: { photo: user.photo } });
+    // رجعنا اليوزر كامل جوه الـ data
+
+    res.status(200).json({ status: "success", data: { user, doc: user } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

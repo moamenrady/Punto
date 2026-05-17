@@ -95,13 +95,14 @@ export default function UserProfileModal({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
-  
-  const canEdit = user?.email === currentUser?.email || user?._id === currentUser?._id;
+
+  const canEdit =
+    user?.email === currentUser?.email || user?._id === currentUser?._id;
 
   const handleSaveInfo = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/users/me`, {
+      const res = await fetch(`http://localhost:5000/api/v1/users/me/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -128,21 +129,48 @@ export default function UserProfileModal({
     }
   };
 
+  // const handleAvatarUpload = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   const fData = new FormData();
+  //   fData.append("photo", file);
+  //   try {
+  //     const res = await fetch(`http://localhost:5000/api/v1/users/me/avatar`, {
+  //       method: "PATCH",
+  //       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  //       body: fData,
+  //     });
+  //     const data = await res.json();
+  //     if (data?.data?.photo) {
+  //       setFormData((prev) => ({ ...prev, photo: data.data.photo }));
+  //       if (setUser) setUser(data.data.doc);
+  //     }
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
+
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const fData = new FormData();
     fData.append("photo", file);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/users/me/avatar`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        body: fData,
-      });
+      // 1. المسار الجديد
+      const res = await fetch(
+        `http://localhost:5000/api/v1/users/me/profile/avatar`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          body: fData,
+        },
+      );
       const data = await res.json();
-      if (data?.data?.photo) {
-        setFormData(prev => ({ ...prev, photo: data.data.photo }));
-        if (setUser) setUser(data.data.doc);
+
+      // 2. قراءة الداتا من أوبجيكت اليوزر المحدث
+      if (data?.data?.user?.photo) {
+        setFormData((prev) => ({ ...prev, photo: data.data.user.photo }));
+        if (setUser) setUser(data.data.user); // تمرير اليوزر كامل عشان الـ Context أو الستيت
       }
     } catch (err) {
       console.error(err);
@@ -405,7 +433,14 @@ export default function UserProfileModal({
 
                     {/* personal info */}
                     <div style={{ padding: "20px 28px 0" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "16px",
+                        }}
+                      >
                         <p
                           style={{
                             fontSize: "10px",
@@ -523,11 +558,20 @@ export default function UserProfileModal({
                               gap: 10,
                             }}
                           >
-                            <item.icon size={15} color="#8A9FE8" style={{ flexShrink: 0 }} />
+                            <item.icon
+                              size={15}
+                              color="#8A9FE8"
+                              style={{ flexShrink: 0 }}
+                            />
                             {isEditing ? (
                               <input
                                 value={item.val ?? ""}
-                                onChange={(e) => setFormData({ ...formData, [item.key]: e.target.value })}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    [item.key]: e.target.value,
+                                  })
+                                }
                                 style={{
                                   fontSize: "13px",
                                   padding: "4px 8px",

@@ -49,15 +49,18 @@ function Toggle({ value, onChange, loading, defaultOn = false }) {
         flexShrink: 0,
       }}
     >
-      <span style={{
-        display: "inline-block",
-        width: 16, height: 16,
-        borderRadius: "50%",
-        backgroundColor: "#fff",
-        boxShadow: "0 1px 3px rgba(0,0,0,.2)",
-        transform: on ? "translateX(24px)" : "translateX(4px)",
-        transition: "transform .2s",
-      }} />
+      <span
+        style={{
+          display: "inline-block",
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          backgroundColor: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+          transform: on ? "translateX(24px)" : "translateX(4px)",
+          transition: "transform .2s",
+        }}
+      />
     </button>
   );
 }
@@ -308,7 +311,7 @@ function PageProfile({ refreshUser }) {
   }
 
   function loadProfile() {
-    return fetch(`${API}/users/me`, {
+    return fetch(`${API}/users/me/profile`, {
       headers: { Authorization: `Bearer ${token()}` },
     })
       .then((r) => r.json())
@@ -327,7 +330,7 @@ function PageProfile({ refreshUser }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/users/me`, {
+      const res = await fetch(`${API}/users/me/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -343,17 +346,40 @@ function PageProfile({ refreshUser }) {
       });
       const data = await res.json();
       setForm(data.data.doc);
-      refreshUser(data.data.doc); 
+      refreshUser(data.data.doc);
       showToast("success");
     } catch (err) {
-    console.log("الغلـط فين يا مؤمن؟ =>", err.message); // هيطبع لك اسم الغلط في الـ Console
-    showToast("error");
-
+      console.log("الغلـط فين يا مؤمن؟ =>", err.message); // هيطبع لك اسم الغلط في الـ Console
+      showToast("error");
     } finally {
       setSaving(false);
     }
   }
 
+  // async function handleAvatarUpload(e) {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   setAvatarLoading(true);
+  //   const formData = new FormData();
+  //   formData.append("photo", file);
+  //   try {
+  //     const res = await fetch(`${API}/users/me/avatar`, {
+  //       method: "PATCH",
+  //       headers: { Authorization: `Bearer ${token()}` },
+  //       body: formData,
+  //     });
+  //     const data = await res.json();
+  //     if (data?.data?.photo) {
+  //       setForm((prev) => ({ ...prev, photo: data.data.photo }));
+  //         refreshUser({ photo: data.data.photo, avatar: data.data.photo });
+  //     }
+  //     showToast("success");
+  //   } catch {
+  //     showToast("error");
+  //   } finally {
+  //     setAvatarLoading(false);
+  //   }
+  // }
   async function handleAvatarUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -361,15 +387,21 @@ function PageProfile({ refreshUser }) {
     const formData = new FormData();
     formData.append("photo", file);
     try {
-      const res = await fetch(`${API}/users/me/avatar`, {
+      // 1. المسار الجديد
+      const res = await fetch(`${API}/users/me/profile/avatar`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token()}` },
         body: formData,
       });
       const data = await res.json();
-      if (data?.data?.photo) {
-        setForm((prev) => ({ ...prev, photo: data.data.photo }));
-          refreshUser({ photo: data.data.photo, avatar: data.data.photo });
+
+      // 2. قراءة الداتا من أوبجيكت اليوزر المحدث
+      if (data?.data?.user?.photo) {
+        setForm((prev) => ({ ...prev, photo: data.data.user.photo }));
+        refreshUser({
+          photo: data.data.user.photo,
+          avatar: data.data.user.photo,
+        });
       }
       showToast("success");
     } catch {
@@ -379,10 +411,28 @@ function PageProfile({ refreshUser }) {
     }
   }
 
+  // async function handleRemoveAvatar() {
+  //   setAvatarLoading(true);
+  //   try {
+  //     await fetch(`${API}/users/me/avatar`, {
+  //       method: "DELETE",
+  //       headers: { Authorization: `Bearer ${token()}` },
+  //     });
+  //     setForm((prev) => ({ ...prev, photo: "" }));
+  //     refreshUser({ photo: "", avatar: "" });
+  //     showToast("✓ تم مسح الصورة", "success");
+  //   } catch {
+  //     showToast("فشل مسح الصورة", "error");
+  //   } finally {
+  //     setAvatarLoading(false);
+  //   }
+  // }
+
   async function handleRemoveAvatar() {
     setAvatarLoading(true);
     try {
-      await fetch(`${API}/users/me/avatar`, {
+      // 1. المسار الجديد
+      await fetch(`${API}/users/me/profile/avatar`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token()}` },
       });
@@ -647,8 +697,8 @@ function PageAccount() {
 
 function PageNotifications() {
   const [settings, setSettings] = useState(null);
-  const [savingKey, setSavingKey]= useState(null);
-  const [toast, setToast]        = useState(null);
+  const [savingKey, setSavingKey] = useState(null);
+  const [toast, setToast] = useState(null);
 
   function showToast(msg, type) {
     setToast({ msg, type });
@@ -691,16 +741,44 @@ function PageNotifications() {
   if (!settings) return null;
 
   const ticketRows = [
-    { key: "ticket_assigned", label: "New ticket assigned",   desc: "When a ticket is assigned to you" },
-    { key: "ticket_status",   label: "Ticket status update",  desc: "When a ticket's status changes" },
-    { key: "sla_warning",     label: "SLA breach warning",    desc: "Alert 1 hour before SLA deadline" },
-    { key: "new_comment",     label: "New comment on ticket", desc: "When someone replies to your ticket" },
+    {
+      key: "ticket_assigned",
+      label: "New ticket assigned",
+      desc: "When a ticket is assigned to you",
+    },
+    {
+      key: "ticket_status",
+      label: "Ticket status update",
+      desc: "When a ticket's status changes",
+    },
+    {
+      key: "sla_warning",
+      label: "SLA breach warning",
+      desc: "Alert 1 hour before SLA deadline",
+    },
+    {
+      key: "new_comment",
+      label: "New comment on ticket",
+      desc: "When someone replies to your ticket",
+    },
   ];
 
   const systemRows = [
-    { key: "server_downtime",    label: "Server downtime alert", desc: "Immediate alert on infrastructure failure" },
-    { key: "security_incidents", label: "Security incidents",    desc: "Unauthorized access or policy violations" },
-    { key: "weekly_summary",     label: "Weekly summary email",  desc: "Sent every Sunday at 8:00 AM" },
+    {
+      key: "server_downtime",
+      label: "Server downtime alert",
+      desc: "Immediate alert on infrastructure failure",
+    },
+    {
+      key: "security_incidents",
+      label: "Security incidents",
+      desc: "Unauthorized access or policy violations",
+    },
+    {
+      key: "weekly_summary",
+      label: "Weekly summary email",
+      desc: "Sent every Sunday at 8:00 AM",
+    },
   ];
 
   return (
@@ -708,7 +786,10 @@ function PageNotifications() {
       <Toast toast={toast} />
 
       <Card>
-        <CardHeader title="Ticket alerts" desc="Get notified about your support tickets." />
+        <CardHeader
+          title="Ticket alerts"
+          desc="Get notified about your support tickets."
+        />
         {ticketRows.map((row) => (
           <Row key={row.key} label={row.label} desc={row.desc}>
             <Toggle
@@ -721,7 +802,10 @@ function PageNotifications() {
       </Card>
 
       <Card>
-        <CardHeader title="System alerts" desc="Critical and operational system notifications." />
+        <CardHeader
+          title="System alerts"
+          desc="Critical and operational system notifications."
+        />
         {systemRows.map((row) => (
           <Row key={row.key} label={row.label} desc={row.desc}>
             <Toggle
@@ -818,7 +902,7 @@ function PageDanger() {
 
   async function handleDeactivate() {
     try {
-      const res = await fetch(`${API}/users/me/deactivate`, {
+      const res = await fetch(`${API}/users/me/account/deactivate`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token()}` },
       });
@@ -837,7 +921,7 @@ function PageDanger() {
 
   async function handleDelete() {
     try {
-      const res = await fetch(`${API}/users/me/delete`, {
+      const res = await fetch(`${API}/users/me/account/delete`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token()}` },
       });
@@ -856,7 +940,7 @@ function PageDanger() {
 
   async function handleExport() {
     try {
-      const res = await fetch(`${API}/users/me/export`, {
+      const res = await fetch(`${API}/users/me/account/export`, {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const data = await res.json();
@@ -1005,9 +1089,9 @@ const TABS = [
 
 export default function Settings({ refreshUser }) {
   const [active, setActive] = useState("profile");
-  
+
   const PAGES = {
-    profile:       <PageProfile refreshUser={refreshUser} />,
+    profile: <PageProfile refreshUser={refreshUser} />,
     account: <PageAccount />,
     notifications: <PageNotifications />,
     permissions: <PagePermissions />,

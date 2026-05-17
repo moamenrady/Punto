@@ -21,7 +21,9 @@ export default function GoogleAuthHandler({ setUser, theme }) {
         console.log("[GoogleAuthHandler] token present:", !!token);
 
         if (!token) {
-          console.warn("[GoogleAuthHandler] No token found, redirecting to login");
+          console.warn(
+            "[GoogleAuthHandler] No token found, redirecting to login",
+          );
           window.location.replace("/login");
           return;
         }
@@ -31,29 +33,37 @@ export default function GoogleAuthHandler({ setUser, theme }) {
 
         // Fetch user data — add cache-busting param to avoid 304 responses
         const response = await axios.get(
-          `http://localhost:5000/api/v1/users/me?_t=${Date.now()}`,
+          `http://localhost:5000/api/v1/users/me/profile?_t=${Date.now()}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
               "Cache-Control": "no-cache",
               Pragma: "no-cache",
             },
-          }
+          },
         );
 
-        console.log("[GoogleAuthHandler] /me response:", response.status, response.data);
+        console.log(
+          "[GoogleAuthHandler] /me response:",
+          response.status,
+          response.data,
+        );
 
-        const userData = response.data?.data?.user;
-
+        const userData = response.data?.data?.user || response.data?.data?.doc;
         if (!userData) {
-          console.error("[GoogleAuthHandler] No user in response:", response.data);
+          console.error(
+            "[GoogleAuthHandler] No user in response:",
+            response.data,
+          );
           setError("Failed to load your profile. Please try again.");
           return;
         }
 
         // New signup — account not yet verified, show verification page
         if (userData.isVerified === false) {
-          console.log("[GoogleAuthHandler] User not verified, redirecting to verification-sent");
+          console.log(
+            "[GoogleAuthHandler] User not verified, redirecting to verification-sent",
+          );
           window.location.replace("/verification-sent");
           return;
         }
@@ -90,7 +100,10 @@ export default function GoogleAuthHandler({ setUser, theme }) {
         console.log("[GoogleAuthHandler] Redirecting to:", dest);
         window.location.replace(dest);
       } catch (err) {
-        console.error("[GoogleAuthHandler] Error:", err?.response?.data || err.message);
+        console.error(
+          "[GoogleAuthHandler] Error:",
+          err?.response?.data || err.message,
+        );
         const msg =
           err?.response?.data?.message ||
           "Authentication failed. Please try again.";
@@ -126,14 +139,13 @@ export default function GoogleAuthHandler({ setUser, theme }) {
     <div
       className={`min-h-screen flex flex-col items-center justify-center ${theme.bg}`}
     >
-      <Loader2
-        className={`animate-spin mb-4 ${theme.textP}`}
-        size={48}
-      />
+      <Loader2 className={`animate-spin mb-4 ${theme.textP}`} size={48} />
       <h2 className={`text-xl font-bold ${theme.textP}`}>
         Entering your workspace...
       </h2>
-      <p className={`${theme.textM}`}>Almost there! Syncing your account info.</p>
+      <p className={`${theme.textM}`}>
+        Almost there! Syncing your account info.
+      </p>
     </div>
   );
 }
