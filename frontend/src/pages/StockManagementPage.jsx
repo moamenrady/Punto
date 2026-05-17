@@ -241,32 +241,37 @@ const StockManagementPage = ({ currentUserRole }) => {
     }
   };
 
+  
   const statCards = [
-    {
-      label: "Total Items",
-      value: summary.totalItems,
-      icon: "📦",
-      valueColor: "#059669",
-    },
-    {
-      label: "Low Stock",
-      value: summary.lowStock,
-      icon: "⚠️",
-      valueColor: "#D97706",
-    },
-    {
-      label: "Out of Stock",
-      value: summary.outOfStock,
-      icon: "🔴",
-      valueColor: "#DC2626",
-    },
-    {
-      label: "Total Value",
-      value: formatCurrency(summary.totalValue),
-      icon: "💰",
-      valueColor: "#8A9FE8",
-    },
-  ];
+  {
+    label: "Total Items",
+    value: summary.totalItems,
+    valueColor: "#534AB7",
+    bg: "#EEF1FD",
+    icon: <svg viewBox="0 0 24 24" width="22" height="22" fill="#534AB7"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+  },
+  {
+    label: "Low Stock",
+    value: summary.lowStock,
+    valueColor: "#534AB7",
+    bg: "#EEF1FD",
+    icon: <svg viewBox="0 0 24 24" width="22" height="22" fill="#534AB7"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>,
+  },
+  {
+    label: "Out of Stock",
+    value: summary.outOfStock,
+    valueColor: "#534AB7",
+    bg: "#EEF1FD",
+    icon: <svg viewBox="0 0 24 24" width="22" height="22" fill="#534AB7"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="9" y1="9" x2="15" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>,
+  },
+  {
+    label: "Total Value",
+    value: formatCurrency(summary.totalValue),
+    valueColor: "#534AB7",
+    bg: "#EEF1FD",
+    icon: <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  },
+];
 
   return (
     <div className="ds-page">
@@ -544,9 +549,13 @@ const StockManagementPage = ({ currentUserRole }) => {
                         {stat.value}
                       </p>
                     </div>
-                    <span style={{ fontSize: "1.5rem", opacity: 0.7 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12,
+                      background: stat.bg,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,}}>
                       {stat.icon}
-                    </span>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -174,6 +174,7 @@ export default function VertexLoginPage({
                 <motion.button
                   whileHover={socialHover}
                   whileTap={{ scale: 0.98 }}
+                  onClick={() => window.location.href = "http://localhost:5000/api/v1/users/google"}
                   className={`w-full flex items-center justify-center gap-2.5 py-3 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24">
