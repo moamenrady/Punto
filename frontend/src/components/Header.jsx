@@ -27,11 +27,12 @@ const Header = ({
   const roleBorder= roleCfg.border;
 
   const getPageInfo = (path) => {
-    if (path.startsWith("/dashboard"))  return { title: "Dashboard",            Icon: LayoutDashboard, placeholder: "Search dashboards..." };
+    if (path.startsWith("/dashboard"))  return { title: "Project Management",            Icon: LayoutDashboard, placeholder: "Search dashboards..." };
     if (path.startsWith("/stock"))      return { title: "Stock Management",      Icon: Package,         placeholder: "Search items, SKUs, or categories..." };
     if (path.startsWith("/chatmodal"))  return { title: "Chat System",           Icon: MessageSquare,   placeholder: "Search messages or channels..." };
     if (path.startsWith("/settings"))   return { title: "Settings",              Icon: Settings,        placeholder: "Search settings..." };
     if (path.startsWith("/reports"))    return { title: "Reports & Analytics",   Icon: BarChart2,       placeholder: "Search charts, team metrics, or analysis..." };
+    if (path.startsWith("/control-panel"))    return { title: "Control Panel",   Icon: BarChart2,       placeholder: "Search ..." };
     return                                     { title: "Ticketing System",      Icon: FileText,        placeholder: "Search by ID, title, category, or user..." };
   };
 
