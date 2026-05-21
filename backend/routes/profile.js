@@ -25,10 +25,10 @@ const upload = multer({
   },
 });
 
-router.get("/",           protect, ctrl.getProfile);
-router.put("/",           protect, ctrl.updateProfile);
+router.get("/", protect, ctrl.getProfile);
+router.put("/", protect, ctrl.updateProfile);
 
-router.patch("/avatar", protect, upload.single("photo"), ctrl.uploadAvatar);;
-router.delete("/avatar",  protect, ctrl.removeAvatar);
+router.patch("/avatar", protect, upload.single("photo"), ctrl.uploadAvatar);
+router.delete("/avatar", protect, ctrl.removeAvatar);
 
 module.exports = router;

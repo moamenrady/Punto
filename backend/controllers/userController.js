@@ -24,8 +24,8 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     return next(
       new AppError(
         "This route is not for password updates. Use /updatePassword.",
-        400
-      )
+        400,
+      ),
     );
   }
 
@@ -36,7 +36,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     "email",
     "phone",
     "dept",
-    "location"
+    "location",
   );
 
   // 3) تحديث اليوزر
@@ -131,7 +131,7 @@ exports.getUserPhoto = catchAsync(async (req, res, next) => {
 });
 
 // ===============================
-// ✅ CREATE USER (with company support)
+// ✅ CREATE USER (Admin)(with company support)
 // ===============================
 exports.createUser = catchAsync(async (req, res, next) => {
   const userData = { ...req.body };
@@ -140,11 +140,9 @@ exports.createUser = catchAsync(async (req, res, next) => {
     userData.company_id = req.user.company_id;
   }
 
+  // التعديل هنا: بنحفظ المسار كـ String زي ما عملنا في البروفايل بالظبط
   if (req.file) {
-    userData.photo = {
-      data: req.file.buffer,
-      contentType: req.file.mimetype,
-    };
+    userData.photo = `/uploads/avatars/${req.file.filename}`;
   }
 
   const newUser = await User.create(userData);
@@ -158,16 +156,14 @@ exports.createUser = catchAsync(async (req, res, next) => {
 });
 
 // ===============================
-// ✅ UPDATE USER
+// ✅ UPDATE USER (Admin)
 // ===============================
 exports.updateUser = catchAsync(async (req, res, next) => {
   const updateData = { ...req.body };
 
+  // التعديل هنا: بنحفظ المسار كـ String عشان الداتابيز متضربش إيرور
   if (req.file) {
-    updateData.photo = {
-      data: req.file.buffer,
-      contentType: req.file.mimetype,
-    };
+    updateData.photo = `/uploads/avatars/${req.file.filename}`;
   }
 
   const filter = { _id: req.params.id };
@@ -189,7 +185,6 @@ exports.updateUser = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 // ===============================
 // ✅ DELETE USER
 // ===============================
@@ -336,11 +331,7 @@ exports.getChurnRiskList = catchAsync(async (req, res, next) => {
     {
       $addFields: {
         riskLevel: {
-          $cond: [
-            { $gte: ["$riskScorePercentage", 80] },
-            "CRITICAL",
-            "HIGH",
-          ],
+          $cond: [{ $gte: ["$riskScorePercentage", 80] }, "CRITICAL", "HIGH"],
         },
       },
     },

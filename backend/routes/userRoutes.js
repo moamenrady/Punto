@@ -3,10 +3,29 @@ const userController = require("../controllers/userController");
 const authController = require("../controllers/authController");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
-const { protect, getMe } = require('../controllers/authController');
+const { protect, getMe } = require("../controllers/authController");
 const multer = require("multer");
+const path = require("path");
 
-const upload = multer({ storage: multer.memoryStorage() });
+// const upload = multer({ storage: multer.memoryStorage() });
+
+const storage = multer.diskStorage({
+  destination: "uploads/avatars/",
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `admin_upload_${Date.now()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    ["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)
+      ? cb(null, true)
+      : cb(new Error("صور فقط: jpg, png, webp"));
+  },
+});
 
 const Router = express.Router();
 
@@ -16,7 +35,6 @@ Router.post("/forgotPassword", authController.forgetPassword);
 Router.patch("/resetPassword/:token", authController.resetPassword);
 Router.get("/verifyEmail/:token", authController.verifyEmail);
 
-
 // Google Login
 Router.get(
   "/google",
@@ -24,7 +42,7 @@ Router.get(
     console.log("🚀 Google Auth flow started!");
     next();
   },
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  passport.authenticate("google", { scope: ["profile", "email"] }),
 );
 
 // Google Callback
@@ -39,14 +57,14 @@ Router.get(
     failureRedirect: `${process.env.FRONTEND_URL || "http://localhost:5175"}/login`,
   }),
   (req, res) => {
-    const token = jwt.sign(
-      { id: req.user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-    res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5175"}/auth/google/success?token=${token}`);
-  }
+    res.redirect(
+      `${process.env.FRONTEND_URL || "http://localhost:5175"}/auth/google/success?token=${token}`,
+    );
+  },
 );
 // protect all routes after this middleware
 Router.use(authController.protect);
@@ -72,6 +90,5 @@ Router.get("/:id/photo", userController.getUserPhoto);
 Router.get("/analytics/demographics", userController.getUserDemographics);
 Router.get("/analytics/growth", userController.getUserGrowthTrend);
 Router.get("/analytics/churn-risk", userController.getChurnRiskList);
-
 
 module.exports = Router;
