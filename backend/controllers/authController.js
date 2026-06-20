@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const crypto = require("crypto");
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -11,22 +12,54 @@ const signToken = (id) =>
 // don't forget to make createSendToken function later
 
 exports.signup = catchAsync(async (req, res, next) => {
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
     passwordChangedAt: Date.now(),
     confirmPassword: req.body.confirmPassword,
-    role: req.body.role,
+    role: req.body.role || "user",
+    isVerified: false,
+    verificationToken: hashedToken,
+    verificationExpires: Date.now() + 24 * 60 * 60 * 1000,
   });
 
-  const token = signToken(newUser._id);
+  const frontendURL = process.env.FRONTEND_URL || "http://localhost:5175";
+  const verifyURL = `${frontendURL}/verify-email/${verificationToken}`;
+
+  console.log("-----------------------------------------");
+  console.log("📨 VERIFICATION LINK FOR NEW SIGNUP:");
+  console.log(verifyURL);
+  console.log("-----------------------------------------");
+
+  try {
+    const sendEmail = require("../utils/email");
+    await sendEmail({
+      email: newUser.email,
+      subject: "Verify your email address",
+      message: `Welcome to Punto! Please verify your email by clicking on this link: ${verifyURL}\n\nThis link is valid for 24 hours.`,
+    });
+  } catch (err) {
+    console.error("❌ Failed to send verification email:", err.message);
+  }
+
 
   res.status(201).json({
     status: "success",
-    token,
+    message: "Verification email sent! Please check your inbox to verify your account.",
     data: {
-      user: newUser,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        isVerified: false,
+      },
     },
   });
 });
@@ -205,8 +238,6 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
     message: "Token sent to email!",
   });
 });
-
-const crypto = require("crypto");
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
   // 1) Hash token from params

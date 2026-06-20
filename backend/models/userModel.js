@@ -91,7 +91,7 @@ const userSchema = new mongoose.Schema(
     },
     isVerified: {
       type: Boolean,
-      default: true, // Default to true for existing users, we'll set it to false for new signups
+      default: false,
     },
     verificationToken: String,
     verificationExpires: Date,

@@ -55,10 +55,10 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
       );
 
       if (response.data.status === "success") {
- setSuccessMessage("Your account has been created! Please wait for an admin to approve your access before signing in.");
-setTimeout(() => {
-  navigate("/login");
-}, 4000);
+        setSuccessMessage("Your account has been created! A verification email has been sent. Please check your inbox.");
+        setTimeout(() => {
+          navigate("/verification-sent");
+        }, 3000);
       }
     } catch (err) {
   const msg = err.response?.data?.message || "";

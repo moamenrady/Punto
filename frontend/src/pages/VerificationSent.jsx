@@ -39,7 +39,7 @@ export default function VerificationSent({ isDarkMode, theme }) {
           </h1>
           
           <p className={`text-[15px] mb-8 leading-relaxed ${theme.textM}`}>
-            We've sent a verification link to your Google email address. Please click the link to verify your account and continue setting up your workspace.
+            We've sent a verification link to your email address. Please click the link to verify your account and continue setting up your workspace.
           </p>
 
           <div className="space-y-4">

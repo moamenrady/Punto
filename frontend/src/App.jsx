@@ -125,7 +125,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
                 />
               }
             />
-            <Route path="/control-panel" element={<CompanyControlPanel theme={themeObj} user={user} />} />
+            <Route path="/control-panel" element={<CompanyControlPanel theme={themeObj} company={company} />} />
             <Route
               path="/chatmodal"
               element={

@@ -81,7 +81,7 @@ export default function VertexLoginPage({
             navigate("/tickets");
           }
         } else {
-          navigate("/tickets");
+          navigate("/setup");
         }
       }
     } catch (err) {

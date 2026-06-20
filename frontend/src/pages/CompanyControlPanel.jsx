@@ -2,16 +2,40 @@ import React, { useState, useEffect } from "react";
 import { Settings, Plus, LayoutDashboard, ShieldCheck, Mail, Loader2 } from "lucide-react";
 import axios from "axios";
 
-export default function CompanyControlPanel({ theme, company }) {
+export default function CompanyControlPanel({ theme, company: initialCompany }) {
+  const [company, setCompany] = useState(initialCompany);
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchingCompany, setFetchingCompany] = useState(false);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    // Ideally, we'd have a route to get all users in the company
-    // For now, let's just show the current company info
-  }, []);
+    setCompany(initialCompany);
+  }, [initialCompany]);
+
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      setFetchingCompany(true);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("http://localhost:5000/api/v1/companies/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.status === "success") {
+          setCompany(res.data.data.company);
+        }
+      } catch (err) {
+        console.error("Error fetching company data in panel:", err);
+      } finally {
+        setFetchingCompany(false);
+      }
+    };
+
+    if (!company) {
+      fetchCompanyData();
+    }
+  }, [company]);
 
   const handleAddUser = async (e) => {
     e.preventDefault();
@@ -32,6 +56,17 @@ export default function CompanyControlPanel({ theme, company }) {
       setIsLoading(false);
     }
   };
+
+  if (fetchingCompany && !company) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#12102A]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-purple-600" size={40} />
+          <p className="text-sm font-semibold text-gray-500">Loading control panel...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto"style={{ backgroundColor: "#F3F4F6", minHeight: "100vh" }}>

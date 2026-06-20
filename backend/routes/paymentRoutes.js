@@ -4,11 +4,16 @@ const authController = require("../controllers/authController");
 
 const router = express.Router();
 
-// لازم يكون عامل Login
+// Public webhook endpoint called by Paymob servers
+router.post("/webhook", paymentController.webhook);
+
+// Verification route
+router.post("/verify-status", authController.protect, paymentController.verifyStatus);
+
+// Protect all other routes
 router.use(authController.protect);
 
-// إنشاء عملية دفع
+// Create checkout session
 router.post("/checkout", paymentController.checkout);
-
 
 module.exports = router;

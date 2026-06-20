@@ -1,15 +1,20 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
-import { Sun, Moon, ArrowLeft } from "lucide-react";
+import { Sun, Moon, ArrowLeft, Loader2 } from "lucide-react";
 import { DarkLogo, LightLogo } from "../components/logo";
+import axios from "axios";
 
 export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [formData, setFormData] = useState({
     companyName: "",
     adminName: "",
+    industry: "",
     email: "",
     password: "",
   });
@@ -20,6 +25,7 @@ export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
     let newErrors = {};
     if (!formData.companyName.trim()) newErrors.companyName = "Required";
     if (!formData.adminName.trim()) newErrors.adminName = "Required";
+    if (!formData.industry.trim()) newErrors.industry = "Required";
     if (!formData.email.trim()) {
       newErrors.email = "Required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -34,10 +40,46 @@ export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validate()) {
-      navigate("/setup");
+    if (!validate()) return;
+    setIsLoading(true);
+    setApiError("");
+    setSuccessMessage("");
+
+    try {
+      const payload = {
+        name: formData.adminName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        confirmPassword: formData.password,
+        role: "manager", // Since they registered via AdminRegister, they intend to be managers
+      };
+
+      const response = await axios.post(
+        "http://localhost:5000/api/v1/users/signup",
+        payload
+      );
+
+      if (response.data.status === "success") {
+        // Save the company name and industry for post-verification prefill
+        localStorage.setItem("pending_company_name", formData.companyName.trim());
+        localStorage.setItem("pending_company_industry", formData.industry.trim());
+
+        setSuccessMessage("Your account has been created! A verification email has been sent. Please check your inbox.");
+        setTimeout(() => {
+          navigate("/verification-sent");
+        }, 3000);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || "";
+      if (msg.includes("duplicate key") || msg.includes("E11000")) {
+        setApiError("An account with this email already exists.");
+      } else {
+        setApiError(msg || "Something went wrong.");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -145,16 +187,16 @@ export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
               <input
                 type="text"
                 placeholder="Industry"
-                value={formData.adminName}
+                value={formData.industry}
                 onChange={(e) =>
-                  setFormData({ ...formData, adminName: e.target.value })
+                  setFormData({ ...formData, industry: e.target.value })
                 }
-                className={inputClass("adminName")}
+                className={inputClass("industry")}
                 style={{ "--tw-ring-color": theme.primary }}
               />
-              {errors.adminName && (
+              {errors.industry && (
                 <p className="text-red-500 text-[10px] mt-1 ml-1">
-                  {errors.adminName}
+                  {errors.industry}
                 </p>
               )}
             </div>
@@ -202,13 +244,30 @@ export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
             </div>
           </div>
 
+          {apiError && (
+            <p className="bg-red-50 text-red-500 text-[11px] p-3 rounded-xl text-center">
+              {apiError}
+            </p>
+          )}
+
+          {successMessage && (
+            <p className="bg-green-50 text-green-600 text-[12px] font-medium p-3 rounded-xl text-center shadow-sm border border-green-100">
+              {successMessage}
+            </p>
+          )}
+
           <motion.button
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.98 }}
             type="submit"
-            className={`w-full py-3.5 rounded-xl text-white font-bold text-[14px] bg-gradient-to-r ${theme.btn} shadow-lg mt-4`}
+            disabled={isLoading}
+            className={`w-full py-3.5 rounded-xl text-white font-bold text-[14px] bg-gradient-to-r ${theme.btn} shadow-lg mt-4 flex justify-center`}
           >
-            Create Campany
+            {isLoading ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Create Company Account"
+            )}
           </motion.button>
         </form>
 
@@ -216,7 +275,7 @@ export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
           <p className={`text-[13px] ${theme.textM}`}>
             Already have an account?{" "}
             <Link
-              to="/"
+              to="/login"
               className="font-bold hover:underline"
               style={{ color: theme.primary }}
             >
