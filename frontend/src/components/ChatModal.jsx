@@ -3,6 +3,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import { Send, MoreVertical, Phone, Video, Paperclip, Smile, X, Check, Mic, Search, MessageSquare } from 'lucide-react';
 import Avatar from './Avatar';
+import { AiFeatures } from '../services/aiOpsService';
 
 const socket = io('http://127.0.0.1:5000');
 
@@ -97,13 +98,24 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
             setIsTyping(true);
 
             try {
-                const response = await axios.post("https://ahmedradwan-production.up.railway.app/chat", {
-                    query: text,
-                    user_role: user.role || 'user',
-                    user_id: user._id
-                }, { timeout: 30000 });
+                if (!user?.company_id) {
+                    throw new Error("Missing company_id on the logged-in user — the AI service requires it.");
+                }
 
-                const aiResponseText = response.data.response || "I received an empty response from my server. Please try again.";
+                const priorHistory = messages.map((m) => ({
+                    role: m.senderId === 'ai_assistant' ? 'assistant' : 'user',
+                    content: m.text,
+                }));
+
+                const data = await AiFeatures.sendChatMessage({
+                    query: text,
+                    userRole: user.role || 'user',
+                    userId: user._id,
+                    companyId: user.company_id,
+                    chatHistory: priorHistory,
+                });
+
+                const aiResponseText = data?.response ?? data?.answer ?? data?.message ?? "I received an empty response from my server. Please try again.";
 
                 const aiMessage = {
                     _id: (Date.now() + 1).toString(),
@@ -124,7 +136,7 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
                     _id: (Date.now() + 1).toString(),
                     senderId: 'ai_assistant',
                     senderName: 'AI Assistant',
-                    text: "Sorry, I'm having trouble connecting to my brain right now. Please try again later.",
+                    text: `Sorry, I'm having trouble connecting to my brain right now (${err.message}). Please try again later.`,
                     createdAt: new Date().toISOString()
                 };
                 setMessages(prev => [...prev, errorMessage]);
