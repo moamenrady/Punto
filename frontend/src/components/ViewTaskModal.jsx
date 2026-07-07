@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import HelpSolveModal from './HelpSolveModal';
 
 const statusStyle = {
     'To Do':       { background: '#DBEAFE', color: '#1E40AF' },
@@ -39,6 +40,7 @@ const ViewTaskModal = ({
     const [editingAssignees, setEditingAssignees] = useState(false);
     const [selectedIds,      setSelectedIds]      = useState([]);
     const [saving,           setSaving]           = useState(false);
+    const [showHelpSolve,    setShowHelpSolve]    = useState(false);
 
     // Sync selected IDs whenever the task changes or modal opens
     useEffect(() => {
@@ -294,9 +296,24 @@ const ViewTaskModal = ({
                 </div>
 
                 <div className="ds-modal-footer">
+                    <button
+                        className="ds-btn ds-btn-secondary"
+                        style={{ justifyContent:'center', flex:1, color:'#534AB7', borderColor:'#C7D2F8', background:'#EEF1FD' }}
+                        onClick={() => setShowHelpSolve(true)}
+                    >
+                        🧠 Help me solve
+                    </button>
                     <button className="ds-btn ds-btn-secondary" style={{ justifyContent:'center', flex:1 }} onClick={onClose}>Close</button>
                 </div>
             </div>
+
+            <HelpSolveModal
+                isOpen={showHelpSolve}
+                onClose={() => setShowHelpSolve(false)}
+                itemId={task._id}
+                itemType="task"
+                itemLabel={task.name ?? task.title}
+            />
         </div>
     );
 };

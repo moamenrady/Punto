@@ -4,9 +4,12 @@
 // (https://ahmedradwan.up.railway.app/docs).
 //
 // Routes are grouped by domain so consumers only import what they need:
-//   - SystemAdmin      -> /health, /api/rebuild-db, /api/ai/trigger-stock-check
-//   - AiFeatures       -> /chat, /api/ai/assign-task
+//   - SystemAdmin      -> /health, /api/rebuild-db, /api/ai/trigger-stock-check,
+//                         /api/ai/stock-predictions, /api/ai/extract-stock-usage
+//   - AiFeatures       -> /chat, /api/ai/assign-task, /api/ai/help-solve,
+//                         /api/ai/breakdown-task, /api/ai/auto-assign
 //   - TicketManagement -> /api/tickets/create, /api/work/complete
+//   - TaskManagement   -> /api/ai/bulk-create-tasks
 //
 // Every method returns the parsed response body on success and throws a
 // normalized Error (with a readable .message) on failure, so callers can
@@ -84,6 +87,45 @@ export const SystemAdmin = {
       handleError(err, "Failed to trigger the stock check");
     }
   },
+
+  /**
+   * GET /api/ai/stock-predictions — no request body.
+   * Resolves to { success, message, data: StockPrediction[] } where each
+   * item looks like:
+   *   { item_id, item_name, current_qty, status: 'safe'|'critical'|'empty'|'insufficient_data',
+   *     daily_burn_rate, days_left, empty_date }
+   * Note: when the AI marks an item "critical" it automatically opens an
+   * IT ticket server-side — the front end only needs to display the result.
+   */
+  getStockPredictions: async () => {
+    try {
+      const { data } = await aiClient.get("/api/ai/stock-predictions");
+      return data;
+    } catch (err) {
+      handleError(err, "Failed to load AI stock predictions");
+    }
+  },
+
+  /**
+   * POST /api/ai/extract-stock-usage — called right after a task is marked
+   * complete. Analyzes the employee's task/comment history and returns any
+   * tools/items it thinks were withdrawn from stock.
+   * @param {Object} params
+   * @param {string} params.taskId
+   * @param {string} params.companyId
+   * @returns {Promise<{ used_items: Array<{ item_name: string, quantity: number }> }>}
+   */
+  extractStockUsage: async ({ taskId, companyId }) => {
+    try {
+      const { data } = await aiClient.post("/api/ai/extract-stock-usage", {
+        task_id: taskId,
+        company_id: companyId,
+      });
+      return data;
+    } catch (err) {
+      handleError(err, "Failed to analyze stock usage for this task");
+    }
+  },
 };
 
 // ── AI Features ────────────────────────────────────────────────────────────
@@ -126,6 +168,87 @@ export const AiFeatures = {
       return data;
     } catch (err) {
       handleError(err, "Failed to assign the task");
+    }
+  },
+
+  /**
+   * POST /api/ai/help-solve — "Help me solve" button on a task/ticket.
+   * Returns a Markdown-formatted solution write-up.
+   * @param {Object} params
+   * @param {string} params.itemId - task or ticket id
+   * @param {'task'|'ticket'} params.itemType
+   * @param {string} [params.details] - optional extra notes from the employee
+   */
+  helpSolve: async ({ itemId, itemType, details }) => {
+    try {
+      const { data } = await aiClient.post("/api/ai/help-solve", {
+        item_id: itemId,
+        item_type: itemType,
+        details: details || "",
+      });
+      return data;
+    } catch (err) {
+      handleError(err, "Failed to get an AI solution");
+    }
+  },
+
+  /**
+   * POST /api/ai/breakdown-task — "AI Breakdown" on the project manager page.
+   * Turns a big idea into an array of { name, description, priority } tasks.
+   * @param {Object} params
+   * @param {string} params.description - the manager's big idea, verbatim
+   */
+  breakdownTask: async ({ description }) => {
+    try {
+      const { data } = await aiClient.post("/api/ai/breakdown-task", { description });
+      return data;
+    } catch (err) {
+      handleError(err, "Failed to break the idea down into tasks");
+    }
+  },
+
+  /**
+   * POST /api/ai/auto-assign — "Auto-Assign Tickets" on the manager tickets page.
+   * Assigns every still-"Unassigned" ticket to the most available/qualified employee.
+   * @param {Object} params
+   * @param {string} params.companyId
+   */
+  autoAssignTickets: async ({ companyId }) => {
+    try {
+      const { data } = await aiClient.post("/api/ai/auto-assign", { company_id: companyId });
+      return data;
+    } catch (err) {
+      handleError(err, "Failed to auto-assign tickets");
+    }
+  },
+};
+
+// ── Task Management ─────────────────────────────────────────────────────────
+// Persists AI-generated task breakdowns once a manager has assigned owners.
+export const TaskManagement = {
+  /**
+   * POST /api/ai/bulk-create-tasks — "Assign & Save" below the AI Breakdown table.
+   * @param {Object} params
+   * @param {string} params.companyId
+   * @param {string} params.createdBy - manager's user id
+   * @param {Array<Object>} params.tasks - [{ name, description, priority, assignedTo, backlogId }]
+   */
+  bulkCreateTasks: async ({ companyId, createdBy, tasks }) => {
+    try {
+      const { data } = await aiClient.post("/api/ai/bulk-create-tasks", {
+        company_id: companyId,
+        created_by: createdBy,
+        tasks: tasks.map((t) => ({
+          name: t.name,
+          description: t.description,
+          priority: t.priority,
+          assigned_to: t.assignedTo,
+          backlog_id: t.backlogId,
+        })),
+      });
+      return data;
+    } catch (err) {
+      handleError(err, "Failed to save the assigned tasks");
     }
   },
 };
@@ -174,4 +297,4 @@ export const TicketManagement = {
   },
 };
 
-export default { SystemAdmin, AiFeatures, TicketManagement };
+export default { SystemAdmin, AiFeatures, TicketManagement, TaskManagement };

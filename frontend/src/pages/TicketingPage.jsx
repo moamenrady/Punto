@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import TicketList from "../components/TicketList";
 import DonutChartWidget from "../components/DonutChartWidget";
+import Toast, { useToast } from "../components/Toast";
+import { AiFeatures } from "../services/aiOpsService";
 
 const formatTimeAgo = (dateString) => {
   if (!dateString) return "Date unknown";
@@ -22,6 +24,7 @@ export default function TicketingPage({
   isITUser,
   searchQuery,
   onOpenCreate,
+  onRefresh,
   isLoading,
 }) {
   const [, setTick] = useState(0);
@@ -29,6 +32,9 @@ export default function TicketingPage({
   const [showAssignedToMe, setShowAssignedToMe] = useState(false);
   const [showOpenOnly, setShowOpenOnly] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isAutoAssigning, setIsAutoAssigning] = useState(false);
+
+  const { toasts, close: closeToast, success: toastSuccess, error: toastError } = useToast();
 
   const isAdmin = user?.role === "admin" || user?.role === "manager";
 
@@ -38,6 +44,30 @@ export default function TicketingPage({
   }, []);
 
   const safeTickets = Array.isArray(tickets) ? tickets : [];
+  const unassignedCount = safeTickets.filter((t) => !t.assign_to?._id).length;
+
+  const handleAutoAssign = async () => {
+    if (!user?.company_id) {
+      toastError("Missing Company", "Can't auto-assign without a company_id on your account.");
+      return;
+    }
+    setIsAutoAssigning(true);
+    try {
+      const data = await AiFeatures.autoAssignTickets({ companyId: user.company_id });
+      const assignedCount = data?.assigned_count ?? data?.assigned?.length ?? data?.count ?? null;
+      toastSuccess(
+        "Tickets Auto-Assigned",
+        assignedCount != null
+          ? `${assignedCount} ticket${assignedCount === 1 ? "" : "s"} routed to the most available employees.`
+          : (data?.message || "Unassigned tickets have been routed to available employees.")
+      );
+      onRefresh?.();
+    } catch (err) {
+      toastError("Auto-Assign Failed", err.message);
+    } finally {
+      setIsAutoAssigning(false);
+    }
+  };
 
   const getRoleFilteredTickets = () => {
     if (isAdmin) {
@@ -126,9 +156,22 @@ export default function TicketingPage({
                 </p>
               </div>
 
-              <button className="ds-btn ds-btn-primary" onClick={onOpenCreate} style={{ padding: "10px 20px", borderRadius: "10px", fontWeight: 600 }}>
-                New Request
-              </button>
+              <div style={{ display: "flex", gap: 10 }}>
+                {isAdmin && (
+                  <button
+                    className="ds-btn ds-btn-secondary"
+                    onClick={handleAutoAssign}
+                    disabled={isAutoAssigning || unassignedCount === 0}
+                    title={unassignedCount === 0 ? "No unassigned tickets right now" : undefined}
+                    style={{ padding: "10px 20px", borderRadius: "10px", fontWeight: 600 }}
+                  >
+                    🤖 {isAutoAssigning ? "Assigning..." : `Auto-Assign Tickets${unassignedCount ? ` (${unassignedCount})` : ""}`}
+                  </button>
+                )}
+                <button className="ds-btn ds-btn-primary" onClick={onOpenCreate} style={{ padding: "10px 20px", borderRadius: "10px", fontWeight: 600 }}>
+                  New Request
+                </button>
+              </div>
             </div>
 
             {isAdmin && <DonutChartWidget tickets={safeTickets} stats={stats} isLoading={isLoading} />}
@@ -222,6 +265,8 @@ export default function TicketingPage({
           </div>
         </div>
       </div>
+
+      <Toast toasts={toasts} onClose={closeToast} />
     </div>
   );
 }

@@ -105,6 +105,7 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
                   onProfileClick={openProfile}
                   isITUser={isAdmin}
                   onOpenCreate={() => setIsCreateOpen(true)}
+                  onRefresh={refreshTicketList}
                   theme={themeObj}
                   isLoading={isLoading}
                 />

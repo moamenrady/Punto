@@ -4,6 +4,8 @@ import UploadCSVModal from '../components/UploadCSVModal';
 import ViewAssetModal from '../components/ViewAssetModal';
 import ReduceAssetModal from '../components/ReduceAssetModal';
 import { AddAssetModal, EditAssetModal } from '../components/AssetFormModal';
+import StockPredictionsPanel from '../components/StockPredictionsPanel';
+import Toast, { useToast } from '../components/Toast';
 
 const API_BASE = 'http://127.0.0.1:5000/api/v1/stock';
 
@@ -43,8 +45,22 @@ const StockManagementPage = ({ currentUserRole }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
+  const [showPredictions, setShowPredictions] = useState(false);
+
+  const { toasts, close: closeToast, error: toastError } = useToast();
 
   const isAdmin = currentUserRole === "admin" || currentUserRole === "manager";
+
+  const handlePredictionsLoaded = useCallback((predictions) => {
+    const criticalItems = predictions.filter((p) => p.status === 'critical');
+    if (criticalItems.length > 0) {
+      toastError(
+        'Critical Stock Alert',
+        `${criticalItems.length} item${criticalItems.length === 1 ? '' : 's'} will run out in under 5 days: ${criticalItems.map(i => i.item_name).join(', ')}. IT tickets have been opened automatically.`,
+        7000
+      );
+    }
+  }, [toastError]);
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -240,6 +256,13 @@ const StockManagementPage = ({ currentUserRole }) => {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setShowPredictions((v) => !v)}
+              className="ds-btn ds-btn-secondary"
+              style={showPredictions ? { background: '#EEF1FD', borderColor: '#8A9FE8', color: '#534AB7' } : undefined}
+            >
+              🤖 AI Stock Predictions
+            </button>
             {isAdmin && (
               <>
                 <button onClick={() => openModal('upload')} className="ds-btn ds-btn-secondary">
@@ -267,6 +290,11 @@ const StockManagementPage = ({ currentUserRole }) => {
             <span style={{ fontSize: '0.875rem', color: '#DC2626', fontWeight: 500 }}>{error}</span>
             <button onClick={fetchAssets} style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#8A9FE8', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Retry</button>
           </div>
+        )}
+
+        {/* AI Stock Predictions */}
+        {showPredictions && (
+          <StockPredictionsPanel onLoaded={handlePredictionsLoaded} />
         )}
 
         {/* Loading state */}
@@ -332,6 +360,8 @@ const StockManagementPage = ({ currentUserRole }) => {
       {activeModal === 'edit' && selectedAsset && (
         <EditAssetModal asset={selectedAsset} onClose={closeModal} onSubmit={handleEdit} />
       )}
+
+      <Toast toasts={toasts} onClose={closeToast} />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
