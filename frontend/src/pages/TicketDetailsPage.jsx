@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AssignMemberModal from '../components/AssignMemberModal';
 import Avatar from '../components/Avatar';
+import HelpSolveModal from '../components/HelpSolveModal';
 import './ticket-details.css';
 
 /* ── helpers ─────────────────────────────── */
@@ -43,6 +44,7 @@ export default function TicketDetailsPage({ tickets = [], isITUser, user }) {
   const [showResolveForm, setShowResolveForm] = useState(false);
   const [solution, setSolution] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showHelpSolve, setShowHelpSolve] = useState(false);
 
   const API_BASE = "https://itmgmtbackend-production.up.railway.app/api/v1/tickets";
 
@@ -138,6 +140,14 @@ export default function TicketDetailsPage({ tickets = [], isITUser, user }) {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="td-assign-btn"
+            style={{ backgroundColor: '#EEF1FD', borderColor: '#C7D2F8', color: '#534AB7' }}
+            onClick={() => setShowHelpSolve(true)}
+          >
+            🧠 Help me solve
+          </button>
+
           {isITUser && localTicket.status === 'open' && (
             <button className="td-assign-btn" onClick={handleAssignToMe} disabled={isUpdating}>
               Assign To Me
@@ -222,6 +232,14 @@ export default function TicketDetailsPage({ tickets = [], isITUser, user }) {
           </div>
         </div>
       </div>
+
+      <HelpSolveModal
+        isOpen={showHelpSolve}
+        onClose={() => setShowHelpSolve(false)}
+        itemId={localTicket._id}
+        itemType="ticket"
+        itemLabel={localTicket.name}
+      />
     </div>
   );
 }

@@ -1,3 +1,27 @@
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import '../dashboard.css';
+import { projectService } from '../services/projectService';
+import UserDashboard from './UserDashboard';
+import { DndContext, DragOverlay, rectIntersection, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import CreateProjectModal  from './CreateProjectModal';
+import AIBreakdownModal    from './AIBreakdownModal';
+import EditSprintModal     from './EditSprintModal';
+import DeleteSprintModal   from './DeleteSprintModal';
+import ViewTaskModal       from './ViewTaskModal';
+import CreateSprintModal   from './CreateSprintModal';
+import CreateBacklogModal  from './CreateBacklogModal';
+import CreateTaskModal     from './CreateTaskModal';
+import AddMemberModal      from './AddMemberModal';
+import ConfirmModal        from './ConfirmModal';
+import ProjectDetailsModal from './ProjectDetailsModal';
+import AddTeamModal        from './AddTeamModal';
+import TeamDetailsModal    from './TeamDetailsModal';
+import Toast, { useToast } from './Toast';
+import Avatar from './Avatar';
+import StockUsageConfirmModal from './StockUsageConfirmModal';
+import { SystemAdmin } from '../services/aiOpsService';
 import React, {
   useState,
   useEffect,
@@ -563,6 +587,8 @@ const Dashboard = ({ user }) => {
   const isAdmin = user?.role === "admin" || user?.role === "manager";
 
   // ── toast notifications ──
+  const { toasts, close: closeToast, success: toastSuccess, error: toastError, info: toastInfo } = useToast();
+  const [stockPrompt, setStockPrompt] = useState(null); // { taskName, items } | null
   const {
     toasts,
     close: closeToast,
@@ -1034,6 +1060,17 @@ const Dashboard = ({ user }) => {
         );
         return { ...prev, [backlogId]: bTasks };
       });
+
+      // "Automatic Stock Deduction" — best-effort check, never blocks completion.
+      if (newStatus === 'Completed' && user?.company_id) {
+        SystemAdmin.extractStockUsage({ taskId: task._id, companyId: user.company_id })
+          .then((result) => {
+            const usedItems = result?.used_items ?? [];
+            if (usedItems.length > 0) setStockPrompt({ taskName: task.name, items: usedItems });
+          })
+          .catch((err) => console.warn('Stock usage check skipped:', err.message));
+      }
+    } catch (e) { toastError('Failed to update status', e.message); }
     } catch (e) {
       toastError("Failed to update status", e.message);
     }
@@ -2614,6 +2651,12 @@ const Dashboard = ({ user }) => {
   const renderBacklog = () => (
     <>
       {isAdmin && (
+        <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:20 }}>
+          <button className="ds-btn ds-btn-secondary" onClick={() => setModal({ type:'aiBreakdown' })}>
+            ✨ AI Breakdown
+          </button>
+          <button className="ds-btn ds-btn-primary" onClick={() => setModal({ type:'createBacklog' })}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <div
           style={{
             display: "flex",
@@ -4620,6 +4663,15 @@ const PROJECT_TABS = [
         onClose={closeModal}
         onSubmit={handleCreateBacklog}
       />
+      <AIBreakdownModal
+        isOpen={modal?.type === 'aiBreakdown'}
+        onClose={closeModal}
+        backlogs={backlogs}
+        members={selectedProject?.members ?? []}
+        companyId={user?.company_id}
+        createdBy={user?._id}
+        onCreated={() => { refreshProjectData(); toastSuccess('Tasks Created', 'The AI-assigned tasks were saved to the backlog.'); }}
+      />
       <CreateTaskModal
         isOpen={modal?.type === "createTask"}
         onClose={closeModal}
@@ -4693,6 +4745,24 @@ const PROJECT_TABS = [
       />
 
       {/* ── Toast Notifications ── */}
+      <StockUsageConfirmModal
+        isOpen={!!stockPrompt}
+        onClose={() => setStockPrompt(null)}
+        taskName={stockPrompt?.taskName}
+        items={stockPrompt?.items ?? []}
+        onDone={(result) => {
+          if (result.deducted.length > 0) {
+            toastSuccess('Stock Updated', `Deducted: ${result.deducted.map(d => `${d.item_name} (${d.quantity})`).join(', ')}.`);
+          }
+          if (result.notFound.length > 0) {
+            toastInfo('Some Items Not Found', `Couldn't match in stock: ${result.notFound.map(d => d.item_name).join(', ')}.`);
+          }
+          if (result.failed.length > 0) {
+            toastError('Deduction Failed', `Couldn't update: ${result.failed.map(d => d.item_name).join(', ')}.`);
+          }
+        }}
+      />
+
       <Toast toasts={toasts} onClose={closeToast} />
     </div>
   );

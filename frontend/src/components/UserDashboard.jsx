@@ -1,3 +1,13 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import '../dashboard.css';
+import { projectService } from '../services/projectService';
+import { DndContext, DragOverlay, rectIntersection, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import ViewTaskModal from './ViewTaskModal';
+import StockUsageConfirmModal from './StockUsageConfirmModal';
+import Toast, { useToast } from './Toast';
+import { SystemAdmin } from '../services/aiOpsService';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import "../dashboard.css";
 import { projectService } from "../services/projectService";
@@ -491,6 +501,11 @@ const UserDashboard = ({ user }) => {
   const [schedLoading, setSchedLoading] = useState(true);
 
   // modal
+  const [viewTask,        setViewTask]        = useState(null);
+  const [activeDragId,    setActiveDragId]    = useState(null);
+  const [stockPrompt,     setStockPrompt]     = useState(null); // { taskName, items } | null
+
+  const { toasts, close: closeToast, success: toastSuccess, info: toastInfo, error: toastError } = useToast();
   const [viewTask, setViewTask] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
 
@@ -1558,6 +1573,27 @@ const UserDashboard = ({ user }) => {
         currentUserId={user._id}
         onAssigneesChange={handleAssigneesChange}
       />
+
+      {/* Automatic Stock Deduction popup */}
+      <StockUsageConfirmModal
+        isOpen={!!stockPrompt}
+        onClose={() => setStockPrompt(null)}
+        taskName={stockPrompt?.taskName}
+        items={stockPrompt?.items ?? []}
+        onDone={(result) => {
+          if (result.deducted.length > 0) {
+            toastSuccess('Stock Updated', `Deducted: ${result.deducted.map(d => `${d.item_name} (${d.quantity})`).join(', ')}.`);
+          }
+          if (result.notFound.length > 0) {
+            toastInfo('Some Items Not Found', `Couldn't match in stock: ${result.notFound.map(d => d.item_name).join(', ')}.`);
+          }
+          if (result.failed.length > 0) {
+            toastError('Deduction Failed', `Couldn't update: ${result.failed.map(d => d.item_name).join(', ')}.`);
+          }
+        }}
+      />
+
+      <Toast toasts={toasts} onClose={closeToast} />
     </div>
   );
 };

@@ -43,8 +43,22 @@ const StockManagementPage = ({ currentUserRole }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
+  const [showPredictions, setShowPredictions] = useState(false);
+
+  const { toasts, close: closeToast, error: toastError } = useToast();
 
   const isAdmin = currentUserRole === "admin" || currentUserRole === "manager";
+
+  const handlePredictionsLoaded = useCallback((predictions) => {
+    const criticalItems = predictions.filter((p) => p.status === 'critical');
+    if (criticalItems.length > 0) {
+      toastError(
+        'Critical Stock Alert',
+        `${criticalItems.length} item${criticalItems.length === 1 ? '' : 's'} will run out in under 5 days: ${criticalItems.map(i => i.item_name).join(', ')}. IT tickets have been opened automatically.`,
+        7000
+      );
+    }
+  }, [toastError]);
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -386,6 +400,13 @@ const StockManagementPage = ({ currentUserRole }) => {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setShowPredictions((v) => !v)}
+              className="ds-btn ds-btn-secondary"
+              style={showPredictions ? { background: '#EEF1FD', borderColor: '#8A9FE8', color: '#534AB7' } : undefined}
+            >
+              🤖 AI Stock Predictions
+            </button>
             {isAdmin && (
               <>
                 <button
@@ -471,6 +492,11 @@ const StockManagementPage = ({ currentUserRole }) => {
               Retry
             </button>
           </div>
+        )}
+
+        {/* AI Stock Predictions */}
+        {showPredictions && (
+          <StockPredictionsPanel onLoaded={handlePredictionsLoaded} />
         )}
 
         {/* Loading state */}
@@ -645,6 +671,8 @@ const StockManagementPage = ({ currentUserRole }) => {
           onSubmit={handleEdit}
         />
       )}
+
+      <Toast toasts={toasts} onClose={closeToast} />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
