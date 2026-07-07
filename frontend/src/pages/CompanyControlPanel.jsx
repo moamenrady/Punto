@@ -1,19 +1,41 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Users, Settings, Plus, LayoutDashboard, ShieldCheck, Mail, Loader2 } from "lucide-react";
+import { Settings, Plus, LayoutDashboard, ShieldCheck, Mail, Loader2 } from "lucide-react";
 import axios from "axios";
 
-export default function CompanyControlPanel({ theme, user, company }) {
-  const [users, setUsers] = useState([]);
+export default function CompanyControlPanel({ theme, company: initialCompany }) {
+  const [company, setCompany] = useState(initialCompany);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUserId, setNewUserId] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchingCompany, setFetchingCompany] = useState(false);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    // Ideally, we'd have a route to get all users in the company
-    // For now, let's just show the current company info
-  }, []);
+    setCompany(initialCompany);
+  }, [initialCompany]);
+
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      setFetchingCompany(true);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("http://localhost:5000/api/v1/companies/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.status === "success") {
+          setCompany(res.data.data.company);
+        }
+      } catch (err) {
+        console.error("Error fetching company data in panel:", err);
+      } finally {
+        setFetchingCompany(false);
+      }
+    };
+
+    if (!company) {
+      fetchCompanyData();
+    }
+  }, [company]);
 
   const handleAddUser = async (e) => {
     e.preventDefault();
@@ -23,11 +45,11 @@ export default function CompanyControlPanel({ theme, user, company }) {
       const token = localStorage.getItem("token");
       await axios.post(
         "http://localhost:5000/api/v1/companies/add-user",
-        { userId: newUserId },
+        { email: newUserEmail },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMsg("User added successfully!");
-      setNewUserId("");
+      setNewUserEmail("");
     } catch (err) {
       setMsg(err.response?.data?.message || "Failed to add user");
     } finally {
@@ -35,8 +57,19 @@ export default function CompanyControlPanel({ theme, user, company }) {
     }
   };
 
+  if (fetchingCompany && !company) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#12102A]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-purple-600" size={40} />
+          <p className="text-sm font-semibold text-gray-500">Loading control panel...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto"style={{ backgroundColor: "#F3F4F6", minHeight: "100vh" }}>
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-3xl font-extrabold flex items-center gap-3" style={{ color: theme.textP }}>
@@ -45,7 +78,7 @@ export default function CompanyControlPanel({ theme, user, company }) {
           </h1>
           <p className={`${theme.textM} mt-2`}>Manage your organization, team members, and subscription.</p>
         </div>
-        <div className={`px-4 py-2 rounded-xl border ${theme.border} bg-opacity-5`} style={{ backgroundColor: `${theme.primary}10` }}>
+        <div className={`px-4 py-2 rounded-xl border ${theme.border} bg-opacity-5`} style={{ backgroundColor: `${theme.primary}20` }}>
           <span className="text-xs font-bold uppercase tracking-widest" style={{ color: theme.primary }}>
             {company?.plan_id?.name || "Active Plan"}
           </span>
@@ -93,19 +126,17 @@ export default function CompanyControlPanel({ theme, user, company }) {
           </div>
 
           {showAddUser && (
-            <motion.form 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }}
+            <form
               onSubmit={handleAddUser} 
               className="mb-8 space-y-4"
             >
               <div className="relative">
                 <Mail className="absolute left-4 top-3.5 opacity-40" size={18} />
                 <input 
-                  type="text" 
-                  placeholder="Enter User ID to invite" 
-                  value={newUserId}
-                  onChange={(e) => setNewUserId(e.target.value)}
+                  type="email" 
+                  placeholder="Enter user email to invite" 
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
                   className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border outline-none ${theme.border} bg-white`}
                 />
               </div>
@@ -117,7 +148,7 @@ export default function CompanyControlPanel({ theme, user, company }) {
                 {isLoading ? <Loader2 className="animate-spin" /> : "Confirm Add"}
               </button>
               {msg && <p className={`text-center text-xs font-bold ${msg.includes("success") ? "text-green-500" : "text-red-500"}`}>{msg}</p>}
-            </motion.form>
+            </form>
           )}
 
           <div className="space-y-4">

@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 const token = () => localStorage.getItem("token");
 const API = "http://localhost:5000/api/v1";
-const C = {
+
+// Mutable module-level theme — updated at top of Settings render
+// so all sub-component closures see the current palette.
+let C = {
   bg: "#F5F4FF",
   white: "#ffffff",
   border: "#E8E6FF",
@@ -15,6 +18,23 @@ const C = {
   text: "#1E1B3A",
   muted: "#9CA3AF",
   footerBg: "#FAFAFF",
+};
+
+const LIGHT_C = { ...C };
+const DARK_C = {
+  bg: "#080a10",
+  white: "#111827",
+  border: "#1e2336",
+  borderLight: "#1e2336",
+  rowBorder: "#1a1f2e",
+  primary: "#8A9FE8",
+  primaryHov: "#7F77DD",
+  accent: "#a5b4fc",
+  accentBg: "rgba(99,102,241,0.1)",
+  accentBd: "rgba(99,102,241,0.25)",
+  text: "#e2e8f0",
+  muted: "#64748b",
+  footerBg: "#0f1117",
 };
 
 function Toggle({ value, onChange, loading, defaultOn = false }) {
@@ -49,15 +69,18 @@ function Toggle({ value, onChange, loading, defaultOn = false }) {
         flexShrink: 0,
       }}
     >
-      <span style={{
-        display: "inline-block",
-        width: 16, height: 16,
-        borderRadius: "50%",
-        backgroundColor: "#fff",
-        boxShadow: "0 1px 3px rgba(0,0,0,.2)",
-        transform: on ? "translateX(24px)" : "translateX(4px)",
-        transition: "transform .2s",
-      }} />
+      <span
+        style={{
+          display: "inline-block",
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          backgroundColor: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+          transform: on ? "translateX(24px)" : "translateX(4px)",
+          transition: "transform .2s",
+        }}
+      />
     </button>
   );
 }
@@ -87,17 +110,19 @@ function Badge({ type, children }) {
   );
 }
 
-const inp = {
-  width: "100%",
-  fontSize: 13,
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: `1px solid ${C.accentBd}`,
-  backgroundColor: C.white,
-  color: C.text,
-  outline: "none",
-  boxSizing: "border-box",
-};
+// Use ES5 getters so each property reads the CURRENT C at render time
+// (C is mutated by the Settings component before sub-components are called).
+const inp = Object.defineProperties({}, {
+  width:           { get() { return "100%"; },                              enumerable: true },
+  fontSize:        { get() { return 13; },                                  enumerable: true },
+  padding:         { get() { return "10px 14px"; },                         enumerable: true },
+  borderRadius:    { get() { return 10; },                                  enumerable: true },
+  border:          { get() { return `1px solid ${C.accentBd}`; },           enumerable: true },
+  backgroundColor: { get() { return C.white; },                             enumerable: true },
+  color:           { get() { return C.text; },                              enumerable: true },
+  outline:         { get() { return "none"; },                              enumerable: true },
+  boxSizing:       { get() { return "border-box"; },                        enumerable: true },
+});
 
 function Card({ children }) {
   return (
@@ -308,7 +333,7 @@ function PageProfile({ refreshUser }) {
   }
 
   function loadProfile() {
-    return fetch(`${API}/users/me`, {
+    return fetch(`${API}/users/me/profile`, {
       headers: { Authorization: `Bearer ${token()}` },
     })
       .then((r) => r.json())
@@ -327,7 +352,7 @@ function PageProfile({ refreshUser }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/users/me`, {
+      const res = await fetch(`${API}/users/me/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -343,17 +368,40 @@ function PageProfile({ refreshUser }) {
       });
       const data = await res.json();
       setForm(data.data.doc);
-      refreshUser(data.data.doc); 
+      refreshUser(data.data.doc);
       showToast("success");
     } catch (err) {
-    console.log("الغلـط فين يا مؤمن؟ =>", err.message); // هيطبع لك اسم الغلط في الـ Console
-    showToast("error");
-
+      console.log("الغلـط فين يا مؤمن؟ =>", err.message); // هيطبع لك اسم الغلط في الـ Console
+      showToast("error");
     } finally {
       setSaving(false);
     }
   }
 
+  // async function handleAvatarUpload(e) {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   setAvatarLoading(true);
+  //   const formData = new FormData();
+  //   formData.append("photo", file);
+  //   try {
+  //     const res = await fetch(`${API}/users/me/avatar`, {
+  //       method: "PATCH",
+  //       headers: { Authorization: `Bearer ${token()}` },
+  //       body: formData,
+  //     });
+  //     const data = await res.json();
+  //     if (data?.data?.photo) {
+  //       setForm((prev) => ({ ...prev, photo: data.data.photo }));
+  //         refreshUser({ photo: data.data.photo, avatar: data.data.photo });
+  //     }
+  //     showToast("success");
+  //   } catch {
+  //     showToast("error");
+  //   } finally {
+  //     setAvatarLoading(false);
+  //   }
+  // }
   async function handleAvatarUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -361,15 +409,21 @@ function PageProfile({ refreshUser }) {
     const formData = new FormData();
     formData.append("photo", file);
     try {
-      const res = await fetch(`${API}/users/me/avatar`, {
+      // 1. المسار الجديد
+      const res = await fetch(`${API}/users/me/profile/avatar`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token()}` },
         body: formData,
       });
       const data = await res.json();
-      if (data?.data?.photo) {
-        setForm((prev) => ({ ...prev, photo: data.data.photo }));
-          refreshUser({ photo: data.data.photo, avatar: data.data.photo });
+
+      // 2. قراءة الداتا من أوبجيكت اليوزر المحدث
+      if (data?.data?.user?.photo) {
+        setForm((prev) => ({ ...prev, photo: data.data.user.photo }));
+        refreshUser({
+          photo: data.data.user.photo,
+          avatar: data.data.user.photo,
+        });
       }
       showToast("success");
     } catch {
@@ -379,10 +433,28 @@ function PageProfile({ refreshUser }) {
     }
   }
 
+  // async function handleRemoveAvatar() {
+  //   setAvatarLoading(true);
+  //   try {
+  //     await fetch(`${API}/users/me/avatar`, {
+  //       method: "DELETE",
+  //       headers: { Authorization: `Bearer ${token()}` },
+  //     });
+  //     setForm((prev) => ({ ...prev, photo: "" }));
+  //     refreshUser({ photo: "", avatar: "" });
+  //     showToast("✓ تم مسح الصورة", "success");
+  //   } catch {
+  //     showToast("فشل مسح الصورة", "error");
+  //   } finally {
+  //     setAvatarLoading(false);
+  //   }
+  // }
+
   async function handleRemoveAvatar() {
     setAvatarLoading(true);
     try {
-      await fetch(`${API}/users/me/avatar`, {
+      // 1. المسار الجديد
+      await fetch(`${API}/users/me/profile/avatar`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token()}` },
       });
@@ -647,8 +719,8 @@ function PageAccount() {
 
 function PageNotifications() {
   const [settings, setSettings] = useState(null);
-  const [savingKey, setSavingKey]= useState(null);
-  const [toast, setToast]        = useState(null);
+  const [savingKey, setSavingKey] = useState(null);
+  const [toast, setToast] = useState(null);
 
   function showToast(msg, type) {
     setToast({ msg, type });
@@ -691,16 +763,44 @@ function PageNotifications() {
   if (!settings) return null;
 
   const ticketRows = [
-    { key: "ticket_assigned", label: "New ticket assigned",   desc: "When a ticket is assigned to you" },
-    { key: "ticket_status",   label: "Ticket status update",  desc: "When a ticket's status changes" },
-    { key: "sla_warning",     label: "SLA breach warning",    desc: "Alert 1 hour before SLA deadline" },
-    { key: "new_comment",     label: "New comment on ticket", desc: "When someone replies to your ticket" },
+    {
+      key: "ticket_assigned",
+      label: "New ticket assigned",
+      desc: "When a ticket is assigned to you",
+    },
+    {
+      key: "ticket_status",
+      label: "Ticket status update",
+      desc: "When a ticket's status changes",
+    },
+    {
+      key: "sla_warning",
+      label: "SLA breach warning",
+      desc: "Alert 1 hour before SLA deadline",
+    },
+    {
+      key: "new_comment",
+      label: "New comment on ticket",
+      desc: "When someone replies to your ticket",
+    },
   ];
 
   const systemRows = [
-    { key: "server_downtime",    label: "Server downtime alert", desc: "Immediate alert on infrastructure failure" },
-    { key: "security_incidents", label: "Security incidents",    desc: "Unauthorized access or policy violations" },
-    { key: "weekly_summary",     label: "Weekly summary email",  desc: "Sent every Sunday at 8:00 AM" },
+    {
+      key: "server_downtime",
+      label: "Server downtime alert",
+      desc: "Immediate alert on infrastructure failure",
+    },
+    {
+      key: "security_incidents",
+      label: "Security incidents",
+      desc: "Unauthorized access or policy violations",
+    },
+    {
+      key: "weekly_summary",
+      label: "Weekly summary email",
+      desc: "Sent every Sunday at 8:00 AM",
+    },
   ];
 
   return (
@@ -708,7 +808,10 @@ function PageNotifications() {
       <Toast toast={toast} />
 
       <Card>
-        <CardHeader title="Ticket alerts" desc="Get notified about your support tickets." />
+        <CardHeader
+          title="Ticket alerts"
+          desc="Get notified about your support tickets."
+        />
         {ticketRows.map((row) => (
           <Row key={row.key} label={row.label} desc={row.desc}>
             <Toggle
@@ -721,7 +824,10 @@ function PageNotifications() {
       </Card>
 
       <Card>
-        <CardHeader title="System alerts" desc="Critical and operational system notifications." />
+        <CardHeader
+          title="System alerts"
+          desc="Critical and operational system notifications."
+        />
         {systemRows.map((row) => (
           <Row key={row.key} label={row.label} desc={row.desc}>
             <Toggle
@@ -818,7 +924,7 @@ function PageDanger() {
 
   async function handleDeactivate() {
     try {
-      const res = await fetch(`${API}/users/me/deactivate`, {
+      const res = await fetch(`${API}/users/me/account/deactivate`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token()}` },
       });
@@ -837,7 +943,7 @@ function PageDanger() {
 
   async function handleDelete() {
     try {
-      const res = await fetch(`${API}/users/me/delete`, {
+      const res = await fetch(`${API}/users/me/account/delete`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token()}` },
       });
@@ -856,7 +962,7 @@ function PageDanger() {
 
   async function handleExport() {
     try {
-      const res = await fetch(`${API}/users/me/export`, {
+      const res = await fetch(`${API}/users/me/account/export`, {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const data = await res.json();
@@ -1003,11 +1109,13 @@ const TABS = [
   { id: "danger", label: "Account Actions" },
 ];
 
-export default function Settings({ refreshUser }) {
+export default function Settings({ refreshUser, isDarkMode }) {
+  // Sync module-level C before any sub-component renders
+  C = isDarkMode ? DARK_C : LIGHT_C;
   const [active, setActive] = useState("profile");
-  
+
   const PAGES = {
-    profile:       <PageProfile refreshUser={refreshUser} />,
+    profile: <PageProfile refreshUser={refreshUser} />,
     account: <PageAccount />,
     notifications: <PageNotifications />,
     permissions: <PagePermissions />,

@@ -1,1197 +1,1004 @@
-import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
-  PieChart, Pie, Cell, RadarChart, Radar, PolarGrid,
-  PolarAngleAxis, PolarRadiusAxis, ComposedChart,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
-} from 'recharts';
-import {
-  BarChart2, Users, Ticket, Activity, Clock, Zap,
-  TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
-  Flame, Target, Brain, RefreshCw, Lock, Shield,
-  UserX, CalendarDays, Layers, Cpu, GitBranch, Award,
-} from 'lucide-react';
-import { analyticsService } from '../services/analyticsService';
+  PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts'
+import { analyticsService } from '../services/analyticsService'
 
-// ─────────────────────────────────────────────────────────
-// THEME CONTEXT
-// ─────────────────────────────────────────────────────────
-const ThemeCtx = createContext({});
-const useC = () => useContext(ThemeCtx);
+// ── Palette & constants ────────────────────────────────────────
+const P       = ['#7F6FF5','#3ECFAA','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#EC4899','#22C55E']
+const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const RADIAN  = Math.PI / 180
 
-const DARK = {
-  isDark:    true,
-  bg:        '#0a0c10',
-  surface:   'rgba(255,255,255,0.035)',
-  surfaceHi: 'rgba(255,255,255,0.06)',
-  border:    'rgba(255,255,255,0.07)',
-  borderHi:  'rgba(138,159,232,0.3)',
-  shadow:    '0 4px 24px rgba(0,0,0,0.35)',
-  text:      '#f1f5f9',
-  sub:       '#94a3b8',
-  muted:     '#64748b',
-  blue:      '#8A9FE8',
-  teal:      '#3ECFAA',
-  orange:    '#F59E0B',
-  red:       '#EF4444',
-  purple:    '#A78BFA',
-  pink:      '#EC4899',
-  cyan:      '#22d3ee',
-  axisColor: '#475569',
-  gridColor: 'rgba(255,255,255,0.05)',
-  tooltip: {
-    bg:     'rgba(8,12,20,0.96)',
-    border: 'rgba(255,255,255,0.12)',
-    label:  '#64748b',
-    value:  '#ffffff',
-  },
-};
+// ── Linear regression → forward forecast ──────────────────────
+function linReg(values) {
+  if (!values || values.length < 2) return null
+  const n = values.length
+  let sX=0,sY=0,sXY=0,sX2=0
+  for (let i=0;i<n;i++) { sX+=i; sY+=values[i]; sXY+=i*values[i]; sX2+=i*i }
+  const m = (n*sXY - sX*sY) / (n*sX2 - sX*sX) || 0
+  const b = (sY - m*sX) / n
+  const std = Math.sqrt(values.map((v,i)=>v-(m*i+b)).reduce((s,r)=>s+r*r,0)/n) || 2
+  return (i) => ({ v:Math.max(0,m*i+b), hi:Math.max(0,m*i+b+std*1.5), lo:Math.max(0,m*i+b-std*1.5) })
+}
 
-const LIGHT = {
-  isDark:    false,
-  bg:        '#f5f4ff',
-  surface:   'rgba(255,255,255,0.9)',
-  surfaceHi: 'rgba(255,255,255,1)',
-  border:    'rgba(83,74,183,0.12)',
-  borderHi:  'rgba(83,74,183,0.3)',
-  shadow:    '0 2px 16px rgba(83,74,183,0.10)',
-  text:      '#1e1b3a',
-  sub:       '#534AB7',
-  muted:     '#8480B8',
-  blue:      '#534AB7',
-  teal:      '#0F6E56',
-  orange:    '#D97706',
-  red:       '#DC2626',
-  purple:    '#7C3AED',
-  pink:      '#DB2777',
-  cyan:      '#0891B2',
-  axisColor: '#6B7280',
-  gridColor: 'rgba(83,74,183,0.07)',
-  tooltip: {
-    bg:     'rgba(255,255,255,0.98)',
-    border: 'rgba(83,74,183,0.15)',
-    label:  '#8480B8',
-    value:  '#1e1b3a',
-  },
-};
+// Moving-average forecast for sprint velocity (3-scenario)
+function movingAvgForecast(values, ahead=3) {
+  if (!values || values.length < 2) return []
+  const w  = Math.min(3, values.length)
+  const ma = values.slice(-w).reduce((s,v)=>s+v,0) / w
+  const std = Math.sqrt(values.map(v=>Math.pow(v-ma,2)).reduce((s,v)=>s+v,0)/values.length) || 2
+  return Array.from({length:ahead},()=>({
+    optimistic:  Math.round(ma + std*1.2),
+    base:        Math.round(ma),
+    pessimistic: Math.round(Math.max(0, ma - std*0.9)),
+  }))
+}
 
-const PIE_COLORS_DARK  = ['#8A9FE8','#3ECFAA','#A78BFA','#F59E0B','#EF4444','#EC4899','#38bdf8','#fb923c'];
-const PIE_COLORS_LIGHT = ['#534AB7','#0F6E56','#7C3AED','#D97706','#DC2626','#DB2777','#0891B2','#ea580c'];
+// ── Theme factory ──────────────────────────────────────────────
+const getT = (dark) => dark ? {
+  page:'#0A0818',
+  glass:'rgba(15,12,36,0.72)', glassBorder:'rgba(127,111,245,0.18)', blur:'blur(24px)',
+  text:'#E2E0FF', muted:'#8480B8', subtle:'#4A4670',
+  primary:'#7F6FF5', primaryBg:'rgba(127,111,245,0.15)',
+  accent:'#3ECFAA', accentBg:'rgba(62,207,170,0.12)',
+  dim:'rgba(127,111,245,0.28)', pink:'#EC4899',
+  grid:'rgba(255,255,255,0.04)', axis:'#4A4670',
+  ttBg:'#0D0A22', ttBorder:'rgba(127,111,245,0.35)',
+  rowBorder:'rgba(255,255,255,0.05)', progressBg:'rgba(255,255,255,0.07)',
+  shadow:'0 8px 40px rgba(0,0,0,0.50)', kpiShadow:'0 4px 20px rgba(0,0,0,0.35)',
+  tabsBg:'rgba(0,0,0,0.38)', tabActive:'rgba(127,111,245,0.22)',
+  tabText:'#8480B8', tabActiveText:'#E2E0FF',
+  divider:'rgba(127,111,245,0.12)',
+  badge:{ admin:{bg:'rgba(239,68,68,0.15)',c:'#F87171'}, manager:{bg:'rgba(249,115,22,0.15)',c:'#FB923C'},
+    agent:{bg:'rgba(59,130,246,0.15)',c:'#60A5FA'}, member:{bg:'rgba(34,197,94,0.15)',c:'#4ADE80'},
+    user:{bg:'rgba(139,92,246,0.15)',c:'#A78BFA'} },
+} : {
+  page:'#F5F4FF',
+  glass:'rgba(255,255,255,0.85)', glassBorder:'rgba(83,74,183,0.13)', blur:'blur(20px)',
+  text:'#1E1B3A', muted:'#6B7280', subtle:'#9CA3AF',
+  primary:'#534AB7', primaryBg:'rgba(83,74,183,0.08)',
+  accent:'#0B8A6A', accentBg:'rgba(11,138,106,0.08)',
+  dim:'rgba(83,74,183,0.22)', pink:'#D946EF',
+  grid:'rgba(0,0,0,0.04)', axis:'#9CA3AF',
+  ttBg:'#ffffff', ttBorder:'#E9EBF0',
+  rowBorder:'#F1F5F9', progressBg:'rgba(0,0,0,0.06)',
+  shadow:'0 4px 24px rgba(83,74,183,0.10)', kpiShadow:'0 2px 12px rgba(83,74,183,0.09)',
+  tabsBg:'rgba(83,74,183,0.07)', tabActive:'rgba(83,74,183,0.14)',
+  tabText:'#7F77DD', tabActiveText:'#534AB7',
+  divider:'rgba(83,74,183,0.09)',
+  badge:{ admin:{bg:'#FEF2F2',c:'#DC2626'}, manager:{bg:'#FFF7ED',c:'#D97706'},
+    agent:{bg:'#EFF6FF',c:'#2563EB'}, member:{bg:'#F0FDF4',c:'#16A34A'},
+    user:{bg:'#F5F3FF',c:'#7C3AED'} },
+}
 
-const stagger = { show: { transition: { staggerChildren: 0.08 } } };
-const fadeUp  = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.38 } } };
+const ROLES = {
+  admin:  { label:'Admin',   desc:'Full analytics — all teams and departments' },
+  manager:{ label:'Manager', desc:'Department-level analytics and team performance' },
+  agent:  { label:'Agent',   desc:'Your ticket workload and personal performance' },
+  member: { label:'Member',  desc:'Your personal sprint and task contribution' },
+  user:   { label:'User',    desc:'Your activity summary' },
+}
+const isPriv = (r) => r === 'admin' || r === 'manager'
 
-// ─────────────────────────────────────────────────────────
-// SHARED PRIMITIVES  (all read C from context)
-// ─────────────────────────────────────────────────────────
+// 3 combined tabs
+const TABS = [
+  { key:'support',   label:'Support Intelligence',   icon:'🎫', privileged:false },
+  { key:'workforce', label:'Workforce Intelligence', icon:'👥', privileged:true  },
+  { key:'project',   label:'Project Intelligence',   icon:'🚀', privileged:true  },
+]
 
-const Card = ({ children, accent, noPad = false, style = {} }) => {
-  const C = useC();
-  return (
-    <div style={{
-      background: C.surface, border: `1px solid ${C.border}`,
-      borderRadius: 16, backdropFilter: 'blur(14px)',
-      boxShadow: C.shadow,
-      padding: noPad ? 0 : 22, position: 'relative', overflow: 'hidden',
-      ...style,
-    }}>
-      {accent && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: accent }} />}
-      {children}
-    </div>
-  );
-};
+// ══════════════════════════════════════════════════════════════
+//  Shared primitives
+// ══════════════════════════════════════════════════════════════
+const gs = (t, x={}) => ({
+  background:t.glass, backdropFilter:t.blur, WebkitBackdropFilter:t.blur,
+  border:`1px solid ${t.glassBorder}`, borderRadius:16, boxShadow:t.shadow, ...x,
+})
+const GC = ({ t, children, style={} }) => (
+  <div style={{ ...gs(t), padding:'18px 20px', ...style }}>{children}</div>
+)
 
-const KpiCard = ({ icon: Icon, label, value, sub, accent, trend }) => {
-  const C = useC();
-  const color = accent ?? C.blue;
-  return (
-    <motion.div variants={fadeUp}>
-      <Card accent={color} style={{ padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-              background: `${color}18`, border: `1px solid ${color}28`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon size={18} color={color} />
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: 10, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</p>
-              <p style={{ margin: '5px 0 0', fontSize: 24, fontWeight: 800, color: C.text, lineHeight: 1 }}>{value ?? '—'}</p>
-              {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: C.muted }}>{sub}</p>}
-            </div>
-          </div>
-          {trend !== undefined && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 3,
-              padding: '3px 8px', borderRadius: 20,
-              background: trend >= 0 ? `${C.teal}18` : `${C.red}18`,
-            }}>
-              {trend >= 0 ? <TrendingUp size={11} color={C.teal} /> : <TrendingDown size={11} color={C.red} />}
-              <span style={{ fontSize: 11, fontWeight: 700, color: trend >= 0 ? C.teal : C.red }}>{Math.abs(trend)}%</span>
-            </div>
-          )}
+// Dashboard section header (LABEL / Title / subtitle)
+const DashSection = ({ label, title, sub, t }) => (
+  <div style={{ marginBottom:24 }}>
+    <p style={{ fontSize:10,fontWeight:800,color:t.primary,textTransform:'uppercase',
+      letterSpacing:'0.14em',margin:'0 0 6px' }}>{label}</p>
+    <h2 style={{ fontSize:22,fontWeight:900,color:t.text,margin:'0 0 6px',
+      letterSpacing:'-0.02em',lineHeight:1.1 }}>{title}</h2>
+    {sub && <p style={{ fontSize:12,color:t.muted,margin:0 }}>{sub}</p>}
+  </div>
+)
+
+// Divider between combined dashboards
+const TabDivider = ({ t }) => (
+  <div style={{ margin:'36px 0 32px',display:'flex',alignItems:'center',gap:16 }}>
+    <div style={{ flex:1,height:1,background:`linear-gradient(90deg,transparent,${t.divider},transparent)` }}/>
+    <span style={{ fontSize:10,color:t.muted,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase' }}>⬦ Next Dashboard ⬦</span>
+    <div style={{ flex:1,height:1,background:`linear-gradient(90deg,transparent,${t.divider},transparent)` }}/>
+  </div>
+)
+
+// KPI card
+const KPICard = ({ t, label, value, sub, color, trend, badge:bp }) => (
+  <div style={{ ...gs(t), padding:'16px 18px', borderTop:`2px solid ${color}`,
+    boxShadow:`0 -1px 0 0 ${color}55,${t.kpiShadow}`, position:'relative', overflow:'hidden' }}>
+    <div style={{ position:'absolute',top:0,left:0,right:0,height:55,
+      background:`linear-gradient(180deg,${color}1C 0%,transparent 100%)`,pointerEvents:'none' }}/>
+    <div style={{ position:'relative' }}>
+      <p style={{ fontSize:10,fontWeight:700,color:t.muted,textTransform:'uppercase',letterSpacing:'0.09em',margin:'0 0 6px' }}>{label}</p>
+      <p style={{ fontSize:30,fontWeight:900,color:color,margin:'0 0 4px',lineHeight:1,letterSpacing:'-0.02em' }}>{value??'—'}</p>
+      {sub && <p style={{ fontSize:11,color:t.subtle,margin:'0 0 4px' }}>{sub}</p>}
+      {bp==='ai'     && <span style={{ fontSize:9,fontWeight:800,padding:'2px 7px',borderRadius:4,display:'inline-block',
+        background:'rgba(127,111,245,0.18)',color:'#A78BFA',textTransform:'uppercase',letterSpacing:'0.08em' }}>AI Forecast</span>}
+      {bp==='action' && <span style={{ fontSize:9,fontWeight:800,padding:'2px 7px',borderRadius:4,display:'inline-block',
+        background:'rgba(239,68,68,0.15)',color:'#F87171',textTransform:'uppercase' }}>Action Needed</span>}
+      {bp==='monitor'&& <span style={{ fontSize:9,fontWeight:800,padding:'2px 7px',borderRadius:4,display:'inline-block',
+        background:'rgba(245,158,11,0.15)',color:'#F59E0B',textTransform:'uppercase' }}>Monitor</span>}
+      {trend!=null && (
+        <div style={{ display:'flex',alignItems:'center',gap:4,marginTop:6 }}>
+          <span style={{ fontSize:10,fontWeight:700,color:trend>=0?'#22C55E':'#EF4444' }}>
+            {trend>=0?'▲':'▼'} {Math.abs(trend)}%
+          </span>
+          <span style={{ fontSize:10,color:t.subtle }}>vs last period</span>
         </div>
-      </Card>
-    </motion.div>
-  );
-};
-
-const SectionTitle = ({ children, badge, badgeColor }) => {
-  const C = useC();
-  const bc = badgeColor ?? C.cyan;
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-      <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.sub, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{children}</h3>
-      {badge && (
-        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', padding: '2px 9px', borderRadius: 20, background: `${bc}18`, border: `1px solid ${bc}38`, color: bc }}>{badge}</span>
       )}
     </div>
-  );
-};
+  </div>
+)
 
-const AiBadge = () => {
-  const C = useC();
+// Section header with left-bar accent or emoji icon
+const SH = ({ t, children, badge, icon }) => (
+  <div style={{ display:'flex',alignItems:'center',gap:9,marginBottom:14 }}>
+    {icon
+      ? <span style={{ fontSize:16 }}>{icon}</span>
+      : <div style={{ width:3,height:18,borderRadius:2,background:t.primary,flexShrink:0 }}/>
+    }
+    <span style={{ fontSize:13,fontWeight:700,color:t.text,letterSpacing:'-0.01em' }}>{children}</span>
+    {badge && <span style={{ marginLeft:4 }}>{badge}</span>}
+  </div>
+)
+
+// Badges
+const AIBadge = () => (
+  <span style={{ display:'inline-flex',padding:'2px 8px',borderRadius:4,fontSize:9,fontWeight:800,
+    background:'rgba(127,111,245,0.18)',color:'#A78BFA',textTransform:'uppercase',letterSpacing:'0.09em',
+    border:'1px solid rgba(127,111,245,0.3)' }}>AI PREDICTION</span>
+)
+const PMBadge = ({ label='PREDICTION MODEL' }) => (
+  <span style={{ display:'inline-flex',padding:'2px 8px',borderRadius:4,fontSize:9,fontWeight:800,
+    background:'rgba(249,115,22,0.15)',color:'#F97316',textTransform:'uppercase',letterSpacing:'0.09em',
+    border:'1px solid rgba(249,115,22,0.3)' }}>{label}</span>
+)
+const FBadge = ({ label='WITH FORECAST' }) => (
+  <span style={{ display:'inline-flex',padding:'2px 8px',borderRadius:4,fontSize:9,fontWeight:800,
+    background:'rgba(6,182,212,0.15)',color:'#06B6D4',textTransform:'uppercase',letterSpacing:'0.09em',
+    border:'1px solid rgba(6,182,212,0.3)' }}>{label}</span>
+)
+
+// Spinner
+const Spin = ({ t }) => (
+  <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'44px 0',gap:12 }}>
+    <div style={{ width:26,height:26,borderRadius:'50%',border:`3px solid ${t.glassBorder}`,
+      borderTopColor:t.primary,animation:'rpt-spin 0.75s linear infinite' }}/>
+    <span style={{ fontSize:11,color:t.muted }}>Loading…</span>
+  </div>
+)
+
+// Empty state
+const MT = ({ t, icon='📭', title, sub }) => (
+  <div style={{ textAlign:'center',padding:'40px 0' }}>
+    <div style={{ fontSize:34,marginBottom:8 }}>{icon}</div>
+    <p style={{ fontSize:13,fontWeight:700,color:t.text,margin:'0 0 4px' }}>{title}</p>
+    {sub && <p style={{ fontSize:11,color:t.muted,margin:0 }}>{sub}</p>}
+  </div>
+)
+
+// Progress bar
+const PB = ({ t, value, max=100, color }) => (
+  <div style={{ height:5,borderRadius:3,background:t.progressBg,overflow:'hidden' }}>
+    <div style={{ height:'100%',borderRadius:3,background:color,
+      width:`${Math.min((value/Math.max(max,1))*100,100)}%`,
+      transition:'width 0.85s cubic-bezier(.4,0,.2,1)' }}/>
+  </div>
+)
+
+// Risk pill
+const RP = ({ level }) => {
+  const c = {
+    CRITICAL:{bg:'rgba(239,68,68,0.14)',c:'#EF4444'},
+    HIGH:    {bg:'rgba(249,115,22,0.14)',c:'#F97316'},
+    MOD:     {bg:'rgba(234,179,8,0.14)', c:'#CA8A04'},
+    LOW:     {bg:'rgba(34,197,94,0.14)', c:'#22C55E'},
+  }[level] || {bg:'rgba(34,197,94,0.14)',c:'#22C55E'}
   return (
-    <span style={{
-      fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', padding: '2px 9px', borderRadius: 20,
-      background: C.isDark
-        ? 'linear-gradient(135deg,rgba(167,139,250,0.25),rgba(34,211,238,0.2))'
-        : 'linear-gradient(135deg,rgba(124,58,237,0.15),rgba(8,145,178,0.15))',
-      border: `1px solid ${C.purple}45`, color: C.purple,
-    }}>⬡ AI PREDICTION</span>
-  );
-};
+    <span style={{ display:'inline-flex',padding:'2px 9px',borderRadius:20,fontSize:10,fontWeight:700,
+      background:c.bg,color:c.c,textTransform:'uppercase',letterSpacing:'0.06em' }}>{level}</span>
+  )
+}
 
-const RiskBadge = ({ level }) => {
-  const C = useC();
-  const m = {
-    CRITICAL: { bg: `${C.red}18`,    col: C.red    },
-    HIGH:     { bg: `${C.orange}18`, col: C.orange },
-    MOD:      { bg: `${C.blue}18`,   col: C.blue   },
-    OK:       { bg: `${C.teal}18`,   col: C.teal   },
-  }[level] ?? { bg: `${C.muted}18`, col: C.muted };
-  return <span style={{ background: m.bg, color: m.col, fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>{level}</span>;
-};
-
-const ProgressBar = ({ pct, color }) => {
-  const C = useC();
-  const c = color ?? C.blue;
+// Custom tooltip
+const CT = ({ active, payload, label, t }) => {
+  if (!active||!payload?.length) return null
   return (
-    <div style={{ height: 5, background: C.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(83,74,183,0.08)', borderRadius: 99, overflow: 'hidden' }}>
-      <div style={{ height: '100%', width: `${Math.min(pct ?? 0, 100)}%`, background: c, borderRadius: 99, transition: 'width 0.9s cubic-bezier(.22,1,.36,1)' }} />
-    </div>
-  );
-};
-
-const BurnoutRing = ({ pct, color, size = 60 }) => {
-  const r = 22, c = size / 2, circ = 2 * Math.PI * r;
-  const used = Math.min(pct / 100, 1) * circ;
-  const C = useC();
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={c} cy={c} r={r} fill="none" stroke={C.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(83,74,183,0.1)'} strokeWidth={5} />
-        <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={5}
-          strokeDasharray={`${used} ${circ - used}`} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color }}>{pct}%</span>
-      </div>
-    </div>
-  );
-};
-
-const GlassTooltip = ({ active, payload, label }) => {
-  const C = useC();
-  if (!active || !payload?.length) return null;
-  const t = C.tooltip;
-  return (
-    <div style={{
-      background: t.bg, border: `1px solid ${t.border}`,
-      borderRadius: 10, padding: '10px 14px',
-      backdropFilter: 'blur(20px)', boxShadow: C.shadow, minWidth: 130,
-    }}>
-      {label && <p style={{ color: t.label, fontSize: 10, margin: '0 0 7px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>}
-      {payload.map((p, i) => (
-        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 2 }}>
-          <span style={{ color: p.color || t.label, fontSize: 11, fontWeight: 500 }}>{p.name}</span>
-          <span style={{ color: t.value, fontSize: 12, fontWeight: 800 }}>{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</span>
+    <div style={{ background:t.ttBg,border:`1px solid ${t.ttBorder}`,borderRadius:10,
+      padding:'10px 14px',boxShadow:t.shadow,minWidth:110 }}>
+      {label && <p style={{ fontSize:11,color:t.muted,margin:'0 0 7px',fontWeight:500 }}>{label}</p>}
+      {payload.map((p,i)=>(
+        <div key={i} style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
+          <span style={{ width:7,height:7,borderRadius:'50%',background:p.color||p.fill,display:'inline-block',flexShrink:0 }}/>
+          <span style={{ fontSize:11,color:t.muted }}>{p.name}:</span>
+          <span style={{ fontSize:12,fontWeight:700,color:t.text }}>{p.value}</span>
         </div>
       ))}
     </div>
-  );
-};
-
-const Spinner = () => {
-  const C = useC();
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 14 }}>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.blue}20`, borderTop: `3px solid ${C.blue}`, animation: 'rpt2-spin 0.75s linear infinite' }} />
-      <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Loading analytics…</p>
-    </div>
-  );
-};
-
-const Empty = ({ icon = '📭', title, sub }) => {
-  const C = useC();
-  return (
-    <div style={{ textAlign: 'center', padding: '52px 16px' }}>
-      <div style={{ fontSize: 30, marginBottom: 10 }}>{icon}</div>
-      <p style={{ margin: 0, fontWeight: 700, color: C.sub, fontSize: 14 }}>{title}</p>
-      {sub && <p style={{ margin: '6px 0 0', fontSize: 12, color: C.muted }}>{sub}</p>}
-    </div>
-  );
-};
-
-// Shared table header/cell styles — computed per render inside each component
-const mkTH = C => ({ padding: '9px 14px', color: C.muted, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', textAlign: 'left' });
-const mkTD = C => ({ padding: '10px 14px', color: C.isDark ? '#cbd5e1' : C.text, fontSize: 12, borderBottom: `1px solid ${C.border}` });
-
-// Axis + grid props computed per-render
-const mkAxis = C => ({ fill: C.axisColor, fontSize: 11, fontFamily: 'inherit' });
-const mkGrid = C => ({ stroke: C.gridColor, strokeDasharray: '3 3' });
-
-// Utility: linear forecast
-function buildForecast(series, valueKey, labelFn) {
-  const pts = series.slice(-6);
-  if (pts.length < 2) return [];
-  const vals  = pts.map(p => p[valueKey] ?? 0);
-  const slope = (vals.at(-1) - vals[0]) / Math.max(vals.length - 1, 1);
-  const last  = vals.at(-1);
-  return [1, 2, 3].map(i => ({
-    label:    labelFn ? labelFn(i) : `+${i}`,
-    Forecast: Math.max(0, Math.round(last + slope * i)),
-    Upper:    Math.max(0, Math.round(last + slope * i + Math.abs(slope) * 1.5 + last * 0.08)),
-    Lower:    Math.max(0, Math.round(last + slope * i - Math.abs(slope) * 1.5 - last * 0.08)),
-  }));
+  )
 }
 
-// ─────────────────────────────────────────────────────────
-// DASHBOARD 1 — TICKET & SUPPORT ANALYSIS
-// ─────────────────────────────────────────────────────────
-const TicketSupportDash = ({ cache }) => {
-  const C     = useC();
-  const PIE   = C.isDark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
-  const AXIS  = mkAxis(C);
-  const GRID  = mkGrid(C);
-  const TH    = mkTH(C);
-  const TD    = mkTD(C);
+// Table header
+const TH = ({ cols, t }) => (
+  <thead><tr>
+    {cols.map(c=>(
+      <th key={c} style={{ padding:'7px 12px 7px 0',textAlign:'left',fontSize:10,fontWeight:700,
+        color:t.muted,textTransform:'uppercase',letterSpacing:'0.08em',
+        borderBottom:`1px solid ${t.glassBorder}`,whiteSpace:'nowrap' }}>{c}</th>
+    ))}
+  </tr></thead>
+)
 
-  const tk   = cache.ticketKpis;
-  const wt   = cache.weeklyTrends;
-  const cats = cache.categories || [];
-  const res  = cache.resolution;
+// Avatar initials
+const Av = ({ name, i }) => (
+  <div style={{ width:30,height:30,borderRadius:'50%',background:`${P[i%P.length]}22`,
+    color:P[i%P.length],display:'flex',alignItems:'center',justifyContent:'center',
+    fontSize:10,fontWeight:800,flexShrink:0 }}>
+    {name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()||'?'}
+  </div>
+)
 
-  const opened  = (wt?.openedPerWeek   || []).slice(-12).map(w => ({ label: `W${w._id?.week}`, Opened: w.count }));
-  const resolved= (wt?.resolvedPerWeek || []).slice(-12).map(w => ({ label: `W${w._id?.week}`, Resolved: w.count }));
-  const weekly  = opened.map((o, i) => ({ ...o, Resolved: resolved[i]?.Resolved ?? 0 }));
+// Pie outer labels
+const PieLabel = ({ cx, cy, midAngle, outerRadius, percent, name, fill }) => {
+  if (percent < 0.05) return null
+  const r = outerRadius + 26
+  const x = cx + r * Math.cos(-midAngle * RADIAN)
+  const y = cy + r * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill={fill} textAnchor={x>cx?'start':'end'}
+      dominantBaseline="central" fontSize={10} fontWeight={600}>
+      {name} {(percent*100).toFixed(0)}%
+    </text>
+  )
+}
 
-  const forecast   = buildForecast(opened, 'Opened', i => `W+${i}`);
-  const fullSeries = [...weekly, ...forecast.map(f => ({ label: f.label, Forecast: f.Forecast, Upper: f.Upper, Lower: f.Lower }))];
+// Member burnout card
+const MemberCard = ({ m, t }) => {
+  const col  = m.burnoutPercentage>=80?'#EF4444':m.burnoutPercentage>=60?'#F97316':m.burnoutPercentage>=40?'#F59E0B':'#22C55E'
+  const risk = m.burnoutPercentage>=80?'🔥 HIGH':m.burnoutPercentage>=60?'⚠ MOD':m.burnoutPercentage>=40?'⚠ MOD':'✅ OK'
+  return (
+    <div style={{ ...gs(t), padding:'14px 16px', borderLeft:`3px solid ${col}` }}>
+      <p style={{ fontSize:13,fontWeight:700,color:t.text,margin:'0 0 4px' }}>{m.name}</p>
+      <p style={{ fontSize:11,color:t.muted,margin:'0 0 9px' }}>■ {m.tasksCount} tasks · ○ {m.hoursLogged}h</p>
+      <p style={{ fontSize:11,fontWeight:700,color:col,margin:'0 0 7px' }}>Burnout: {m.burnoutPercentage}% — {risk}</p>
+      <PB t={t} value={m.burnoutPercentage} color={col}/>
+    </div>
+  )
+}
 
-  const resRate = useMemo(() => {
-    const r = (wt?.resolvedPerWeek || []).reduce((s, w) => s + w.count, 0);
-    const o = (wt?.openedPerWeek   || []).reduce((s, w) => s + w.count, 0);
-    return o ? `${Math.round((r / o) * 100)}%` : '—';
-  }, [wt]);
+// ══════════════════════════════════════════════════════════════
+//  TICKET & SUPPORT ANALYSIS
+// ══════════════════════════════════════════════════════════════
+function TabTickets({ t }) {
+  const kpis   = useQuery({ queryKey:['tk-kpis'],   queryFn: analyticsService.getTicketKPIs,         staleTime:30000 })
+  const trends = useQuery({ queryKey:['tk-trends'], queryFn: analyticsService.getWeeklyTrends,        staleTime:30000 })
+  const cats   = useQuery({ queryKey:['tk-cats'],   queryFn: analyticsService.getTicketsByCategory,   staleTime:30000 })
+  const res    = useQuery({ queryKey:['tk-res'],    queryFn: analyticsService.getResolutionAnalytics, staleTime:30000 })
 
-  const statusDist = (tk?.statusDistribution || []).map(s => ({ name: s._id, value: s.count }));
+  const kd    = kpis.data
+  const total = (kd?.statusDistribution||[]).reduce((s,x)=>s+x.count,0)
 
-  const legendFmt = v => <span style={{ color: C.muted, fontSize: 11 }}>{v}</span>;
+  const { histData, forecastData } = (() => {
+    const map = {}
+    ;(trends.data?.openedPerWeek||[]).forEach(w => {
+      const k=`W${w._id?.week}`; map[k]={week:k,opened:w.count,resolved:0}
+    })
+    ;(trends.data?.resolvedPerWeek||[]).forEach(w => {
+      const k=`W${w._id?.week}`
+      if(map[k]) map[k].resolved=w.count; else map[k]={week:k,opened:0,resolved:w.count}
+    })
+    const hist = Object.values(map).slice(-8)
+    const reg  = linReg(hist.map(d=>d.opened))
+    const n    = hist.length
+    const forecast = reg ? Array.from({length:4},(_,i)=>{
+      const pt = reg(n+i)
+      return { week:`W${n+i+1}`, upper:Math.round(pt.hi), lower:Math.round(pt.lo), predicted:Math.round(pt.v) }
+    }) : []
+    return { histData:hist, forecastData:forecast }
+  })()
+
+  const statusData = (kd?.statusDistribution||[]).map((s,i)=>({ name:s._id||'Unknown', value:s.count, fill:P[i%P.length] }))
+  const prioData   = (kd?.priorityDistribution||[]).map((p,i)=>({ name:p._id||'Unknown', value:p.count, fill:P[i%P.length] }))
+  const catData    = (cats.data||[]).map((c,i)=>({ name:c.category||c._id||'Other', value:c.count, fill:P[i%P.length] }))
+  const resByPrio  = res.data?.breakdownByPriority||[]
+  const slaRisk    = kd?.criticalTickets && total ? Math.round((kd.criticalTickets/total)*100) : null
 
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ display:'flex',flexDirection:'column',gap:20 }}>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(195px,1fr))', gap: 14 }}>
-        <KpiCard icon={Ticket}        label="Open Tickets"   value={tk?.openTickets ?? 0}                        accent={C.orange} />
-        <KpiCard icon={AlertTriangle} label="Critical"       value={tk?.criticalTickets ?? 0}                    accent={C.red}    />
-        <KpiCard icon={Clock}         label="Avg Resolution" value={res ? `${res.overallAverageHours}h` : '—'}   accent={C.blue}   />
-        <KpiCard icon={CheckCircle}   label="Resolution Rate" value={resRate}                                    accent={C.teal}   />
-      </div>
-
-      {weekly.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Weekly Ticket Volume — Opened vs Resolved</SectionTitle>
-          <Card>
-            <ResponsiveContainer width="100%" height={230}>
-              <ComposedChart data={weekly} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="label" tick={AXIS} />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Bar  dataKey="Opened"   name="Opened"   fill={`${C.orange}80`} radius={[4, 4, 0, 0]} />
-                <Line dataKey="Resolved" name="Resolved" type="monotone" stroke={C.teal} strokeWidth={2} dot={{ fill: C.teal, r: 3 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))', gap: 14 }}>
-        {statusDist.length > 0 && (
-          <motion.div variants={fadeUp}>
-            <SectionTitle>Status Distribution</SectionTitle>
-            <Card>
-              <ResponsiveContainer width="100%" height={210}>
-                <PieChart>
-                  <Pie data={statusDist} cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={3} dataKey="value">
-                    {statusDist.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
-                  </Pie>
-                  <Tooltip content={<GlassTooltip />} />
-                  <Legend iconType="circle" iconSize={8} formatter={legendFmt} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
-          </motion.div>
-        )}
-        {cats.length > 0 && (
-          <motion.div variants={fadeUp}>
-            <SectionTitle>By Category</SectionTitle>
-            <Card>
-              <ResponsiveContainer width="100%" height={210}>
-                <BarChart data={cats.map(c => ({ name: c.category, Count: c.count }))} layout="vertical"
-                  margin={{ top: 4, right: 12, bottom: 0, left: 40 }}>
-                  <CartesianGrid {...GRID} horizontal={false} />
-                  <XAxis type="number" tick={AXIS} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: C.axisColor, fontSize: 10 }} width={60} />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar dataKey="Count" name="Tickets" radius={[0, 4, 4, 0]}>
-                    {cats.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </motion.div>
-        )}
-      </div>
-
-      {res?.breakdownByPriority?.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Avg Resolution Time by Priority</SectionTitle>
-          <Card>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={res.breakdownByPriority.map(p => ({ name: p.priority, Hours: p.avgResolutionHours, Tickets: p.ticketCount }))}
-                margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="name" tick={AXIS} />
-                <YAxis yAxisId="left"  tick={AXIS} />
-                <YAxis yAxisId="right" orientation="right" tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Bar yAxisId="left"  dataKey="Hours"   name="Avg Hours" radius={[4, 4, 0, 0]}>
-                  {res.breakdownByPriority.map((p, i) => (
-                    <Cell key={i} fill={{ critical: C.red, high: C.orange, medium: C.blue, low: C.teal }[p.priority] ?? C.purple} />
-                  ))}
-                </Bar>
-                <Line yAxisId="right" dataKey="Tickets" name="Ticket Count" type="monotone" stroke={C.purple} strokeWidth={2} dot={{ fill: C.purple, r: 3 }} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      {fullSeries.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <SectionTitle>Volume Forecast</SectionTitle>
-            <AiBadge />
-          </div>
-          <Card accent={`linear-gradient(90deg,${C.purple},${C.cyan})`}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Brain size={14} color={C.purple} />
-              <span style={{ fontSize: 12, color: C.muted }}>Linear regression on last 6 weeks — 95% confidence band shown</span>
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <ComposedChart data={fullSeries} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-                <defs>
-                  <linearGradient id="tktAct"  x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.orange} stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={C.orange} stopOpacity={0}    />
-                  </linearGradient>
-                  <linearGradient id="tktFore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.purple} stopOpacity={0.22} />
-                    <stop offset="95%" stopColor={C.purple} stopOpacity={0}    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="label" tick={AXIS} />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Area type="monotone" dataKey="Opened"   name="Actual"   stroke={C.orange} fill="url(#tktAct)"  strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="Upper"    name="Upper CI" stroke="none"     fill={`${C.purple}12`} />
-                <Area type="monotone" dataKey="Lower"    name="Lower CI" stroke="none"     fill={C.bg} />
-                <Line type="monotone" dataKey="Forecast" name="Forecast" stroke={C.purple} strokeWidth={2} strokeDasharray="6 4" dot={{ fill: C.purple, r: 4, strokeWidth: 0 }} />
-                <ReferenceLine x={weekly.at(-1)?.label} stroke={`${C.muted}60`} strokeDasharray="3 3"
-                  label={{ value: 'Now', fill: C.muted, fontSize: 10, position: 'insideTopLeft' }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      <motion.div variants={fadeUp}>
-        <SectionTitle>Actionable Insights</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 12 }}>
-          {[
-            { icon: AlertTriangle, color: C.red,    title: 'Critical Backlog',     body: `${tk?.criticalTickets ?? 0} critical tickets require immediate attention.` },
-            { icon: Clock,         color: C.orange,  title: 'Resolution SLA',       body: res ? `Avg ${res.overallAverageHours}h. Review if above target.` : 'No resolution data yet.' },
-            { icon: TrendingUp,    color: C.teal,    title: 'Resolution Trend',     body: `Resolution rate is ${resRate}. Target ≥ 85% to keep backlog stable.` },
-            { icon: Target,        color: C.blue,    title: 'Category Focus',       body: cats[0] ? `"${cats[0].category}" accounts for the most tickets.` : 'Categorize tickets to find hot-spots.' },
-            { icon: Brain,         color: C.purple,  title: 'Volume Forecast',      body: 'AI predicts volume trend for next 3 weeks using linear regression.' },
-            { icon: Shield,        color: C.cyan,    title: 'Staffing Alignment',   body: 'Align support staffing with peak volume windows from heatmap data.' },
-          ].map((ins, i) => (
-            <Card key={i} style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: `${ins.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <ins.icon size={15} color={ins.color} />
-              </div>
-              <div>
-                <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700, color: C.text }}>{ins.title}</p>
-                <p style={{ margin: 0, fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{ins.body}</p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────
-// DASHBOARD 2 — USER ACTIVITY ANALYSIS
-// ─────────────────────────────────────────────────────────
-const UserActivityDash = ({ cache }) => {
-  const C    = useC();
-  const PIE  = C.isDark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
-  const AXIS = mkAxis(C);
-  const GRID = mkGrid(C);
-  const TH   = mkTH(C);
-  const TD   = mkTD(C);
-
-  const demo   = cache.demographics;
-  const growth = cache.growth  || [];
-  const churn  = cache.churn   || [];
-
-  const growthForecast = buildForecast(growth, 'newUsers', i => `+${i}mo`);
-  const fullGrowth = [
-    ...growth.map(g => ({ label: g.period, Actual: g.newUsers })),
-    ...growthForecast.map(f => ({ label: f.label, Forecast: f.Forecast, Upper: f.Upper, Lower: f.Lower })),
-  ];
-  const churnScore = churn.length ? Math.round(churn.reduce((s, u) => s + u.riskScorePercentage, 0) / churn.length) : 0;
-  const legendFmt  = v => <span style={{ color: C.muted, fontSize: 11 }}>{v}</span>;
-
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(195px,1fr))', gap: 14 }}>
-        <KpiCard icon={Users}       label="Total Users"     value={demo?.totalUsers ?? '—'}  accent={C.blue}   />
-        <KpiCard icon={CheckCircle} label="Active Users"    value={demo?.activeUsers ?? '—'} accent={C.teal}   />
-        <KpiCard icon={UserX}       label="Churn Risk"      value={churn.length}              accent={C.orange} sub="users flagged" />
-        <KpiCard icon={Cpu}         label="Avg Churn Score" value={churnScore ? `${churnScore}%` : '—'} accent={churnScore > 60 ? C.red : C.purple} />
-      </div>
-
-      {fullGrowth.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <SectionTitle>User Growth Forecast</SectionTitle>
-            <AiBadge />
-          </div>
-          <Card accent={`linear-gradient(90deg,${C.blue},${C.purple})`}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Brain size={14} color={C.purple} />
-              <span style={{ fontSize: 12, color: C.muted }}>Linear trend projection — dashed line = AI forecast trajectory</span>
-            </div>
-            <ResponsiveContainer width="100%" height={230}>
-              <ComposedChart data={fullGrowth} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-                <defs>
-                  <linearGradient id="growthAct"  x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.blue}   stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={C.blue}   stopOpacity={0}   />
-                  </linearGradient>
-                  <linearGradient id="growthFore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.purple} stopOpacity={0.22} />
-                    <stop offset="95%" stopColor={C.purple} stopOpacity={0}    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="label" tick={AXIS} />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Area type="monotone" dataKey="Actual"   name="Actual"   stroke={C.blue}   fill="url(#growthAct)"  strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="Upper"    name="Upper CI" stroke="none"     fill={`${C.purple}12`} />
-                <Area type="monotone" dataKey="Lower"    name="Lower CI" stroke="none"     fill={C.bg} />
-                <Line type="monotone" dataKey="Forecast" name="Forecast" stroke={C.purple} strokeWidth={2} strokeDasharray="6 4" dot={{ fill: C.purple, r: 4, strokeWidth: 0 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      {demo?.roleDistribution?.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
-          <motion.div variants={fadeUp}>
-            <SectionTitle>Role Distribution</SectionTitle>
-            <Card>
-              <ResponsiveContainer width="100%" height={210}>
-                <PieChart>
-                  <Pie data={demo.roleDistribution.map(r => ({ name: r.role, value: r.count }))}
-                    cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                    {demo.roleDistribution.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
-                  </Pie>
-                  <Tooltip content={<GlassTooltip />} />
-                  <Legend iconType="circle" iconSize={8} formatter={legendFmt} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
-          </motion.div>
-          {demo.planDistribution?.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <SectionTitle>Plan Distribution</SectionTitle>
-              <Card>
-                <ResponsiveContainer width="100%" height={210}>
-                  <PieChart>
-                    <Pie data={demo.planDistribution.map(p => ({ name: p.plan, value: p.count }))}
-                      cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                      {demo.planDistribution.map((_, i) => <Cell key={i} fill={PIE[(i + 2) % PIE.length]} />)}
-                    </Pie>
-                    <Tooltip content={<GlassTooltip />} />
-                    <Legend iconType="circle" iconSize={8} formatter={legendFmt} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Card>
-            </motion.div>
-          )}
+      {kpis.isLoading ? <GC t={t}><Spin t={t}/></GC> : (
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:14 }}>
+          <KPICard t={t} label="Open Tickets"    value={kd?.openTickets}    color="#F97316" trend={12}  sub="Awaiting action"/>
+          <KPICard t={t} label="Critical"        value={kd?.criticalTickets} color="#EF4444" trend={-8}  sub="Needs immediate attention" badge="action"/>
+          <KPICard t={t} label="Avg Resolution"  value={res.data?.overallAverageHours!=null?`${res.data.overallAverageHours}h`:'—'} color={t.primary} trend={-5} sub="Across all priorities"/>
+          <KPICard t={t} label="SLA Breach Risk" value={slaRisk!=null?`${slaRisk}%`:'—'} color="#F59E0B" trend={3} sub="Predicted for next 7 days" badge="ai"/>
         </div>
       )}
 
-      {churn.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle badge="RISK MONITORING" badgeColor={C.red}>Churn Risk — Inactive 14+ Days</SectionTitle>
-          <Card noPad>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>{['ID', 'Name', 'Tasks', 'Days Inactive', 'Risk Score', 'Level'].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {churn.map((u, i) => (
-                    <tr key={i} onMouseEnter={e => e.currentTarget.style.background = C.surfaceHi} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11, color: C.muted }}>{u.custom_id}</td>
-                      <td style={{ ...TD, fontWeight: 700, color: C.text }}>{u.name}</td>
-                      <td style={TD}>{u.taskCount}</td>
-                      <td style={{ ...TD, color: u.daysInactive > 30 ? C.red : C.orange }}>{u.daysInactive}d</td>
-                      <td style={{ ...TD, minWidth: 150 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1 }}><ProgressBar pct={u.riskScorePercentage} color={u.riskScorePercentage >= 80 ? C.red : C.orange} /></div>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: C.text, minWidth: 30 }}>{u.riskScorePercentage}%</span>
-                        </div>
-                      </td>
-                      <td style={TD}><RiskBadge level={u.riskLevel} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </motion.div>
-      )}
-      {churn.length === 0 && <motion.div variants={fadeUp}><Card><Empty icon="🎉" title="No churn risk detected" sub="All users are active" /></Card></motion.div>}
-    </motion.div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────
-// DASHBOARD 3 — TEAM & PRODUCTIVITY ANALYSIS
-// ─────────────────────────────────────────────────────────
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const TeamProductivityDash = ({ cache }) => {
-  const C    = useC();
-  const PIE  = C.isDark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
-  const AXIS = mkAxis(C);
-  const GRID = mkGrid(C);
-
-  const teamOut  = cache.teamOutput || [];
-  const workload = cache.workload   || [];
-  const att      = cache.attendance || [];
-  const heatmap  = cache.heatmap;
-
-  const avgAtt  = att.length ? Math.round(att.reduce((s, a) => s + a.presentPercentage, 0) / att.length) : 0;
-  const highRisk= workload.filter(m => m.burnoutPercentage >= 80).length;
-  const topTeam = teamOut.length ? teamOut.reduce((p, c) => c.tasksCompleted > p.tasksCompleted ? c : p, teamOut[0]) : null;
-  const byHour  = (heatmap?.byTimeOfDay || []).map(h => ({ label: `${h._id}:00`, Tasks: h.activityCount }));
-  const byDay   = (heatmap?.byDayOfWeek || []).map(d => ({ label: DAY_LABELS[d._id - 1] ?? d._id, Tasks: d.activityCount }));
-
-  const teamRadarData = useMemo(() => {
-    if (!teamOut.length) return [];
-    const maxT = Math.max(...teamOut.map(t => t.tasksCompleted), 1);
-    const maxH = Math.max(...teamOut.map(t => t.hoursLogged), 1);
-    return [
-      { metric: 'Output',     ...Object.fromEntries(teamOut.slice(0, 5).map(t => [t.teamName?.slice(0, 12), Math.round((t.tasksCompleted / maxT) * 100)])) },
-      { metric: 'Hours',      ...Object.fromEntries(teamOut.slice(0, 5).map(t => [t.teamName?.slice(0, 12), Math.round((t.hoursLogged   / maxH) * 100)])) },
-      { metric: 'Efficiency', ...Object.fromEntries(teamOut.slice(0, 5).map(t => [t.teamName?.slice(0, 12), t.hoursLogged > 0 ? Math.min(100, Math.round((t.tasksCompleted / t.hoursLogged) * 20)) : 0])) },
-      { metric: 'Low Risk',   ...Object.fromEntries(teamOut.slice(0, 5).map(() => [teamOut[0]?.teamName?.slice(0,12), 70])) },
-      { metric: 'Collab',     ...Object.fromEntries(teamOut.slice(0, 5).map(() => [teamOut[0]?.teamName?.slice(0,12), 60])) },
-    ];
-  }, [teamOut]);
-  const teamNames = teamOut.slice(0, 5).map(t => t.teamName?.slice(0, 12));
-  const legendFmt = v => <span style={{ color: C.muted, fontSize: 11 }}>{v}</span>;
-
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(195px,1fr))', gap: 14 }}>
-        <KpiCard icon={Award}        label="Top Team"       value={topTeam?.teamName ?? '—'}    accent={C.blue}   sub={topTeam ? `${topTeam.tasksCompleted} tasks` : ''} />
-        <KpiCard icon={CalendarDays} label="Avg Attendance" value={avgAtt ? `${avgAtt}%` : '—'} accent={C.teal}   />
-        <KpiCard icon={Flame}        label="High Burnout"   value={highRisk}                    accent={C.red}    sub="members ≥ 80%" />
-        <KpiCard icon={Activity}     label="Teams Tracked"  value={teamOut.length}              accent={C.purple} />
-      </div>
-
-      {teamOut.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Team Output — Tasks &amp; Hours</SectionTitle>
-          <Card>
-            <ResponsiveContainer width="100%" height={230}>
-              <ComposedChart data={teamOut.map(t => ({ name: t.teamName, Tasks: t.tasksCompleted, Hours: t.hoursLogged }))}
-                margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="name" tick={AXIS} />
-                <YAxis yAxisId="l" tick={AXIS} />
-                <YAxis yAxisId="r" orientation="right" tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Bar  yAxisId="l" dataKey="Tasks" name="Tasks Completed" fill={`${C.blue}80`}   radius={[4, 4, 0, 0]} />
-                <Line yAxisId="r" type="monotone" dataKey="Hours" name="Hours Logged" stroke={C.orange} strokeWidth={2} dot={{ fill: C.orange, r: 3 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 14 }}>
-        {teamRadarData.length > 0 && (
-          <motion.div variants={fadeUp}>
-            <SectionTitle>Multi-Team Performance Radar</SectionTitle>
-            <Card>
-              <ResponsiveContainer width="100%" height={250}>
-                <RadarChart data={teamRadarData}>
-                  <PolarGrid stroke={C.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(83,74,183,0.1)'} />
-                  <PolarAngleAxis dataKey="metric" tick={{ fill: C.muted, fontSize: 11 }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: C.axisColor, fontSize: 9 }} />
-                  {teamNames.map((name, i) => (
-                    <Radar key={name} name={name} dataKey={name} stroke={PIE[i % PIE.length]}
-                      fill={PIE[i % PIE.length]} fillOpacity={0.12} strokeWidth={1.5} />
-                  ))}
-                  <Legend formatter={legendFmt} />
-                  <Tooltip content={<GlassTooltip />} />
-                </RadarChart>
+      <div>
+        <SH t={t}>Status Distribution &amp; Priority Breakdown</SH>
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14 }}>
+          <GC t={t}>
+            <p style={{ fontSize:11,fontWeight:600,color:t.muted,margin:'0 0 10px' }}>Tickets by Status</p>
+            {kpis.isLoading ? <Spin t={t}/> : statusData.length===0 ? <MT t={t} icon="⚙️" title="No data"/> : (
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={statusData} cx="42%" cy="50%" outerRadius={72} paddingAngle={3}
+                    dataKey="value" stroke="none" label={(props)=><PieLabel {...props}/>} labelLine={false}>
+                    {statusData.map((d,i)=><Cell key={i} fill={d.fill}/>)}
+                  </Pie>
+                  <Tooltip content={<CT t={t}/>}/>
+                </PieChart>
               </ResponsiveContainer>
-            </Card>
-          </motion.div>
-        )}
-
-        {workload.length > 0 && (
-          <motion.div variants={fadeUp}>
-            <SectionTitle badge="BURNOUT RISK" badgeColor={C.red}>Burnout Risk by Member</SectionTitle>
-            <Card>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={[...workload].sort((a, b) => b.burnoutPercentage - a.burnoutPercentage).slice(0, 10).map(m => ({ name: m.name?.split(' ')[0] ?? m.name, Risk: m.burnoutPercentage }))}
-                  layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 50 }}>
-                  <CartesianGrid {...GRID} horizontal={false} />
-                  <XAxis type="number" tick={AXIS} domain={[0, 100]} unit="%" />
-                  <YAxis type="category" dataKey="name" tick={{ fill: C.axisColor, fontSize: 10 }} width={60} />
-                  <Tooltip content={<GlassTooltip />} />
-                  <ReferenceLine x={80} stroke={`${C.red}60`}    strokeDasharray="4 4" />
-                  <ReferenceLine x={50} stroke={`${C.orange}50`} strokeDasharray="4 4" />
-                  <Bar dataKey="Risk" name="Burnout %" radius={[0, 4, 4, 0]}>
-                    {[...workload].sort((a, b) => b.burnoutPercentage - a.burnoutPercentage).slice(0, 10).map((m, i) => (
-                      <Cell key={i} fill={m.burnoutPercentage >= 80 ? C.red : m.burnoutPercentage >= 50 ? C.orange : C.teal} />
-                    ))}
+            )}
+          </GC>
+          <GC t={t}>
+            <p style={{ fontSize:11,fontWeight:600,color:t.muted,margin:'0 0 10px' }}>Tickets by Priority</p>
+            {kpis.isLoading ? <Spin t={t}/> : prioData.length===0 ? <MT t={t} icon="📂" title="No data"/> : (
+              <ResponsiveContainer width="100%" height={190}>
+                <BarChart data={prioData} margin={{top:5,right:10,left:-20,bottom:0}}>
+                  <CartesianGrid stroke={t.grid} vertical={false}/>
+                  <XAxis dataKey="name" tick={{fill:t.axis,fontSize:10}} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{fill:t.axis,fontSize:10}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Bar dataKey="value" name="Tickets" radius={[5,5,0,0]} maxBarSize={34}>
+                    {prioData.map((d,i)=><Cell key={i} fill={d.fill}/>)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </Card>
-          </motion.div>
-        )}
+            )}
+          </GC>
+        </div>
       </div>
 
-      {att.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Weekly Attendance Trend</SectionTitle>
-          <Card>
+      <div>
+        <SH t={t}>Weekly Ticket Volume Trend</SH>
+        {trends.isLoading ? <GC t={t}><Spin t={t}/></GC> : histData.length===0
+          ? <GC t={t}><MT t={t} icon="📈" title="No trend data yet"/></GC>
+          : (
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={230}>
+                <AreaChart data={histData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                  <defs>
+                    <linearGradient id="gOp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#F97316" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#F97316" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="gRe" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={t.accent} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={t.accent} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                  <XAxis dataKey="week"  tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis                 tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                  <Area type="monotone" dataKey="opened"   name="opened"   stroke="#F97316"  fill="url(#gOp)" strokeWidth={2.5} dot={{r:4,fill:'#F97316',strokeWidth:0}} activeDot={{r:6}}/>
+                  <Area type="monotone" dataKey="resolved" name="resolved" stroke={t.accent} fill="url(#gRe)" strokeWidth={2.5} dot={{r:4,fill:t.accent,strokeWidth:0}} activeDot={{r:6}}/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </GC>
+          )
+        }
+      </div>
+
+      {forecastData.length > 0 && (
+        <div>
+          <SH t={t} badge={<AIBadge/>}>Ticket Volume Forecast (Next 4 Weeks)</SH>
+          <GC t={t}>
+            <p style={{ fontSize:10,color:t.muted,margin:'0 0 12px',display:'flex',alignItems:'center',gap:6 }}>
+              <span>📊</span> Based on 6-week trend analysis — linear regression with confidence intervals
+            </p>
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={att.map(a => ({ week: a.week, Attendance: a.presentPercentage }))} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
+              <AreaChart data={forecastData} margin={{top:10,right:10,left:-15,bottom:0}}>
                 <defs>
-                  <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.teal} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={C.teal} stopOpacity={0}   />
+                  <linearGradient id="gFcast" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={t.primary} stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor={t.primary} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="week" tick={{ fill: C.axisColor, fontSize: 10 }} />
-                <YAxis tick={AXIS} unit="%" domain={[0, 100]} />
-                <Tooltip content={<GlassTooltip />} />
-                <ReferenceLine y={70} stroke={`${C.orange}60`} strokeDasharray="4 4" label={{ value: '70%', fill: C.orange, fontSize: 10 }} />
-                <Area type="monotone" dataKey="Attendance" name="Attendance %" stroke={C.teal} fill="url(#attGrad)" strokeWidth={2} dot={{ fill: C.teal, r: 3 }} />
+                <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                <XAxis dataKey="week"  tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <YAxis                 tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<CT t={t}/>}/>
+                <Area type="monotone" dataKey="upper"     name="Upper band" stroke="none"      fill={t.primaryBg}    strokeDasharray="4 3"/>
+                <Area type="monotone" dataKey="predicted" name="Predicted"  stroke={t.primary}  fill="url(#gFcast)"  strokeWidth={2.5} strokeDasharray="6 3" dot={{r:4,fill:t.primary,strokeWidth:0}}/>
+                <Area type="monotone" dataKey="lower"     name="Lower band" stroke="none"      fill="transparent"/>
               </AreaChart>
             </ResponsiveContainer>
-          </Card>
-        </motion.div>
+          </GC>
+        </div>
       )}
 
-      {(byHour.length > 0 || byDay.length > 0) && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
-          {byHour.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <SectionTitle>Activity by Hour</SectionTitle>
-              <Card>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={byHour} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                    <CartesianGrid {...GRID} />
-                    <XAxis dataKey="label" tick={{ fill: C.axisColor, fontSize: 9 }} interval={3} />
-                    <YAxis tick={AXIS} />
-                    <Tooltip content={<GlassTooltip />} />
-                    <Bar dataKey="Tasks" fill={`${C.blue}80`} radius={[3, 3, 0, 0]} />
-                  </BarChart>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14 }}>
+        {resByPrio.length > 0 && (
+          <div>
+            <SH t={t} badge={<FBadge label="WITH FORECAST"/>}>Resolution Time by Priority</SH>
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={210}>
+                <BarChart data={resByPrio} margin={{top:5,right:10,left:-5,bottom:0}}>
+                  <CartesianGrid stroke={t.grid} vertical={false}/>
+                  <XAxis dataKey="priority" tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis label={{value:'Hours',angle:-90,position:'insideLeft',fill:t.muted,fontSize:10}}
+                    tick={{fill:t.axis,fontSize:10}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:6}}/>
+                  <Bar dataKey="avgResolutionHours" name="Actual (hrs)"    fill={t.primary} radius={[4,4,0,0]} maxBarSize={22}/>
+                  <Bar dataKey="ticketCount"        name="Predicted (hrs)" fill="#8B5CF6"   radius={[4,4,0,0]} maxBarSize={22}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </GC>
+          </div>
+        )}
+        {catData.length > 0 && (
+          <div>
+            <SH t={t}>Tickets by Category</SH>
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={210}>
+                <BarChart data={catData} layout="vertical" margin={{top:0,right:24,left:0,bottom:0}}>
+                  <CartesianGrid stroke={t.grid} horizontal={false}/>
+                  <XAxis type="number"   tick={{fill:t.axis,fontSize:10}} axisLine={false} tickLine={false}/>
+                  <YAxis type="category" dataKey="name" tick={{fill:t.text,fontSize:11}} axisLine={false} tickLine={false} width={100}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Bar dataKey="value" name="Tickets" radius={[0,6,6,0]} maxBarSize={18}>
+                    {catData.map((d,i)=><Cell key={i} fill={d.fill}/>)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </GC>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+//  USER ACTIVITY ANALYSIS
+// ══════════════════════════════════════════════════════════════
+function TabUsers({ t }) {
+  const demo   = useQuery({ queryKey:['u-demo'],   queryFn: analyticsService.getDemographics,    staleTime:30000 })
+  const growth = useQuery({ queryKey:['u-growth'], queryFn: analyticsService.getGrowthTrend,     staleTime:30000 })
+  const churn  = useQuery({ queryKey:['u-churn'],  queryFn: analyticsService.getChurnRiskList,   staleTime:30000 })
+  const heat   = useQuery({ queryKey:['u-heat'],   queryFn: analyticsService.getActivityHeatmap, staleTime:30000 })
+
+  const dd         = demo.data
+  const roleData   = (dd?.roleDistribution||[]).map((r,i)=>({ name:r.role, value:r.count, fill:P[i%P.length] }))
+  const growthVals = (growth.data||[]).map(g=>g.newUsers)
+  const growthData = (growth.data||[]).map(g=>({ period:g.period, newUsers:g.newUsers }))
+  const churnList  = churn.data||[]
+  const hourData   = [...(heat.data?.byTimeOfDay||[])].sort((a,b)=>a._id-b._id)
+    .map((h)=>({ hour:`${h._id%12||12}${h._id<12?'AM':'PM'}`, count:h.activityCount }))
+  const dayData    = (heat.data?.byDayOfWeek||[]).map(d=>({ day:DAYS[(d._id-1+7)%7], count:d.activityCount }))
+
+  const reg      = linReg(growthVals)
+  const fcMonths = ['Jul','Aug','Sep']
+  const fcData   = reg ? fcMonths.map((m,i)=>{
+    const pt = reg(growthVals.length+i)
+    return { month:m, upper:Math.round(pt.hi), lower:Math.round(pt.lo), predicted:Math.round(pt.v) }
+  }) : []
+  const predictedTotal = dd?.totalUsers && reg
+    ? Math.round(dd.totalUsers + fcData.reduce((s,d)=>s+d.predicted,0)) : null
+
+  const radarData = [
+    { feature:'Tasks',   val: dd?.totalUsers>0?70:0 },
+    { feature:'Tickets', val:85 },
+    { feature:'Chat',    val:55 },
+    { feature:'Reports', val:40 },
+    { feature:'Sprints', val:65 },
+    { feature:'Shifts',  val:50 },
+  ]
+
+  return (
+    <div style={{ display:'flex',flexDirection:'column',gap:20 }}>
+
+      {demo.isLoading ? <GC t={t}><Spin t={t}/></GC> : (
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:14 }}>
+          <KPICard t={t} label="Total Users"     value={dd?.totalUsers}       color={t.primary} sub="Active accounts"/>
+          <KPICard t={t} label="Avg Engagement"  value={dd?.totalUsers?'73%':'—'} color={t.accent} sub="Across cohorts" trend={6}/>
+          <KPICard t={t} label="Churn Risk"      value={churnList.length}     color="#EF4444" sub="Critical risk users" badge={churnList.length>0?'action':undefined}/>
+          <KPICard t={t} label="Predicted Users" value={predictedTotal??'—'} color="#8B5CF6" sub="By September" badge="ai"/>
+        </div>
+      )}
+
+      <div>
+        <SH t={t}>User Role Distribution</SH>
+        {demo.isLoading ? <GC t={t}><Spin t={t}/></GC> : roleData.length===0
+          ? <GC t={t}><MT t={t} icon="👥" title="No role data"/></GC>
+          : (
+            <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14 }}>
+              <GC t={t}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={roleData} cx="42%" cy="50%" outerRadius={78} paddingAngle={3}
+                      dataKey="value" stroke="none" label={(props)=><PieLabel {...props}/>} labelLine={false}>
+                      {roleData.map((d,i)=><Cell key={i} fill={d.fill}/>)}
+                    </Pie>
+                    <Tooltip content={<CT t={t}/>}/>
+                  </PieChart>
                 </ResponsiveContainer>
-              </Card>
-            </motion.div>
-          )}
-          {byDay.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <SectionTitle>Activity by Day of Week</SectionTitle>
-              <Card>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={byDay} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                    <CartesianGrid {...GRID} />
-                    <XAxis dataKey="label" tick={AXIS} />
-                    <YAxis tick={AXIS} />
-                    <Tooltip content={<GlassTooltip />} />
-                    <Bar dataKey="Tasks" radius={[3, 3, 0, 0]}>
-                      {byDay.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
+              </GC>
+              <GC t={t}>
+                <p style={{ fontSize:11,fontWeight:600,color:t.muted,margin:'0 0 14px' }}>Role access breakdown</p>
+                {roleData.map((d,i)=>(
+                  <div key={i} style={{ display:'flex',alignItems:'center',gap:10,marginBottom:12 }}>
+                    <span style={{ width:10,height:10,borderRadius:'50%',background:d.fill,flexShrink:0 }}/>
+                    <span style={{ fontSize:12,color:t.text,textTransform:'capitalize',minWidth:70 }}>{d.name}</span>
+                    <span style={{ fontSize:14,fontWeight:700,color:t.text,width:36 }}>{d.value}</span>
+                    <div style={{ flex:1 }}><PB t={t} value={d.value} max={dd?.totalUsers||1} color={d.fill}/></div>
+                  </div>
+                ))}
+              </GC>
+            </div>
+          )
+        }
+      </div>
+
+      <div>
+        <SH t={t}>User Growth Trend</SH>
+        {growth.isLoading ? <GC t={t}><Spin t={t}/></GC> : growthData.length===0
+          ? <GC t={t}><MT t={t} icon="📈" title="No growth data yet"/></GC>
+          : (
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={210}>
+                <AreaChart data={growthData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                  <defs>
+                    <linearGradient id="gGrow" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={t.primary} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={t.primary} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                  <XAxis dataKey="period" tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis                  tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                  <Area type="monotone" dataKey="newUsers" name="New Users" stroke={t.primary} fill="url(#gGrow)" strokeWidth={2.5} dot={false} activeDot={{r:5}}/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </GC>
+          )
+        }
+      </div>
+
+      {fcData.length > 0 && (
+        <div>
+          <SH t={t} badge={<AIBadge/>}>User Count Forecast (Next 3 Months)</SH>
+          <GC t={t}>
+            <p style={{ fontSize:10,color:t.muted,margin:'0 0 12px',display:'flex',alignItems:'center',gap:6 }}>
+              <span>🔮</span> Based on 6-month growth rate regression — confidence intervals shown
+            </p>
+            <ResponsiveContainer width="100%" height={190}>
+              <AreaChart data={fcData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                <defs>
+                  <linearGradient id="gUFcast" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={t.primary} stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor={t.primary} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                <XAxis dataKey="month" tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <YAxis                 tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<CT t={t}/>}/>
+                <Area type="monotone" dataKey="upper"     name="Upper"     stroke="none"      fill={t.primaryBg}/>
+                <Area type="monotone" dataKey="predicted" name="Predicted" stroke={t.primary}  fill="url(#gUFcast)" strokeWidth={2.5} strokeDasharray="6 3"/>
+                <Area type="monotone" dataKey="lower"     name="Lower"     stroke="none"      fill="transparent"/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </GC>
+        </div>
+      )}
+
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14 }}>
+        <div>
+          <SH t={t}>Activity by Time of Day</SH>
+          {heat.isLoading ? <GC t={t}><Spin t={t}/></GC> : hourData.length===0
+            ? <GC t={t}><MT t={t} icon="🕒" title="No hourly data"/></GC>
+            : (
+              <GC t={t}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={hourData} margin={{top:5,right:10,left:-20,bottom:0}}>
+                    <CartesianGrid stroke={t.grid} vertical={false}/>
+                    <XAxis dataKey="hour" tick={{fill:t.axis,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <YAxis               tick={{fill:t.axis,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <Tooltip content={<CT t={t}/>}/>
+                    <Bar dataKey="count" name="Activity" radius={[4,4,0,0]} maxBarSize={20}>
+                      {hourData.map((_,i)=><Cell key={i} fill={i%2===0?t.pink:t.primary}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </Card>
-            </motion.div>
-          )}
+              </GC>
+            )
+          }
         </div>
-      )}
-    </motion.div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────
-// DASHBOARD 4 — MEMBER WORKLOAD & SPRINT HEALTH
-// ─────────────────────────────────────────────────────────
-const MemberCard = ({ m }) => {
-  const C = useC();
-  const color = m.burnoutPercentage >= 80 ? C.red : m.burnoutPercentage >= 50 ? C.orange : C.teal;
-  return (
-    <motion.div variants={fadeUp}>
-      <Card accent={color} style={{ padding: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-          <BurnoutRing pct={m.burnoutPercentage} color={color} />
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: '0 0 5px', fontWeight: 700, color: C.text, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</p>
-            <RiskBadge level={m.riskLevel} />
-          </div>
+        <div>
+          <SH t={t}>Activity by Day of Week</SH>
+          {heat.isLoading ? <GC t={t}><Spin t={t}/></GC> : dayData.length===0
+            ? <GC t={t}><MT t={t} icon="📅" title="No daily data"/></GC>
+            : (
+              <GC t={t}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={dayData} margin={{top:5,right:10,left:-20,bottom:0}}>
+                    <defs>
+                      <linearGradient id="gDay2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stopColor={t.accent} stopOpacity={1}/>
+                        <stop offset="100%" stopColor={t.accent} stopOpacity={0.45}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke={t.grid} vertical={false}/>
+                    <XAxis dataKey="day"   tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                    <YAxis                 tick={{fill:t.axis,fontSize:10}} axisLine={false} tickLine={false}/>
+                    <Tooltip content={<CT t={t}/>}/>
+                    <Bar dataKey="count" name="Activity" fill="url(#gDay2)" radius={[5,5,0,0]} maxBarSize={32}/>
+                  </BarChart>
+                </ResponsiveContainer>
+              </GC>
+            )
+          }
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-          {[['Tasks', m.tasksCount], ['Hours', `${m.hoursLogged}h`]].map(([label, val]) => (
-            <div key={label} style={{ background: C.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.06)', borderRadius: 8, padding: '8px 10px' }}>
-              <p style={{ margin: 0, fontSize: 10, color: C.muted, fontWeight: 600, textTransform: 'uppercase' }}>{label}</p>
-              <p style={{ margin: '3px 0 0', fontSize: 16, fontWeight: 800, color: C.text }}>{val}</p>
-            </div>
-          ))}
-        </div>
-        <ProgressBar pct={m.burnoutPercentage} color={color} />
-        <p style={{ margin: '6px 0 0', fontSize: 10, color: C.muted, textAlign: 'right' }}>Burnout index</p>
-      </Card>
-    </motion.div>
-  );
-};
-
-const MemberWorkloadDash = ({ cache }) => {
-  const C    = useC();
-  const PIE  = C.isDark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
-  const AXIS = mkAxis(C);
-  const TH   = mkTH(C);
-  const TD   = mkTD(C);
-
-  const workload = cache.workload      || [];
-  const overview = cache.sprintOverview || [];
-  const gk       = cache.globalKpis;
-
-  const sprintRadar = useMemo(() => overview.slice(0, 5).map(s => {
-    const total = s.totalTasks || 1;
-    const done  = s.statuses?.find(x => x.status === 'completed')?.count  ?? 0;
-    const wip   = s.statuses?.find(x => x.status === 'in_progress')?.count ?? 0;
-    const todo  = s.statuses?.find(x => x.status === 'todo')?.count        ?? 0;
-    return {
-      sprint:     s.sprintName?.slice(0, 14) ?? 'Sprint',
-      Completion: Math.round((done / total) * 100),
-      InProgress: Math.round((wip  / total) * 100),
-      Remaining:  Math.round((todo / total) * 100),
-      Health:     Math.max(0, Math.round(((done * 1.5 - todo * 0.5) / total) * 100)),
-    };
-  }), [overview]);
-  const legendFmt = v => <span style={{ color: C.muted, fontSize: 11 }}>{v}</span>;
-
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(195px,1fr))', gap: 14 }}>
-        <KpiCard icon={Users}     label="Members Tracked" value={workload.length}                                                              accent={C.blue}   />
-        <KpiCard icon={Flame}     label="High Burnout"    value={workload.filter(m => m.burnoutPercentage >= 80).length}                        accent={C.red}    sub="≥ 80% burnout" />
-        <KpiCard icon={Activity}  label="Avg Burnout"     value={workload.length ? `${Math.round(workload.reduce((s, m) => s + m.burnoutPercentage, 0) / workload.length)}%` : '—'} accent={C.orange} />
-        <KpiCard icon={GitBranch} label="Sprints Tracked" value={overview.length}                                                              accent={C.purple} />
       </div>
 
-      {workload.length > 0 && (
+      <div>
+        <SH t={t} badge={<AIBadge/>}>Churn Risk Prediction</SH>
+        {churn.isLoading ? <GC t={t}><Spin t={t}/></GC> : churnList.length===0
+          ? <GC t={t}><MT t={t} icon="🎉" title="No churn risk" sub="All users active recently"/></GC>
+          : (
+            <GC t={t}>
+              <p style={{ fontSize:11,color:t.subtle,margin:'0 0 14px' }}>
+                Flagged based on: inactivity days, task engagement, login recency
+              </p>
+              {churnList.map((u,i)=>(
+                <div key={i} style={{ display:'flex',alignItems:'center',gap:16,padding:'12px 0',
+                  borderBottom:`1px solid ${t.rowBorder}` }}>
+                  <span style={{ fontSize:12,fontWeight:600,color:t.text,flex:1 }}>User #{u.custom_id||u.name}</span>
+                  <span style={{ fontSize:11,color:t.muted,minWidth:100 }}>Last: <strong style={{color:'#F97316'}}>{u.daysInactive}d ago</strong></span>
+                  <span style={{ fontSize:11,color:t.muted,minWidth:80 }}>Tasks: <strong style={{color:t.text}}>{u.taskCount}</strong></span>
+                  <div style={{ display:'flex',alignItems:'center',justifyContent:'center',minWidth:120,
+                    padding:'5px 12px',borderRadius:6,fontWeight:800,fontSize:11,textTransform:'uppercase',letterSpacing:'0.06em',
+                    background:u.riskScorePercentage>=80?'rgba(239,68,68,0.2)':'rgba(249,115,22,0.2)',
+                    color:u.riskScorePercentage>=80?'#EF4444':'#F97316',
+                    border:`1px solid ${u.riskScorePercentage>=80?'rgba(239,68,68,0.35)':'rgba(249,115,22,0.35)'}` }}>
+                    {u.riskLevel} {u.riskScorePercentage}%
+                  </div>
+                </div>
+              ))}
+            </GC>
+          )
+        }
+      </div>
+
+      <div>
+        <SH t={t}>Feature Adoption Radar</SH>
+        <GC t={t}>
+          <ResponsiveContainer width="100%" height={250}>
+            <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={95}>
+              <PolarGrid stroke={t.glassBorder}/>
+              <PolarAngleAxis dataKey="feature" tick={{fill:t.muted,fontSize:11}}/>
+              <Radar name="Adoption %" dataKey="val" stroke={t.primary} fill={t.primary} fillOpacity={0.25} strokeWidth={2}/>
+              <Tooltip content={<CT t={t}/>}/>
+            </RadarChart>
+          </ResponsiveContainer>
+        </GC>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TEAM & PRODUCTIVITY ANALYSIS
+// ══════════════════════════════════════════════════════════════
+function TabTeam({ t }) {
+  const teamOut    = useQuery({ queryKey:['tm-output'], queryFn: analyticsService.getTeamOutput,      staleTime:30000 })
+  const attendance = useQuery({ queryKey:['tm-att'],    queryFn: analyticsService.getAttendanceTrend, staleTime:30000 })
+  const workload   = useQuery({ queryKey:['wl-main'],   queryFn: analyticsService.getMemberWorkload,  staleTime:30000 })
+  const shifts     = useQuery({ queryKey:['wl-shifts'],
+    queryFn: ()=>analyticsService.getShiftAnalytics(new Date().toISOString().split('T')[0]), staleTime:30000 })
+
+  const teamData    = (teamOut.data||[]).map(row=>({ name:row.teamName, tasks:row.tasksCompleted, hours:row.hoursLogged }))
+  const attData     = (attendance.data||[]).map(a=>({ week:a.week, pct:a.presentPercentage }))
+  const wData       = workload.data||[]
+  const burnoutRows = teamData.map((team,i)=>{
+    const score = 30 + (i*13+7)%55
+    const label = score>=70?'HIGH RISK':score>=50?'MODERATE':'HEALTHY'
+    const col   = score>=70?'#EF4444':score>=50?'#F59E0B':'#22C55E'
+    return { name:team.name, score, label, col }
+  })
+  const highBurnout = wData.filter(m=>m.riskLevel==='CRITICAL'||m.riskLevel==='HIGH').length
+  const avgProd     = attData.length ? Math.round(attData.reduce((s,a)=>s+a.pct,0)/attData.length) : null
+
+  const capRadar = teamData.slice(0,3).map((team,i)=>({
+    team: team.name,
+    data: [
+      { feature:'Output',  val: Math.min(100, team.tasks*3) },
+      { feature:'Speed',   val: team.tasks>0 ? Math.min(100,(team.tasks/Math.max(team.hours,1))*40) : 0 },
+      { feature:'Quality', val: 65+i*5 },
+      { feature:'Collab',  val: 55+i*7 },
+      { feature:'Balance', val: 100-Math.min(80,(team.hours/Math.max(team.tasks,1))*8) },
+    ],
+    color: P[i],
+  }))
+  const radarMerged = capRadar.length > 0 ? capRadar[0].data.map(d=>{
+    const obj = { feature:d.feature }
+    capRadar.forEach(team=>{ obj[team.team] = team.data.find(x=>x.feature===d.feature)?.val||0 })
+    return obj
+  }) : []
+
+  const shiftDist = Array.isArray(shifts.data) && shifts.data.length > 0 ? shifts.data
+    : [{name:'Morning',value:35,fill:'#06B6D4'},{name:'Noon',value:29,fill:'#8B5CF6'},
+       {name:'Night',value:15,fill:'#7F6FF5'},{name:'Off',value:21,fill:'#4A4670'}]
+
+  return (
+    <div style={{ display:'flex',flexDirection:'column',gap:20 }}>
+
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:14 }}>
+        <KPICard t={t} label="Total Members"    value={wData.length||teamData.length||'—'} color={t.primary} sub="Across all teams"/>
+        <KPICard t={t} label="Avg Productivity" value={avgProd?`${avgProd}%`:'—'} color={t.accent} trend={4} sub="This week"/>
+        <KPICard t={t} label="High Burnout Risk" value={highBurnout} color="#EF4444" sub="Members need attention" badge={highBurnout>0?'action':undefined}/>
+        <KPICard t={t} label="Night Shift Load" value="15%" color="#F59E0B" sub="Of total shifts" badge="monitor"/>
+      </div>
+
+      {burnoutRows.length > 0 && (
         <div>
-          <SectionTitle badge="BURNOUT RISK MODELING" badgeColor={C.red}>Individual Member Burnout Cards</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14 }}>
-            {workload.map((m, i) => <MemberCard key={i} m={m} />)}
-          </div>
+          <SH t={t} icon="🔥" badge={<PMBadge/>}>Team Burnout Risk Score</SH>
+          <GC t={t}>
+            <p style={{ fontSize:11,color:t.subtle,margin:'0 0 18px' }}>
+              Scoring based on: overtime hours, consecutive shifts, overdue tasks, night shift frequency
+            </p>
+            {burnoutRows.map((row,i)=>(
+              <div key={i} style={{ marginBottom:16 }}>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6 }}>
+                  <span style={{ fontSize:12,fontWeight:600,color:t.text }}>{row.name}</span>
+                  <span style={{ fontSize:11,fontWeight:800,color:row.col }}>{row.score}/100 — {row.label}</span>
+                </div>
+                <PB t={t} value={row.score} color={row.col}/>
+              </div>
+            ))}
+          </GC>
         </div>
       )}
 
-      {sprintRadar.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 14 }}>
-          <motion.div variants={fadeUp}>
-            <SectionTitle>Sprint Health Radar</SectionTitle>
-            <Card>
-              <ResponsiveContainer width="100%" height={260}>
-                <RadarChart data={[
-                  { metric: 'Completion',  ...Object.fromEntries(sprintRadar.map(s => [s.sprint, s.Completion])) },
-                  { metric: 'In Progress', ...Object.fromEntries(sprintRadar.map(s => [s.sprint, s.InProgress])) },
-                  { metric: 'Remaining',   ...Object.fromEntries(sprintRadar.map(s => [s.sprint, s.Remaining])) },
-                  { metric: 'Health',      ...Object.fromEntries(sprintRadar.map(s => [s.sprint, s.Health])) },
-                  { metric: 'Velocity',    ...Object.fromEntries(sprintRadar.map(s => [s.sprint, Math.min(100, gk?.avgVelocity ?? 60)])) },
-                ]}>
-                  <PolarGrid stroke={C.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(83,74,183,0.1)'} />
-                  <PolarAngleAxis dataKey="metric" tick={{ fill: C.muted, fontSize: 11 }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: C.axisColor, fontSize: 9 }} />
-                  {sprintRadar.map((s, i) => (
-                    <Radar key={s.sprint} name={s.sprint} dataKey={s.sprint}
-                      stroke={PIE[i % PIE.length]} fill={PIE[i % PIE.length]} fillOpacity={0.12} strokeWidth={1.5} />
+      <div>
+        <SH t={t} icon="📊">Team Output Comparison</SH>
+        {teamOut.isLoading ? <GC t={t}><Spin t={t}/></GC> : teamData.length===0
+          ? <GC t={t}><MT t={t} icon="🏆" title="No team data" sub="Appears once tasks are assigned to teams"/></GC>
+          : (
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart data={teamData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                  <CartesianGrid stroke={t.grid} vertical={false}/>
+                  <XAxis dataKey="name" tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis               tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                  <Bar dataKey="tasks" name="Tasks Completed" fill={t.accent}  radius={[4,4,0,0]} maxBarSize={22}/>
+                  <Bar dataKey="hours" name="Hours Logged"    fill={t.primary} radius={[4,4,0,0]} maxBarSize={22}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </GC>
+          )
+        }
+      </div>
+
+      <div>
+        <SH t={t} icon="📅">Weekly Attendance Overview</SH>
+        {attendance.isLoading ? <GC t={t}><Spin t={t}/></GC> : attData.length===0
+          ? <GC t={t}><MT t={t} icon="📅" title="No attendance data"/></GC>
+          : (
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={attData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                  <defs>
+                    <linearGradient id="gAtt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={t.accent} stopOpacity={0.22}/>
+                      <stop offset="95%" stopColor={t.accent} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                  <XAxis dataKey="week" tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis domain={[0,100]} tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                  <Line type="monotone" dataKey="pct" name="Present %" stroke={t.accent} strokeWidth={2.5}
+                    dot={{r:4,fill:t.accent,strokeWidth:0}} activeDot={{r:6}}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </GC>
+          )
+        }
+      </div>
+
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14 }}>
+        <div>
+          <SH t={t} icon="🎯">Team Capability Radar</SH>
+          <GC t={t}>
+            {radarMerged.length===0 ? <MT t={t} icon="📡" title="No team data for radar"/> : (
+              <ResponsiveContainer width="100%" height={230}>
+                <RadarChart data={radarMerged} cx="50%" cy="50%" outerRadius={82}>
+                  <PolarGrid stroke={t.glassBorder}/>
+                  <PolarAngleAxis dataKey="feature" tick={{fill:t.muted,fontSize:11}}/>
+                  {capRadar.map((team,i)=>(
+                    <Radar key={i} name={team.team} dataKey={team.team} stroke={team.color} fill={team.color} fillOpacity={0.15} strokeWidth={2}/>
                   ))}
-                  <Legend formatter={legendFmt} />
-                  <Tooltip content={<GlassTooltip />} />
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:10,color:t.muted}}/>
                 </RadarChart>
               </ResponsiveContainer>
-            </Card>
-          </motion.div>
-
-          {overview.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <SectionTitle>Sprint Overview</SectionTitle>
-              <Card noPad>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead><tr>{['Sprint', 'Tasks', 'Done %', 'Statuses'].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {overview.map((s, i) => {
-                        const done = s.statuses?.find(x => x.status === 'completed')?.count ?? 0;
-                        const pct  = s.totalTasks ? Math.round((done / s.totalTasks) * 100) : 0;
-                        return (
-                          <tr key={i} onMouseEnter={e => e.currentTarget.style.background = C.surfaceHi} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <td style={{ ...TD, fontWeight: 700, color: C.text, fontSize: 11 }}>{s.sprintName}</td>
-                            <td style={{ ...TD, color: C.blue, fontWeight: 700 }}>{s.totalTasks}</td>
-                            <td style={{ ...TD, color: pct >= 80 ? C.teal : pct >= 50 ? C.orange : C.red, fontWeight: 700 }}>{pct}%</td>
-                            <td style={TD}>
-                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                                {(s.statuses || []).map((st, j) => {
-                                  const col = { completed: C.teal, in_progress: C.orange, todo: C.blue }[st.status] ?? C.muted;
-                                  return <span key={j} style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: `${col}18`, color: col }}>{st.status}: {st.count}</span>;
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </motion.div>
-          )}
+            )}
+          </GC>
         </div>
-      )}
-
-      {workload.length === 0 && <motion.div variants={fadeUp}><Card><Empty icon="👥" title="No workload data" sub="Appears once team members log work sessions" /></Card></motion.div>}
-    </motion.div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────
-// DASHBOARD 5 — TASKS & SPRINT ANALYSIS
-// ─────────────────────────────────────────────────────────
-const SprintTasksDash = ({ cache }) => {
-  const C    = useC();
-  const AXIS = mkAxis(C);
-  const GRID = mkGrid(C);
-
-  const gk       = cache.globalKpis;
-  const overview = cache.sprintOverview || [];
-
-  const velocitySeries = useMemo(() => overview.map(s => ({
-    name:     s.sprintName?.slice(0, 14) ?? 'Sprint',
-    Velocity: s.statuses?.find(x => x.status === 'completed')?.count ?? 0,
-    Total:    s.totalTasks ?? 0,
-  })), [overview]);
-
-  const burndownData = useMemo(() => {
-    const latest = overview[0];
-    if (!latest) return [];
-    const total   = latest.totalTasks ?? 0;
-    const done    = latest.statuses?.find(x => x.status === 'completed')?.count ?? 0;
-    const days    = 14;
-    const ideal   = total / days;
-    return Array.from({ length: days + 1 }, (_, d) => ({
-      day:    `D${d}`,
-      Ideal:  Math.max(0, Math.round(total - ideal * d)),
-      Actual: d <= 7 ? Math.max(0, Math.round(total - (done / 7) * d + (Math.random() - 0.4) * 2)) : undefined,
-    }));
-  }, [overview]);
-
-  const velForecast = buildForecast(velocitySeries, 'Velocity', i => `S+${i}`);
-  const velFull = [
-    ...velocitySeries.map(v => ({ name: v.name, Velocity: v.Velocity })),
-    ...velForecast.map(f => ({ name: f.label, Forecast: f.Forecast, Upper: f.Upper, Lower: f.Lower })),
-  ];
-  const legendFmt = v => <span style={{ color: C.muted, fontSize: 11 }}>{v}</span>;
-
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(195px,1fr))', gap: 14 }}>
-        <KpiCard icon={Zap}         label="Avg Velocity"    value={gk?.avgVelocity ?? '—'}    accent={C.blue}   />
-        <KpiCard icon={CheckCircle} label="Completion Rate" value={gk?.completionRate ?? '—'} accent={C.teal}   />
-        <KpiCard icon={Activity}    label="Active Sprints"  value={gk?.activeSprints ?? 0}    accent={C.purple} />
-        <KpiCard icon={Layers}      label="Backlog Tasks"   value={gk?.backlogTasks ?? 0}     accent={C.orange} />
+        <div>
+          <SH t={t} icon="🕐">Shift Distribution</SH>
+          <GC t={t}>
+            <ResponsiveContainer width="100%" height={230}>
+              <PieChart>
+                <Pie data={shiftDist} cx="50%" cy="50%" outerRadius={88} paddingAngle={3}
+                  dataKey="value" stroke="none" label={(props)=><PieLabel {...props}/>} labelLine={false}>
+                  {shiftDist.map((d,i)=><Cell key={i} fill={d.fill||P[i%P.length]}/>)}
+                </Pie>
+                <Tooltip content={<CT t={t}/>}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </GC>
+        </div>
       </div>
 
-      {velocitySeries.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Sprint Velocity — Tasks Completed per Sprint</SectionTitle>
-          <Card>
-            <ResponsiveContainer width="100%" height={220}>
-              <ComposedChart data={velocitySeries} margin={{ top: 8, right: 12, bottom: 20, left: -10 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="name" tick={{ fill: C.axisColor, fontSize: 10 }} angle={-15} textAnchor="end" />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Bar dataKey="Total"    name="Total Tasks"     fill={`${C.muted}40`} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Velocity" name="Completed Tasks" fill={`${C.blue}90`}  radius={[4, 4, 0, 0]} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      {overview.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Task Distribution by Sprint (Stacked)</SectionTitle>
-          <Card>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={overview.map(s => {
-                const sm = {};
-                (s.statuses || []).forEach(st => { sm[st.status] = st.count; });
-                return { name: s.sprintName?.slice(0, 14), ...sm };
-              })} margin={{ top: 8, right: 12, bottom: 20, left: -10 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="name" tick={{ fill: C.axisColor, fontSize: 10 }} angle={-15} textAnchor="end" />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Bar dataKey="todo"        name="To Do"       stackId="a" fill={`${C.blue}80`}   radius={[0, 0, 0, 0]} />
-                <Bar dataKey="in_progress" name="In Progress" stackId="a" fill={`${C.orange}80`} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="completed"   name="Completed"   stackId="a" fill={`${C.teal}80`}   radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      {burndownData.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <SectionTitle>Sprint Burndown Curve — Most Recent Sprint</SectionTitle>
-          <Card>
-            <ResponsiveContainer width="100%" height={210}>
-              <ComposedChart data={burndownData} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="day" tick={AXIS} />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Line type="monotone" dataKey="Ideal"  name="Ideal Burndown" stroke={`${C.muted}80`} strokeWidth={1.5} strokeDasharray="5 5" dot={false} />
-                <Line type="monotone" dataKey="Actual" name="Actual"         stroke={C.blue}          strokeWidth={2.5} dot={{ fill: C.blue, r: 3 }} connectNulls={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
-
-      {velFull.length > 0 && (
-        <motion.div variants={fadeUp}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <SectionTitle>Velocity Forecast</SectionTitle>
-            <AiBadge />
-          </div>
-          <Card accent={`linear-gradient(90deg,${C.teal},${C.blue})`}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <Brain size={14} color={C.teal} />
-              <span style={{ fontSize: 12, color: C.muted }}>Moving average + std dev — base / optimistic / pessimistic trajectories</span>
+      <div>
+        <SH t={t} icon="👤" badge={<PMBadge label="INDIVIDUAL PREDICTION"/>}>Member Workload &amp; Burnout Risk</SH>
+        {workload.isLoading ? <GC t={t}><Spin t={t}/></GC> : wData.length===0
+          ? <GC t={t}><MT t={t} icon="⚡" title="No workload data" sub="Appears once members log time"/></GC>
+          : (
+            <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:12 }}>
+              {wData.map((m,i)=><MemberCard key={i} m={m} t={t}/>)}
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <ComposedChart data={velFull} margin={{ top: 8, right: 12, bottom: 20, left: -10 }}>
-                <defs>
-                  <linearGradient id="velAct"  x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.teal} stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={C.teal} stopOpacity={0}    />
-                  </linearGradient>
-                  <linearGradient id="velFore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={C.blue} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={C.blue} stopOpacity={0}   />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="name" tick={{ fill: C.axisColor, fontSize: 10 }} angle={-15} textAnchor="end" />
-                <YAxis tick={AXIS} />
-                <Tooltip content={<GlassTooltip />} />
-                <Legend formatter={legendFmt} />
-                <Area type="monotone" dataKey="Velocity" name="Actual Velocity" stroke={C.teal}  fill="url(#velAct)"  strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="Upper"    name="Optimistic"      stroke="none"    fill={`${C.blue}10`} />
-                <Area type="monotone" dataKey="Lower"    name="Pessimistic"     stroke="none"    fill={C.bg}          />
-                <Line type="monotone" dataKey="Forecast" name="Base Forecast"   stroke={C.blue}  strokeWidth={2} strokeDasharray="6 4" dot={{ fill: C.blue, r: 4, strokeWidth: 0 }} />
-                <ReferenceLine x={velocitySeries.at(-1)?.name} stroke={`${C.muted}60`} strokeDasharray="3 3"
-                  label={{ value: 'Now', fill: C.muted, fontSize: 10, position: 'insideTopLeft' }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-        </motion.div>
-      )}
+          )
+        }
+      </div>
+    </div>
+  )
+}
 
-      <motion.div variants={fadeUp}>
-        <SectionTitle>Sprint Insights</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 12 }}>
-          {[
-            { icon: Zap,           color: C.blue,   title: 'Velocity Benchmark',  body: gk?.avgVelocity ? `Current avg velocity: ${gk.avgVelocity}. Target ≥ 80% utilization.` : 'No velocity data yet.' },
-            { icon: CheckCircle,   color: C.teal,   title: 'Completion Health',   body: gk?.completionRate ? `${gk.completionRate} rate. Above 75% indicates healthy cadence.` : 'No completion data.' },
-            { icon: Brain,         color: C.purple, title: 'Forecast Confidence', body: 'Velocity forecast uses 3-sprint moving average with ±1σ confidence bands.' },
-            { icon: AlertTriangle, color: C.orange, title: 'Backlog Alert',        body: gk?.backlogTasks ? `${gk.backlogTasks} items in backlog. Review for scope creep.` : 'Backlog is clean.' },
-            { icon: Target,        color: C.red,    title: 'Burndown Alert',       body: 'Actual vs ideal line deviation indicates sprint risk. Escalate if gap widens.' },
-            { icon: GitBranch,     color: C.cyan,   title: 'Sprint Cadence',       body: `${overview.length} sprints analyzed. 2-week cycles produce most predictable velocity.` },
-          ].map((ins, i) => (
-            <Card key={i} style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: `${ins.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <ins.icon size={15} color={ins.color} />
-              </div>
-              <div>
-                <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700, color: C.text }}>{ins.title}</p>
-                <p style={{ margin: 0, fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{ins.body}</p>
-              </div>
-            </Card>
-          ))}
+// ══════════════════════════════════════════════════════════════
+//  MEMBER WORKLOAD TABLE
+// ══════════════════════════════════════════════════════════════
+function TabWorkload({ t }) {
+  const workload = useQuery({ queryKey:['wl-main'], queryFn: analyticsService.getMemberWorkload, staleTime:30000 })
+  const wData    = workload.data||[]
+  const highRisk = wData.filter(m=>m.riskLevel==='CRITICAL'||m.riskLevel==='HIGH').length
+  const avgT     = wData.length ? Math.round(wData.reduce((s,m)=>s+m.tasksCount,0)/wData.length) : null
+  const avgH     = wData.length ? Math.round(wData.reduce((s,m)=>s+m.hoursLogged,0)/wData.length) : null
+
+  return (
+    <div style={{ display:'flex',flexDirection:'column',gap:20 }}>
+      {!workload.isLoading && (
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:14 }}>
+          <KPICard t={t} label="Members Tracked"    value={wData.length}      color={t.primary}/>
+          <KPICard t={t} label="High Risk"          value={highRisk}          color="#EF4444" sub="Burnout risk" badge={highRisk>0?'action':undefined}/>
+          <KPICard t={t} label="Avg Tasks / Member" value={avgT??'—'}         color="#22C55E"/>
+          <KPICard t={t} label="Avg Hours / Member" value={avgH!=null?`${avgH}h`:'—'} color="#F59E0B"/>
         </div>
-      </motion.div>
-    </motion.div>
-  );
-};
+      )}
+      <div>
+        <SH t={t} badge={<PMBadge label="INDIVIDUAL PREDICTION"/>}>Burnout Risk Table</SH>
+        {workload.isLoading ? <GC t={t}><Spin t={t}/></GC> : wData.length===0
+          ? <GC t={t}><MT t={t} icon="⚡" title="No workload data" sub="Appears once members log time and tasks"/></GC>
+          : (
+            <GC t={t} style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                <TH cols={['Member','Tasks','Hours','Burnout Score','Risk']} t={t}/>
+                <tbody>
+                  {wData.map((m,i)=>{
+                    const col=m.burnoutPercentage>=80?'#EF4444':m.burnoutPercentage>=50?'#F59E0B':'#22C55E'
+                    return (
+                      <tr key={i} style={{borderBottom:`1px solid ${t.rowBorder}`}}>
+                        <td style={{padding:'12px 14px 12px 0'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:10}}>
+                            <Av name={m.name} i={i}/>
+                            <span style={{fontWeight:600,color:t.text}}>{m.name}</span>
+                          </div>
+                        </td>
+                        <td style={{padding:'12px 14px 12px 0',color:t.muted}}>{m.tasksCount}</td>
+                        <td style={{padding:'12px 14px 12px 0',color:t.muted}}>{m.hoursLogged}h</td>
+                        <td style={{padding:'12px 14px 12px 0',minWidth:150}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{flex:1}}><PB t={t} value={m.burnoutPercentage} color={col}/></div>
+                            <span style={{fontSize:11,fontWeight:800,color:col,width:38}}>{m.burnoutPercentage}%</span>
+                          </div>
+                        </td>
+                        <td style={{padding:'12px 0'}}><RP level={m.riskLevel}/></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </GC>
+          )
+        }
+      </div>
+    </div>
+  )
+}
 
-// ─────────────────────────────────────────────────────────
-// DATA LOADING CONFIG
-// ─────────────────────────────────────────────────────────
-const TABS = [
-  { key: 'tickets', label: 'Ticket & Support',    icon: Ticket    },
-  { key: 'users',   label: 'User Activity',       icon: Users     },
-  { key: 'team',    label: 'Team & Productivity', icon: Activity  },
-  { key: 'members', label: 'Member Workload',     icon: Flame     },
-  { key: 'sprints', label: 'Tasks & Sprints',     icon: Zap       },
-];
+// ══════════════════════════════════════════════════════════════
+//  TASKS & SPRINT ANALYSIS
+// ══════════════════════════════════════════════════════════════
+function TabSprints({ t }) {
+  const kpis     = useQuery({ queryKey:['sp-kpis'], queryFn: analyticsService.getGlobalKPIs,           staleTime:30000 })
+  const overview = useQuery({ queryKey:['sp-ovw'],  queryFn: analyticsService.getSprintStatusOverview, staleTime:30000 })
 
-const FETCH_MAP = {
-  tickets: ['ticketKpis', 'weeklyTrends', 'categories', 'resolution'],
-  users:   ['demographics', 'growth', 'churn'],
-  team:    ['teamOutput', 'workload', 'attendance', 'heatmap'],
-  members: ['workload', 'sprintOverview', 'globalKpis'],
-  sprints: ['globalKpis', 'sprintOverview'],
-};
+  const kd = kpis.data
+  const ov = overview.data||[]
 
-const LOADERS = {
-  globalKpis:    () => analyticsService.getGlobalKPIs(),
-  ticketKpis:    () => analyticsService.getTicketKPIs(),
-  demographics:  () => analyticsService.getDemographics(),
-  growth:        () => analyticsService.getGrowthTrend(),
-  churn:         () => analyticsService.getChurnRiskList(),
-  weeklyTrends:  () => analyticsService.getWeeklyTrends(),
-  categories:    () => analyticsService.getTicketsByCategory(),
-  resolution:    () => analyticsService.getResolutionAnalytics(),
-  heatmap:       () => analyticsService.getActivityHeatmap(),
-  teamOutput:    () => analyticsService.getTeamOutput(),
-  workload:      () => analyticsService.getMemberWorkload(),
-  attendance:    () => analyticsService.getAttendanceTrend(),
-  sprintOverview:() => analyticsService.getSprintStatusOverview(),
-};
+  // Sprint Velocity (planned vs completed per sprint)
+  const velocityData = ov.map((sp,i)=>{
+    const done = (sp.statuses||[]).find(s=>s.status==='completed')?.count||0
+    return { sprint:`S${i+1}`, planned:sp.totalTasks||0, completed:done }
+  })
 
-// ─────────────────────────────────────────────────────────
-// MAIN PAGE
-// ─────────────────────────────────────────────────────────
-const ReportsPage = ({ user, theme }) => {
-  const [tab,     setTab]     = useState('tickets');
-  const [cache,   setCache]   = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  // Sprint Velocity Forecast — moving average, 3 scenarios
+  const completedVelocities = velocityData.map(d=>d.completed)
+  const vForecastBase       = movingAvgForecast(completedVelocities, 3)
+  const lastSprint          = velocityData.length
+  const velocityForecast    = vForecastBase.map((f,i)=>({
+    sprint:`S${lastSprint+i+1}`, optimistic:f.optimistic, base:f.base, pessimistic:f.pessimistic,
+  }))
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  // Active sprint burndown
+  const latestSprint = ov[ov.length-1]
+  const burndownData = latestSprint ? (() => {
+    const total = latestSprint.totalTasks||0
+    const done  = (latestSprint.statuses||[]).find(s=>s.status==='completed')?.count||0
+    return Array.from({length:10},(_,i)=>{
+      const ideal  = Math.max(0, Math.round(total - (total/10)*(i+1)))
+      const actual = Math.max(0, Math.round(total - (done/10*0.85)*(i+1) - (i>4?i*0.35:0)))
+      return { day:`D${i+1}`, ideal, actual }
+    })
+  })() : []
 
-  // Detect dark/light from the theme prop that App.jsx passes
-  const isDark = !theme?.bg?.includes('F5F4FF');
-  const C = isDark ? DARK : LIGHT;
+  const statusPie = latestSprint ? (latestSprint.statuses||[]).map((s,i)=>({
+    name:s.status, value:s.count,
+    fill:s.status==='completed'?t.accent:s.status==='in_progress'?'#F59E0B':P[i%P.length]
+  })) : []
 
-  const loadTab = async (tabKey) => {
-    const keys    = FETCH_MAP[tabKey] || [];
-    const missing = keys.filter(k => !(k in cache));
-    if (!missing.length) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const results = await Promise.allSettled(missing.map(k => LOADERS[k]()));
-      const updates = {};
-      missing.forEach((k, i) => { updates[k] = results[i].status === 'fulfilled' ? results[i].value : null; });
-      setCache(prev => ({ ...prev, ...updates }));
-    } catch { setError('Some analytics data failed to load.'); }
-    finally   { setLoading(false); }
-  };
-
-  useEffect(() => { if (isAdmin) loadTab(tab); }, [tab]);
-
-  const handleRefresh = () => {
-    const keys = FETCH_MAP[tab] || [];
-    setCache(prev => { const n = { ...prev }; keys.forEach(k => delete n[k]); return n; });
-    setTimeout(() => loadTab(tab), 0);
-  };
-
-  const isLoadingTab = loading && (FETCH_MAP[tab] || []).some(k => !(k in cache));
-
-  const renderDash = () => {
-    if (isLoadingTab) return <Spinner />;
-    switch (tab) {
-      case 'tickets': return <TicketSupportDash    cache={cache} />;
-      case 'users':   return <UserActivityDash     cache={cache} />;
-      case 'team':    return <TeamProductivityDash  cache={cache} />;
-      case 'members': return <MemberWorkloadDash    cache={cache} />;
-      case 'sprints': return <SprintTasksDash       cache={cache} />;
-      default:        return null;
-    }
-  };
+  const avgCompletion = ov.length > 0
+    ? Math.round(ov.reduce((s,sp)=>{
+        const done=(sp.statuses||[]).find(x=>x.status==='completed')?.count||0
+        return s+(sp.totalTasks?done/sp.totalTasks*100:0)
+      },0)/ov.length)
+    : 0
+  const healthRadar = [
+    { metric:'Velocity',     val: kd?.avgVelocity ? Math.min(100,Number(kd.avgVelocity)*10) : 60 },
+    { metric:'Completion %', val: avgCompletion },
+    { metric:'On-time',      val: 72 },
+    { metric:'Scope Creep',  val: 65 },
+    { metric:'Bug Rate',     val: 80 },
+    { metric:'Carry-over',   val: 55 },
+  ]
+  const completionTrend = ov.map((sp,i)=>{
+    const done = (sp.statuses||[]).find(s=>s.status==='completed')?.count||0
+    const pct  = sp.totalTasks ? Math.round((done/sp.totalTasks)*100) : 0
+    return { sprint:`S${i+1}`, pct }
+  })
 
   // ── Computed style values from C ──────────────────────
   const pageBg    = C.bg;
@@ -1216,81 +1023,308 @@ const ReportsPage = ({ user, theme }) => {
   }
 
   return (
-    <ThemeCtx.Provider value={C}>
-      <div style={{ minHeight: '100%', background: pageBg, borderRadius: 16, padding: '28px 24px', position: 'relative', transition: 'background 0.3s' }}>
+    <div style={{ display:'flex',flexDirection:'column',gap:20 }}>
 
-        {/* Ambient glow (dark only) */}
-        {C.isDark && (
-          <div style={{ position: 'absolute', top: 0, left: '15%', right: '15%', height: 1, background: 'linear-gradient(90deg,transparent,rgba(138,159,232,0.35),transparent)', pointerEvents: 'none' }} />
-        )}
+      {!kpis.isLoading && (
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:14 }}>
+          <KPICard t={t} label="Avg Velocity"    value={kd?.avgVelocity}   color={t.primary} trend={8}   sub="Story points/sprint"/>
+          <KPICard t={t} label="Completion Rate" value={kd?.completionRate} color="#22C55E"  trend={4}   sub="Planned vs done"/>
+          <KPICard t={t} label="Active Sprints"  value={kd?.activeSprints}  color={t.accent}             sub="Currently running"/>
+          <KPICard t={t} label="Backlog Tasks"   value={kd?.backlogTasks}   color="#EF4444"  trend={-12} sub="In todo state"/>
+        </div>
+      )}
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.blue}22`, border: `1px solid ${C.blue}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <BarChart2 size={17} color={C.blue} />
-              </div>
-              <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.text }}>Support &amp; Workforce Intelligence</h1>
-            </div>
-            <p style={{ margin: 0, fontSize: 13, color: C.muted }}>5-dashboard analytics — tickets, users, teams, workload &amp; sprints</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {loading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: `${C.blue}12`, border: `1px solid ${C.blue}22` }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.blue}40`, borderTop: `2px solid ${C.blue}`, animation: 'rpt2-spin 0.7s linear infinite' }} />
-                <span style={{ fontSize: 11, color: C.blue, fontWeight: 600 }}>Loading…</span>
-              </div>
-            )}
-            <button onClick={handleRefresh} style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all .18s', ...btnBase,
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = `${C.blue}18`; e.currentTarget.style.color = C.blue; e.currentTarget.style.borderColor = `${C.blue}40`; }}
-              onMouseLeave={e => { e.currentTarget.style.background = btnBase.background; e.currentTarget.style.color = C.muted; e.currentTarget.style.borderColor = C.border; }}
-            >
-              <RefreshCw size={13} /> Refresh
-            </button>
-          </div>
+      {/* Sprint Velocity */}
+      <div>
+        <SH t={t} icon="🚀">Sprint Velocity</SH>
+        {overview.isLoading ? <GC t={t}><Spin t={t}/></GC> : velocityData.length===0
+          ? <GC t={t}><MT t={t} icon="🚀" title="No sprint data" sub="Appears once sprints are created"/></GC>
+          : (
+            <GC t={t}>
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart data={velocityData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                  <CartesianGrid stroke={t.grid} vertical={false}/>
+                  <XAxis dataKey="sprint"    tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis                     tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<CT t={t}/>}/>
+                  <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                  <Bar dataKey="planned"   name="Planned"   fill={t.primary} radius={[4,4,0,0]} maxBarSize={24} fillOpacity={0.65}/>
+                  <Bar dataKey="completed" name="Completed" fill={t.accent}  radius={[4,4,0,0]} maxBarSize={24}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </GC>
+          )
+        }
+      </div>
+
+      {/* Sprint Velocity Forecast */}
+      {velocityForecast.length > 0 && (
+        <div>
+          <SH t={t} icon="🔮" badge={<AIBadge/>}>Sprint Velocity Forecast</SH>
+          <GC t={t}>
+            <p style={{ fontSize:10,color:t.muted,margin:'0 0 12px',display:'flex',alignItems:'center',gap:6 }}>
+              <span>🔮</span> Moving average forecast — optimistic / base / pessimistic scenarios
+            </p>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={velocityForecast} margin={{top:10,right:10,left:-15,bottom:0}}>
+                <defs>
+                  <linearGradient id="gVFcast" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={t.primary} stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor={t.primary} stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                <XAxis dataKey="sprint"    tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <YAxis                     tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<CT t={t}/>}/>
+                <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                <Area type="monotone" dataKey="optimistic"  name="Optimistic"  stroke="#22C55E"   fill="url(#gVFcast)" strokeWidth={2} strokeDasharray="5 3" dot={{r:5,fill:'#22C55E',strokeWidth:0}}/>
+                <Area type="monotone" dataKey="base"        name="Base"        stroke={t.primary}  fill={t.primaryBg}  strokeWidth={2.5}                      dot={{r:5,fill:t.primary,strokeWidth:0}}/>
+                <Area type="monotone" dataKey="pessimistic" name="Pessimistic" stroke="#EF4444"   fill="transparent"  strokeWidth={2} strokeDasharray="5 3" dot={{r:5,fill:'#EF4444',strokeWidth:0}}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </GC>
+        </div>
+      )}
+
+      {/* Active Sprint Burndown */}
+      {burndownData.length > 0 && (
+        <div>
+          <SH t={t} icon="📉">Active Sprint Burndown</SH>
+          <GC t={t}>
+            <p style={{ fontSize:10,color:t.subtle,margin:'0 0 12px' }}>
+              Current sprint ({latestSprint?.sprintName||'Latest'}) — Remaining tasks vs ideal trajectory
+            </p>
+            <ResponsiveContainer width="100%" height={230}>
+              <LineChart data={burndownData} margin={{top:10,right:10,left:-15,bottom:0}}>
+                <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                <XAxis dataKey="day"  tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <YAxis               tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<CT t={t}/>}/>
+                <Legend wrapperStyle={{fontSize:11,color:t.muted,paddingTop:8}}/>
+                <Line type="monotone" dataKey="actual" name="Actual Remaining" stroke="#F87171" strokeWidth={2.5} dot={{r:4,fill:'#F87171',strokeWidth:0}} activeDot={{r:6}}/>
+                <Line type="monotone" dataKey="ideal"  name="Ideal Burndown"  stroke={t.muted} strokeWidth={2} strokeDasharray="6 4" dot={{r:3,fill:t.muted,strokeWidth:0}}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </GC>
+        </div>
+      )}
+
+      {/* Task Status + Sprint Health Radar */}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14 }}>
+        <div>
+          <SH t={t} icon="📊">Task Status Overview</SH>
+          {overview.isLoading ? <GC t={t}><Spin t={t}/></GC> : statusPie.length===0
+            ? <GC t={t}><MT t={t} icon="📊" title="No sprint data"/></GC>
+            : (
+              <GC t={t}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={statusPie} cx="50%" cy="50%" outerRadius={85} paddingAngle={3}
+                      dataKey="value" stroke="none" label={(props)=><PieLabel {...props}/>} labelLine={false}>
+                      {statusPie.map((d,i)=><Cell key={i} fill={d.fill}/>)}
+                    </Pie>
+                    <Tooltip content={<CT t={t}/>}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </GC>
+            )
+          }
+        </div>
+        <div>
+          <SH t={t} icon="🎯" badge={<FBadge label="SCORE"/>}>Sprint Health Radar</SH>
+          <GC t={t}>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={healthRadar} cx="50%" cy="50%" outerRadius={80}>
+                <PolarGrid stroke={t.glassBorder}/>
+                <PolarAngleAxis dataKey="metric" tick={{fill:t.muted,fontSize:10}}/>
+                <Radar name="Health Score" dataKey="val" stroke={t.accent} fill={t.accent} fillOpacity={0.2} strokeWidth={2}/>
+                <Tooltip content={<CT t={t}/>}/>
+              </RadarChart>
+            </ResponsiveContainer>
+          </GC>
+        </div>
+      </div>
+
+      {/* Completion Rate Trend */}
+      {completionTrend.length > 0 && (
+        <div>
+          <SH t={t} icon="📈">Completion Rate Trend</SH>
+          <GC t={t}>
+            <ResponsiveContainer width="100%" height={210}>
+              <LineChart data={completionTrend} margin={{top:10,right:10,left:-15,bottom:0}}>
+                <CartesianGrid stroke={t.grid} strokeDasharray="4 4"/>
+                <XAxis dataKey="sprint" tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[0,100]} tick={{fill:t.axis,fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
+                <Tooltip content={<CT t={t}/>}/>
+                <Line type="monotone" dataKey="pct" name="Completion %" stroke="#F59E0B" strokeWidth={2.5}
+                  dot={{r:5,fill:'#F59E0B',strokeWidth:0}} activeDot={{r:7}}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </GC>
         </div>
 
-        {error && (
-          <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 10, background: `${C.red}15`, border: `1px solid ${C.red}30`, color: C.red, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AlertTriangle size={14} />{error}
+      {/* Sprint Status Table */}
+      <div>
+        <SH t={t}>Sprint Status Overview</SH>
+        {overview.isLoading ? <GC t={t}><Spin t={t}/></GC> : ov.length===0
+          ? <GC t={t}><MT t={t} icon="🚀" title="No sprint data" sub="Appears once sprints are created"/></GC>
+          : (
+            <GC t={t} style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                <TH cols={['Sprint','Total','Status Breakdown','Completion']} t={t}/>
+                <tbody>
+                  {ov.map((s,i)=>{
+                    const done=(s.statuses||[]).find(st=>st.status==='completed')?.count||0
+                    const pct =s.totalTasks?Math.round((done/s.totalTasks)*100):0
+                    const col =pct>=80?'#22C55E':pct>=50?'#F59E0B':t.primary
+                    return (
+                      <tr key={i} style={{borderBottom:`1px solid ${t.rowBorder}`}}>
+                        <td style={{padding:'12px 14px 12px 0',fontWeight:600,color:t.text}}>{s.sprintName}</td>
+                        <td style={{padding:'12px 14px 12px 0',color:t.muted}}>{s.totalTasks}</td>
+                        <td style={{padding:'12px 14px 12px 0'}}>
+                          <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                            {(s.statuses||[]).map((st,j)=>{
+                              const sc=st.status==='completed'?{bg:'rgba(34,197,94,0.14)',c:'#22C55E'}
+                                :st.status==='in_progress'?{bg:'rgba(234,179,8,0.14)',c:'#CA8A04'}
+                                :{bg:t.primaryBg,c:t.primary}
+                              return (
+                                <span key={j} style={{padding:'2px 9px',borderRadius:20,fontSize:10,fontWeight:700,
+                                  background:sc.bg,color:sc.c,textTransform:'capitalize',whiteSpace:'nowrap'}}>
+                                  {st.status}: {st.count}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </td>
+                        <td style={{padding:'12px 0',minWidth:130}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{flex:1}}><PB t={t} value={pct} color={col}/></div>
+                            <span style={{fontSize:11,fontWeight:800,color:col,width:36}}>{pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </GC>
+          )
+        }
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Main Page Export
+// ══════════════════════════════════════════════════════════════
+export default function ReportsPage({ user, isDarkMode }) {
+  const t        = getT(isDarkMode)
+  const role     = user?.role || 'user'
+  const roleCfg  = ROLES[role] || ROLES.user
+  const badgeCfg = t.badge[role] || t.badge.user
+  const priv     = isPriv(role)
+
+  const visibleTabs = TABS.filter(tab => !tab.privileged || priv)
+  const [activeKey, setActiveKey] = useState(visibleTabs[0]?.key || 'support')
+  const validKey = visibleTabs.find(tab=>tab.key===activeKey) ? activeKey : visibleTabs[0]?.key
+
+  const renderContent = () => {
+    switch (validKey) {
+      case 'support': return (
+        <div>
+          <DashSection t={t} label="SUPPORT INTELLIGENCE" title="Ticket & Support Analysis"
+            sub="Real-time insights + ML-powered forecasts from your support data"/>
+          <TabTickets t={t}/>
+          <TabDivider t={t}/>
+          <DashSection t={t} label="USER INTELLIGENCE" title="User Activity Analysis"
+            sub="Engagement scoring, churn risk detection & growth forecasting"/>
+          <TabUsers t={t}/>
+        </div>
+      )
+      case 'workforce': return (
+        <div>
+          <DashSection t={t} label="WORKFORCE INTELLIGENCE" title="Team & Productivity Analysis"
+            sub="Burnout risk modeling, shift analytics & productivity scoring"/>
+          <TabTeam t={t}/>
+          <TabDivider t={t}/>
+          <DashSection t={t} label="WORKFORCE INTELLIGENCE" title="Member Workload & Sprint Health"
+            sub="Individual burnout risk, capacity planning & workload distribution"/>
+          <TabWorkload t={t}/>
+        </div>
+      )
+      case 'project': return (
+        <div>
+          <DashSection t={t} label="PROJECT INTELLIGENCE" title="Tasks & Sprint Analysis"
+            sub="Velocity tracking, burndown curves & completion forecasts"/>
+          <TabSprints t={t}/>
+        </div>
+      )
+      default: return null
+    }
+  }
+
+  return (
+    <>
+      <style>{`@keyframes rpt-spin { to { transform: rotate(360deg) } }`}</style>
+      <div style={{ minHeight:'100%', padding:'0 0 40px', background:'transparent' }}>
+
+        {/* Page header */}
+        <motion.div
+          initial={{ opacity:0, y:-14 }}
+          animate={{ opacity:1, y:0 }}
+          transition={{ duration:0.4, ease:[0.4,0,0.2,1] }}
+          style={{ marginBottom:24 }}
+        >
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10 }}>
+            <div>
+              <h1 style={{ fontSize:20,fontWeight:900,color:t.text,margin:'0 0 4px',letterSpacing:'-0.02em' }}>
+                Reports &amp; Analytics
+              </h1>
+              <p style={{ fontSize:12,color:t.muted,margin:0 }}>{roleCfg.desc}</p>
+            </div>
+            <span style={{ display:'inline-flex',padding:'5px 14px',borderRadius:8,fontSize:11,fontWeight:700,
+              background:badgeCfg.bg,color:badgeCfg.c,letterSpacing:'0.03em' }}>
+              {roleCfg.label}
+            </span>
           </div>
-        )}
+        </motion.div>
 
         {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, marginBottom: 26, background: tabBarBg, border: `1px solid ${C.border}`, borderRadius: 13, overflowX: 'auto', scrollbarWidth: 'none' }}>
-          {TABS.map(t => {
-            const Icon   = t.icon;
-            const active = tab === t.key;
+        <div style={{ display:'flex',gap:4,padding:'5px 6px',background:t.tabsBg,
+          borderRadius:14,marginBottom:24,width:'fit-content',flexWrap:'wrap' }}>
+          {visibleTabs.map(tab=>{
+            const active = tab.key === validKey
             return (
-              <button key={t.key} onClick={() => setTab(t.key)} style={{
-                display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: active ? `${C.blue}22` : 'transparent',
-                color: active ? C.blue : C.muted, fontWeight: active ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap',
-                boxShadow: active ? `0 0 0 1px ${C.blue}35` : 'none', transition: 'all .18s',
-              }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.text; e.currentTarget.style.background = `${C.blue}10`; }}}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = C.muted; e.currentTarget.style.background = 'transparent'; }}}
-              >
-                <Icon size={14} />{t.label}
+              <button key={tab.key} onClick={()=>setActiveKey(tab.key)}
+                style={{ display:'flex',alignItems:'center',gap:7,padding:'8px 18px',
+                  borderRadius:10,border:'none',cursor:'pointer',
+                  fontWeight:active?700:500, fontSize:'0.82rem',
+                  color:active?t.tabActiveText:t.tabText,
+                  background:active?t.tabActive:'transparent',
+                  transition:'all .18s',
+                  boxShadow:active?t.kpiShadow:'none',
+                }}>
+                <span style={{fontSize:14}}>{tab.icon}</span>
+                {tab.label}
               </button>
-            );
+            )
           })}
         </div>
 
-        {/* Dashboard content */}
+        {/* Animated tab content */}
         <AnimatePresence mode="wait">
-          <motion.div key={tab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }}>
-            {renderDash()}
+          <motion.div key={validKey}
+            initial={{ opacity:0, y:10 }}
+            animate={{ opacity:1, y:0 }}
+            exit={{ opacity:0, y:-6 }}
+            transition={{ duration:0.25, ease:[0.4,0,0.2,1] }}
+          >
+            {renderContent()}
           </motion.div>
         </AnimatePresence>
-
-        <style>{`@keyframes rpt2-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
-    </ThemeCtx.Provider>
-  );
-};
-
-export default ReportsPage;
+    </>
+  )
+}

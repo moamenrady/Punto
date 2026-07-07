@@ -9,8 +9,10 @@ router.use(authController.protect);
 
 router.get("/me", companyController.getMyCompany);
 
-// Allow any logged-in user to create a company
+// Allow any logged-in user to create, join, or list companies
 router.post("/", companyController.createCompany);
+router.post("/join", companyController.joinCompany);
+router.get("/list", companyController.getAllCompanies);
 
 // Routes restricted to Managers and Admins
 router.post("/add-user", authController.restrictTo("admin", "manager"), companyController.addUserToCompany);

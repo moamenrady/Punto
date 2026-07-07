@@ -16,6 +16,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
     const [form, setForm]       = useState(makeEmpty);
     const [errors, setErrors]   = useState({});
     const [touched, setTouched] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Reset form when modal opens or defaults change
     useEffect(() => {
@@ -57,7 +58,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
         setErrors(prev => ({ ...prev, [field]: validate(field, form[field]) }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => { 
         e.preventDefault();
         const requiredFields = ['name', 'backlogId', 'priority'];
         const newErrors = {};
@@ -72,7 +73,9 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
         setTouched({ name: true, backlogId: true, priority: true, description: true });
         if (Object.keys(newErrors).length) return;
 
-        onSubmit({
+        setIsSubmitting(true);
+try {
+    await onSubmit({
             backlogId:   form.backlogId,
             name:        form.name.trim(),
             description: form.description.trim(),
@@ -80,13 +83,16 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
             sprintId:    form.sprintId   || undefined,
             assignedTo:  form.assignedTo.length ? form.assignedTo : undefined,
         });
+} finally {
+    setIsSubmitting(false);
+}
     };
 
     const inputClass  = (f) => `ds-input${touched[f] && errors[f] ? ' error' : ''}`;
     const selectClass = (f) => `ds-select${touched[f] && errors[f] ? ' error' : ''}`;
 
-    const showBacklogPicker = !defaultBacklogId;
-
+    
+const showBacklogPicker = !defaultBacklogId || !!defaultSprintId;
     // If sprint was pre-selected, show a read-only label instead of full dropdown
     const sprintPreSelected = !!defaultSprintId;
     const preSelectedSprint = sprints.find(s => s._id === defaultSprintId);
@@ -204,6 +210,7 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
                                     >
                                         <option value="">No sprint</option>
                                         {sprints.map(sp => <option key={sp._id} value={sp._id}>{sp.name}</option>)}
+                                        
                                     </select>
                                 )}
                             </div>
@@ -257,11 +264,11 @@ const CreateTaskModal = ({ isOpen, onClose, onSubmit, backlogs = [], sprints = [
                     <div className="ds-modal-footer">
                         <button type="button" className="ds-btn ds-btn-secondary" onClick={onClose}>Cancel</button>
                         <button
-                            type="submit"
-                            className="ds-btn ds-btn-primary"
-                            disabled={showBacklogPicker && backlogs.length === 0}
-                            style={{ opacity: (showBacklogPicker && backlogs.length === 0) ? 0.5 : 1 }}
-                        >
+    type="submit"
+    className="ds-btn ds-btn-primary"
+    disabled={(showBacklogPicker && backlogs.length === 0) || isSubmitting}
+    style={{ opacity: ((showBacklogPicker && backlogs.length === 0) || isSubmitting) ? 0.5 : 1 }}
+>
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                             </svg>

@@ -17,7 +17,7 @@ const paymentSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["visa", "instapay", "vodafone_cash"],
+      enum: ["visa", "instapay", "vodafone_cash", "fawry"],
       default: "visa"
     },
 
@@ -26,6 +26,9 @@ const paymentSchema = new mongoose.Schema(
       enum: ["pending", "paid"],
       default: "pending"
     },
+
+    paymobOrderId: String,
+    paymobTxnId: String,
 
     expireDate: Date
   },

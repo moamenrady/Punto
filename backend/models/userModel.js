@@ -34,8 +34,8 @@ const userSchema = new mongoose.Schema(
     },
 
     photo: {
-      data: Buffer,
-      contentType: String,
+      type: String,
+      default: "default.jpg", // صورة افتراضية لو اليوزر معندوش
     },
 
     phone: { type: String, default: "" },
@@ -91,14 +91,14 @@ const userSchema = new mongoose.Schema(
     },
     isVerified: {
       type: Boolean,
-      default: true, // Default to true for existing users, we'll set it to false for new signups
+      default: false,
     },
     verificationToken: String,
     verificationExpires: Date,
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // ===============================
@@ -110,7 +110,7 @@ userSchema.pre("save", async function () {
   const counter = await Counter.findOneAndUpdate(
     { name: "user" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   );
 
   this.custom_id = `usr_${counter.seq}`;
@@ -135,7 +135,7 @@ userSchema.pre("save", function () {
 // ===============================
 userSchema.methods.correctPassword = async function (
   candidatePassword,
-  userPassword
+  userPassword,
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
@@ -144,7 +144,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
-      10
+      10,
     );
     return JWTTimestamp < changedTimestamp;
   }

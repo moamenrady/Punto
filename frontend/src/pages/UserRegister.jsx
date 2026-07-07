@@ -55,16 +55,19 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
       );
 
       if (response.data.status === "success") {
-        setSuccessMessage("Account created successfully! Redirecting to login...");
+        setSuccessMessage("Your account has been created! A verification email has been sent. Please check your inbox.");
         setTimeout(() => {
-          navigate("/login");
-        }, 2000);
+          navigate("/verification-sent");
+        }, 3000);
       }
     } catch (err) {
-      setApiError(
-        err.response?.data?.message || "Connection Error (Check CORS)",
-      );
-    } finally {
+  const msg = err.response?.data?.message || "";
+  if (msg.includes("duplicate key") || msg.includes("E11000")) {
+    setApiError("An account with this email already exists.");
+  } else {
+    setApiError(msg || "Something went wrong.");
+  }
+}finally {
       setIsLoading(false);
     }
   };

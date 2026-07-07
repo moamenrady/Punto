@@ -1,6 +1,8 @@
 const Company = require("../models/companyModel");
 const User = require("../models/userModel");
 const Plan = require("../models/Plan");
+const mongoose = require("mongoose");
+const validator = require("validator");
 const factory = require("./handlerFactory");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
@@ -53,21 +55,55 @@ exports.createCompany = catchAsync(async (req, res, next) => {
 
 // ADD USER TO COMPANY
 exports.addUserToCompany = catchAsync(async (req, res, next) => {
-  const { userId } = req.body;
+  const identifier = (req.body.userId || req.body.email || "").trim();
   const companyId = req.params.id || req.user.company_id;
+
+  if (!identifier) {
+    return next(new AppError("Please provide a user id or email", 400));
+  }
 
   const company = await Company.findById(companyId);
   if (!company) return next(new AppError("Company not found", 404));
 
-  if (!company.managers.includes(req.user._id)) {
+  const isManager = company.managers.some((managerId) =>
+    managerId.equals(req.user._id)
+  );
+
+  if (!isManager) {
     return next(new AppError("Only company managers can add users", 403));
   }
 
+  let user;
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    user = await User.findById(identifier);
+  } else {
+    const emailLower = identifier.toLowerCase();
+    user = await User.findOne({ email: emailLower });
+
+    if (!user && validator.isEmail(emailLower)) {
+      // Auto-create user
+      const name = emailLower.split("@")[0];
+      user = await User.create({
+        name,
+        email: emailLower,
+        role: "user",
+        isVerified: true,
+        password: "Password123!",
+        confirmPassword: "Password123!",
+        company_id: companyId,
+      });
+    }
+  }
+
+  if (!user) {
+    return next(new AppError("User not found or invalid email address", 404));
+  }
+
   await Company.findByIdAndUpdate(companyId, {
-    $addToSet: { company_users: userId }
+    $addToSet: { company_users: user._id }
   });
 
-  await User.findByIdAndUpdate(userId, { company_id: companyId });
+  await User.findByIdAndUpdate(user._id, { company_id: companyId });
 
   res.status(200).json({
     status: "success",
@@ -107,6 +143,45 @@ exports.getMyCompany = catchAsync(async (req, res, next) => {
     status: "success",
     data: {
       company,
+    },
+  });
+});
+
+exports.joinCompany = catchAsync(async (req, res, next) => {
+  const { companyId } = req.body;
+
+  if (!companyId) {
+    return next(new AppError("Please provide a company ID", 400));
+  }
+
+  const company = await Company.findById(companyId);
+  if (!company) {
+    return next(new AppError("Company not found", 404));
+  }
+
+  // 1. Add user to the company's company_users list
+  await Company.findByIdAndUpdate(companyId, {
+    $addToSet: { company_users: req.user._id },
+  });
+
+  // 2. Link user to the company and set their role to 'user'
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    { company_id: company._id, role: "user" },
+    { new: true, runValidators: true },
+  );
+
+  res.status(200).json({
+    status: "success",
+    message: "Joined company successfully",
+    data: {
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        company_id: updatedUser.company_id,
+      },
     },
   });
 });

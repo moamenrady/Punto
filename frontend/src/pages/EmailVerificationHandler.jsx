@@ -44,13 +44,13 @@ export default function EmailVerificationHandler({ setUser, theme }) {
 
           setStatus("success");
           
-          // 3. Redirect after a short delay — go to landing page first
+          // 3. Redirect: users without a company go to /setup to complete onboarding
           setTimeout(() => {
-             if (userData.company_id) {
-               navigate(userData.role === "manager" || userData.role === "admin" ? "/control-panel" : "/tickets");
-             } else {
-               navigate("/landing");
-             }
+            if (userData.company_id) {
+              navigate(userData.role === "manager" || userData.role === "admin" ? "/control-panel" : "/tickets");
+            } else {
+              navigate("/setup");
+            }
           }, 2000);
         }
       } catch (err) {
@@ -77,7 +77,7 @@ export default function EmailVerificationHandler({ setUser, theme }) {
           <>
             <CheckCircle className="text-green-500 mb-6 mx-auto" size={64} />
             <h2 className={`text-2xl font-bold mb-2 ${theme.textP}`}>Email Verified!</h2>
-            <p className={`${theme.textM}`}>Your account has been successfully verified. Redirecting you to the dashboard...</p>
+            <p className={`${theme.textM}`}>Your account has been successfully verified. Redirecting you to your workspace...</p>
           </>
         )}
 

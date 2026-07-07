@@ -26,7 +26,9 @@ export default function TicketingPage({
   onOpenCreate,
   onRefresh,
   isLoading,
+  theme,
 }) {
+  const isDark = theme?.bg?.includes('12102A') || theme?.bg?.includes('dark') || document.documentElement.classList.contains('dark');
   const [, setTick] = useState(0);
   const [showClosed, setShowClosed] = useState(false);
   const [showAssignedToMe, setShowAssignedToMe] = useState(false);
@@ -119,21 +121,27 @@ export default function TicketingPage({
     height: isMaximized ? "100%" : "auto"
   };
 
+  const cBg     = isDark ? "#111827" : "#ffffff";
+  const cBorder = isDark ? "#1e2336" : "#E9EBF0";
+  const cHeadBg = isDark ? "#0f1117" : "#F9FAFB";
+  const cText   = isDark ? "#e2e8f0" : "#1F2937";
+  const cMuted  = isDark ? "#64748b" : "#6B7280";
+
   const ticketingBoxStyle = isMaximized
     ? {
-        position: "absolute", // Maximizes only within the ticketing area
+        position: "absolute",
         top: 0, left: 0, right: 0, bottom: 0,
         zIndex: 50,
-        backgroundColor: "white",
+        backgroundColor: cBg,
         display: "flex", flexDirection: "column",
-        borderRadius: "12px", border: "1px solid #E9EBF0",
+        borderRadius: "12px", border: `1px solid ${cBorder}`,
       }
     : {
         borderRadius: "12px",
         display: "flex", flexDirection: "column",
-        backgroundColor: "white", border: "1px solid #E9EBF0",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-        height: isAdmin ? "650px" : "550px", 
+        backgroundColor: cBg, border: `1px solid ${cBorder}`,
+        boxShadow: isDark ? "0 1px 3px rgba(0,0,0,0.4)" : "0 1px 3px rgba(0,0,0,0.1)",
+        height: isAdmin ? "650px" : "550px",
         width: "100%"
       };
 
@@ -146,12 +154,12 @@ export default function TicketingPage({
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px", width: "100%" }}>
               <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#111827", margin: 0, letterSpacing: "-0.02em" }}>
+                <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: isDark ? "#e2e8f0" : "#111827", margin: 0, letterSpacing: "-0.02em" }}>
                   {isAdmin ? "Command Center" : `Welcome back, ${user?.name?.split(' ')[0] || 'User'}!`}
                 </h1>
-                <p style={{ color: "#6B7280", fontSize: "0.95rem", marginTop: 6 }}>
-                  {isAdmin 
-                    ? "System health and infrastructure overview." 
+                <p style={{ color: cMuted, fontSize: "0.95rem", marginTop: 6 }}>
+                  {isAdmin
+                    ? "System health and infrastructure overview."
                     : "Need a hand? Create a ticket and we'll get you sorted."}
                 </p>
               </div>
@@ -180,13 +188,13 @@ export default function TicketingPage({
 
         <div style={ticketingBoxStyle}>
           {/* Box Header */}
-          <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ padding: "18px 24px", borderBottom: `1px solid ${cBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#7F6FF5" }}></div>
-              <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#1F2937", margin: 0 }}>
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: cText, margin: 0 }}>
                 {isAdmin ? "System-Wide Tickets" : "Your Service History"}
               </h2>
-              <span style={{ fontSize: "0.75rem", color: "#7F6FF5", fontWeight: 700, backgroundColor: "#EEF2FF", padding: "4px 10px", borderRadius: "20px" }}>
+              <span style={{ fontSize: "0.75rem", color: "#7F6FF5", fontWeight: 700, backgroundColor: isDark ? "rgba(127,111,245,0.15)" : "#EEF2FF", padding: "4px 10px", borderRadius: "20px" }}>
                 {filteredTickets.length}
               </span>
             </div>
@@ -195,25 +203,25 @@ export default function TicketingPage({
               {isAdmin && (
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button onClick={() => { setShowOpenOnly(!showOpenOnly); setShowClosed(false); setShowAssignedToMe(false); }}
-                    style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #E5E7EB", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", backgroundColor: showOpenOnly ? "#10B981" : "white", color: showOpenOnly ? "white" : "#4B5563" }}>
+                    style={{ padding: "6px 14px", borderRadius: "8px", border: `1px solid ${cBorder}`, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", backgroundColor: showOpenOnly ? "#10B981" : cBg, color: showOpenOnly ? "white" : cMuted }}>
                     Open Tickets
                   </button>
                   <button onClick={() => { setShowAssignedToMe(!showAssignedToMe); setShowClosed(false); setShowOpenOnly(false); }}
-                    style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #E5E7EB", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", backgroundColor: showAssignedToMe ? "#7F6FF5" : "white", color: showAssignedToMe ? "white" : "#4B5563" }}>
+                    style={{ padding: "6px 14px", borderRadius: "8px", border: `1px solid ${cBorder}`, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", backgroundColor: showAssignedToMe ? "#7F6FF5" : cBg, color: showAssignedToMe ? "white" : cMuted }}>
                     My Tasks
                   </button>
                 </div>
               )}
-              
-              <button 
+
+              <button
                 onClick={() => setIsMaximized(!isMaximized)}
                 style={{
                   padding: "8px",
                   borderRadius: "10px",
-                  border: "1px solid #E5E7EB",
-                  backgroundColor: "white",
+                  border: `1px solid ${cBorder}`,
+                  backgroundColor: cBg,
                   display: "flex",
-                  color: "#6B7280",
+                  color: cMuted,
                   cursor: "pointer",
                   transition: "all 0.2s"
                 }}
@@ -238,12 +246,12 @@ export default function TicketingPage({
               </div>
             ) : filteredTickets.length > 0 ? (
               <div style={{ minWidth: "1100px" }}>
-                <div style={{ 
-                  display: "grid", 
-                  gridTemplateColumns: "100px 3fr 1fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr", 
-                  gap: "16px", padding: "12px 24px", 
-                  backgroundColor: "#F9FAFB", borderBottom: "1px solid #E9EBF0",
-                  fontSize: "0.75rem", fontWeight: 700, color: "#4B5563", textTransform: "uppercase",
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "100px 3fr 1fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr",
+                  gap: "16px", padding: "12px 24px",
+                  backgroundColor: cHeadBg, borderBottom: `1px solid ${cBorder}`,
+                  fontSize: "0.75rem", fontWeight: 700, color: isDark ? "#64748b" : "#4B5563", textTransform: "uppercase",
                   position: "sticky", top: 0, zIndex: 10
                 }}>
                   <span>ID</span>

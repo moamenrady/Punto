@@ -41,6 +41,7 @@ const ALL_NAV_ITEMS = [
       </svg>
     ),
   },
+
   {
     to: '/chatmodal',
     label: 'Group Chat',
@@ -63,6 +64,18 @@ const ALL_NAV_ITEMS = [
       </svg>
     ),
   },
+    
+  {
+  to: '/control-panel',
+  label: 'Control Panel',
+  adminOnly: true,
+  icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  ),
+},
   {
     to: '/settings',
     label: 'Settings',
@@ -76,14 +89,14 @@ const ALL_NAV_ITEMS = [
   },
 ];
 
-const Sidebar = ({ user, company }) => {
+const Sidebar = ({ user, company, isDarkMode }) => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
   );
 
   const activeFeatures = company?.plan_id?.features || [];
-  
+
   const navItems = ALL_NAV_ITEMS.filter(item => {
     if (item.adminOnly) return user?.role === 'admin' || user?.role === 'manager';
     return item.alwaysShow || activeFeatures.includes(item.featureName);
@@ -104,6 +117,25 @@ const Sidebar = ({ user, company }) => {
 
   const W = collapsed ? 72 : 260;
 
+  // ── theme tokens ──────────────────────────────────────────────
+  const d = isDarkMode;
+  const sBg      = d ? '#0f1117'                    : '#ffffff';
+  const sBorder  = d ? '#1e2336'                    : '#E9EBF0';
+  const sText    = d ? '#e2e8f0'                    : '#111827';
+  const sMuted   = d ? '#64748b'                    : '#9CA3AF';
+  const sHdrBg   = d ? '#1a1f2e'                    : '#F9FAFB';
+  const navActive= d ? '#a5b4fc'                    : '#534AB7';
+  const navActBg = d ? 'rgba(99,102,241,0.15)'      : '#EEF1FD';
+  const navActBdr= d ? 'rgba(99,102,241,0.3)'       : '#C7D2F8';
+  const navIdle  = d ? '#94a3b8'                    : '#6B7280';
+  const navHvBg  = d ? 'rgba(99,102,241,0.08)'      : '#F5F6FF';
+  const navHvClr = d ? '#a5b4fc'                    : '#534AB7';
+  const grpTxt   = d ? '#475569'                    : '#9CA3AF';
+  const grpLine  = d ? '#1e2336'                    : '#F3F4F6';
+  const toggleBg = d ? '#1a1f2e'                    : '#fff';
+  const toggleBdr= d ? '#3730a3'                    : '#DDD9FF';
+  // ─────────────────────────────────────────────────────────────
+
   return (
     <div style={{
       position: 'relative',
@@ -114,14 +146,14 @@ const Sidebar = ({ user, company }) => {
       transition: 'width .28s cubic-bezier(.4,0,.2,1), min-width .28s cubic-bezier(.4,0,.2,1)',
     }}>
 
-      <aside style={{
+      <aside className="sidebar" style={{
         width: '100%',
         height: '100%',
-        background: '#ffffff',
-        borderRight: '1px solid #E9EBF0',
+        background: sBg,
+        borderRight: `1px solid ${sBorder}`,
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '2px 0 8px rgba(0,0,0,0.04)',
+        boxShadow: d ? '2px 0 8px rgba(0,0,0,0.3)' : '2px 0 8px rgba(0,0,0,0.04)',
         overflow: 'hidden',
         position: 'absolute',
         top: 0, left: 0, bottom: 0,
@@ -132,7 +164,7 @@ const Sidebar = ({ user, company }) => {
           padding: collapsed ? '0 16px' : '0 20px',
           display: 'flex', alignItems: 'center',
           gap: 10,
-          borderBottom: '1px solid #E9EBF0',
+          borderBottom: `1px solid ${sBorder}`,
           minHeight: 64,
           transition: 'padding .28s',
         }}>
@@ -164,6 +196,15 @@ const Sidebar = ({ user, company }) => {
           transition: 'padding .28s',
         }}>
           {navItems.map(item => {
+            // Section header (no route)
+            if (item.isGroupHeader) {
+              return !collapsed ? (
+                <div key={item.label} style={{ padding:'10px 4px 4px', fontSize:10, fontWeight:700, color:grpTxt, textTransform:'uppercase', letterSpacing:'0.1em' }}>
+                  {item.label}
+                </div>
+              ) : <div key={item.label} style={{ borderTop:`1px solid ${grpLine}`, margin:'6px 0' }} />;
+            }
+
             const inner = (active = false) => (
               <div
                 title={collapsed ? item.label : undefined}
@@ -172,16 +213,16 @@ const Sidebar = ({ user, company }) => {
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   gap: 11,
                   padding: collapsed ? '11px 0' : '10px 13px',
-                  color: active ? '#534AB7' : '#6B7280',
+                  color: active ? navActive : navIdle,
                   borderRadius: 12, cursor: 'pointer',
                   fontWeight: active ? 700 : 500, fontSize: '0.875rem',
-                  background: active ? '#EEF1FD' : 'transparent',
-                  border: `1px solid ${active ? '#C7D2F8' : 'transparent'}`,
+                  background: active ? navActBg : 'transparent',
+                  border: `1px solid ${active ? navActBdr : 'transparent'}`,
                   transition: 'all .18s',
                   whiteSpace: 'nowrap', overflow: 'hidden',
                 }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.background='#F5F6FF'; e.currentTarget.style.color='#534AB7'; }}}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='#6B7280'; }}}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background=navHvBg; e.currentTarget.style.color=navHvClr; }}}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color=navIdle; }}}
               >
                 <span style={{ flexShrink:0, display:'flex', width:18, height:18 }}>
                   {item.icon}
@@ -207,17 +248,17 @@ const Sidebar = ({ user, company }) => {
 
         {/* Bottom */}
         <div style={{
-          borderTop: '1px solid #E9EBF0',
+          borderTop: `1px solid ${sBorder}`,
           padding: collapsed ? '10px 8px' : '10px 10px',
           display: 'flex', flexDirection: 'column', gap: 6,
           transition: 'padding .28s',
         }}>
           {user && !collapsed && (
-            <div style={{ display:'flex', alignItems:'center', gap:9, padding:'7px 9px', background:'#F9FAFB', borderRadius:10 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:9, padding:'7px 9px', background:sHdrBg, borderRadius:10 }}>
               <Avatar photo={user?.avatar || user?.photo} name={user?.name} size={30} style={{ borderRadius:'50%', flexShrink:0 }} />
               <div style={{ minWidth:0 }}>
-                <p style={{ margin:0, fontSize:'0.8rem', fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</p>
-                <p style={{ margin:0, fontSize:'0.68rem', color:'#9CA3AF', textTransform:'capitalize' }}>{user.role}</p>
+                <p style={{ margin:0, fontSize:'0.8rem', fontWeight:700, color:sText, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</p>
+                <p style={{ margin:0, fontSize:'0.68rem', color:sMuted, textTransform:'capitalize' }}>{user.role}</p>
               </div>
             </div>
           )}
@@ -225,7 +266,7 @@ const Sidebar = ({ user, company }) => {
             onClick={handleLogout}
             title={collapsed ? 'Log Out' : undefined}
             style={{ display:'flex', alignItems:'center', justifyContent: collapsed?'center':'flex-start', gap:10, padding: collapsed?'10px 0':'9px 13px', color:'#EF4444', borderRadius:10, cursor:'pointer', fontWeight:600, fontSize:'0.875rem', border:'1px solid transparent', transition:'background .18s, border-color .18s', whiteSpace:'nowrap', overflow:'hidden' }}
-            onMouseEnter={e=>{ e.currentTarget.style.background='#FEF2F2'; e.currentTarget.style.borderColor='#FECACA'; }}
+            onMouseEnter={e=>{ e.currentTarget.style.background= d ? 'rgba(239,68,68,0.12)' : '#FEF2F2'; e.currentTarget.style.borderColor= d ? 'rgba(239,68,68,0.3)' : '#FECACA'; }}
             onMouseLeave={e=>{ e.currentTarget.style.background=''; e.currentTarget.style.borderColor='transparent'; }}
           >
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
@@ -249,9 +290,9 @@ const Sidebar = ({ user, company }) => {
           width: 28,
           height: 28,
           borderRadius: '50%',
-          background: '#fff',
-          border: '1.5px solid #DDD9FF',
-          boxShadow: '0 2px 8px rgba(83,74,183,0.18), 0 1px 3px rgba(0,0,0,0.1)',
+          background: toggleBg,
+          border: `1.5px solid ${toggleBdr}`,
+          boxShadow: d ? '0 2px 8px rgba(0,0,0,0.4)' : '0 2px 8px rgba(83,74,183,0.18), 0 1px 3px rgba(0,0,0,0.1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

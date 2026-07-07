@@ -25,7 +25,24 @@ const priorityBg = {
 };
 const ACCENT_BG = "#F5F4FF";
 
-const TicketRow = ({ t }) => {
+// Derive dark-mode variants at call time
+const getThemeTokens = (theme) => {
+  const d = theme?.bg?.includes('12102A') || document.documentElement.classList.contains('dark');
+  return {
+    isDark: d,
+    panelBg:  d ? '#111827' : '#ffffff',
+    accentBg: d ? '#1a1f2e' : '#F5F4FF',
+    cardBg:   d ? '#1a1f2e' : '#ffffff',
+    cardBdr:  d ? '#1e2336' : '#EDE9FE',
+    textP:    d ? '#e2e8f0' : '#1F2937',
+    textM:    d ? '#94a3b8' : '#6B7280',
+    inputBg:  d ? '#0f1117' : '#F9FAFB',
+    inputBdr: d ? '#1e2336' : '#E5E7EB',
+    rowBdr:   d ? '#1e2336' : '#F3F4F6',
+  };
+};
+
+const TicketRow = ({ t, tk = {} }) => {
   const p = t.priority?.toLowerCase();
   return (
     <div
@@ -35,8 +52,8 @@ const TicketRow = ({ t }) => {
         alignItems: "center",
         padding: "11px 16px",
         borderRadius: "14px",
-        border: "1px solid #EDE9FE",
-        backgroundColor: "#fff",
+        border: `1px solid ${tk.cardBdr || "#EDE9FE"}`,
+        backgroundColor: tk.cardBg || "#fff",
       }}
     >
       <div style={{ display: "flex", gap: "10px", minWidth: 0 }}>
@@ -95,13 +112,14 @@ export default function UserProfileModal({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
-  
-  const canEdit = user?.email === currentUser?.email || user?._id === currentUser?._id;
+
+  const canEdit =
+    user?.email === currentUser?.email || user?._id === currentUser?._id;
 
   const handleSaveInfo = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/users/me`, {
+      const res = await fetch(`http://localhost:5000/api/v1/users/me/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -128,21 +146,48 @@ export default function UserProfileModal({
     }
   };
 
+  // const handleAvatarUpload = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   const fData = new FormData();
+  //   fData.append("photo", file);
+  //   try {
+  //     const res = await fetch(`http://localhost:5000/api/v1/users/me/avatar`, {
+  //       method: "PATCH",
+  //       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  //       body: fData,
+  //     });
+  //     const data = await res.json();
+  //     if (data?.data?.photo) {
+  //       setFormData((prev) => ({ ...prev, photo: data.data.photo }));
+  //       if (setUser) setUser(data.data.doc);
+  //     }
+  //   } catch (err) {
+  //     console.error(err);
+  //   }
+  // };
+
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const fData = new FormData();
     fData.append("photo", file);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/users/me/avatar`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        body: fData,
-      });
+      // 1. المسار الجديد
+      const res = await fetch(
+        `http://localhost:5000/api/v1/users/me/profile/avatar`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          body: fData,
+        },
+      );
       const data = await res.json();
-      if (data?.data?.photo) {
-        setFormData(prev => ({ ...prev, photo: data.data.photo }));
-        if (setUser) setUser(data.data.doc);
+
+      // 2. قراءة الداتا من أوبجيكت اليوزر المحدث
+      if (data?.data?.user?.photo) {
+        setFormData((prev) => ({ ...prev, photo: data.data.user.photo }));
+        if (setUser) setUser(data.data.user); // تمرير اليوزر كامل عشان الـ Context أو الستيت
       }
     } catch (err) {
       console.error(err);
@@ -168,6 +213,8 @@ export default function UserProfileModal({
   const resolvedCount = userTickets.filter(
     (t) => t.status?.toLowerCase() === "closed",
   ).length;
+
+  const tk = getThemeTokens(theme);
 
   if (isMe) {
     return createPortal(
@@ -202,8 +249,8 @@ export default function UserProfileModal({
                 bottom: 0,
                 zIndex: 99999,
                 width: "420px",
-                backgroundColor: "#fff",
-                boxShadow: "-20px 0 60px rgba(0,0,0,0.1)",
+                backgroundColor: tk.panelBg,
+                boxShadow: tk.isDark ? "-20px 0 60px rgba(0,0,0,0.5)" : "-20px 0 60px rgba(0,0,0,0.1)",
                 display: "flex",
                 flexDirection: "column",
                 overflowY: "auto",
@@ -226,7 +273,7 @@ export default function UserProfileModal({
                     {/* top */}
                     <div
                       style={{
-                        backgroundColor: ACCENT_BG,
+                        backgroundColor: tk.accentBg,
                         padding: "36px 28px 28px",
                       }}
                     >
@@ -405,7 +452,14 @@ export default function UserProfileModal({
 
                     {/* personal info */}
                     <div style={{ padding: "20px 28px 0" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "16px",
+                        }}
+                      >
                         <p
                           style={{
                             fontSize: "10px",
@@ -523,11 +577,20 @@ export default function UserProfileModal({
                               gap: 10,
                             }}
                           >
-                            <item.icon size={15} color="#8A9FE8" style={{ flexShrink: 0 }} />
+                            <item.icon
+                              size={15}
+                              color="#8A9FE8"
+                              style={{ flexShrink: 0 }}
+                            />
                             {isEditing ? (
                               <input
                                 value={item.val ?? ""}
-                                onChange={(e) => setFormData({ ...formData, [item.key]: e.target.value })}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    [item.key]: e.target.value,
+                                  })
+                                }
                                 style={{
                                   fontSize: "13px",
                                   padding: "4px 8px",

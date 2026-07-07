@@ -1,12 +1,12 @@
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
-// const Message = require('./models/Message'); 
+// const Message = require('./models/Message');
 
 dotenv.config({ path: "./config.env" });
 console.log("MONGO_URL =", process.env.MONGO_URL);
 const DB = process.env.MONGO_URL.replace(
   "<PASSWORD>",
-  process.env.DATABASE_PASSWORD || ""
+  process.env.DATABASE_PASSWORD || "",
 );
 
 // Connect to MongoDB
@@ -35,32 +35,32 @@ const server = app.listen(port, () => {
   console.log(`🚀 App running on port ${port}...`);
 });
 
-const io = require('socket.io')(server, {
-  cors: { origin: "*" } // عشان م يحصلش مشاكل مع الـ Frontend
+const io = require("socket.io")(server, {
+  cors: { origin: "*" }, // عشان م يحصلش مشاكل مع الـ Frontend
 });
 
-const Message = require('./models/Message'); // الموديل اللي ظبطناه
+const Message = require("./models/Message"); // الموديل اللي ظبطناه
 
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
 
   // 1. اليوزر بينضم لغرفة الشات
-  socket.on('join_chat', (chatId) => {
+  socket.on("join_chat", (chatId) => {
     socket.join(chatId);
     console.log(`User joined chat room: ${chatId}`);
   });
 
   // Backward compatibility
-  socket.on('join_team', (teamId) => {
+  socket.on("join_team", (teamId) => {
     socket.join(teamId);
     console.log(`User joined team room: ${teamId}`);
   });
 
   // 2. استقبال رسالة جديدة
-  socket.on('send_message', async (data) => {
+  socket.on("send_message", async (data) => {
     try {
       const { teamId, chatId, senderId, senderName, text } = data;
-      
+
       const room = chatId || teamId;
 
       // حفظ في الداتابيز
@@ -69,18 +69,18 @@ io.on('connection', (socket) => {
         chatId: room,
         senderId,
         senderName,
-        text
+        text,
       });
 
       // إرسال الرسالة لكل اللي في الغرفة
-      io.to(room).emit('receive_message', savedMessage);
+      io.to(room).emit("receive_message", savedMessage);
     } catch (err) {
       console.error("Socket Error:", err);
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
   });
 });
 

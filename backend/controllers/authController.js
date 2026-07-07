@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const crypto = require("crypto");
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -11,22 +12,54 @@ const signToken = (id) =>
 // don't forget to make createSendToken function later
 
 exports.signup = catchAsync(async (req, res, next) => {
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
     passwordChangedAt: Date.now(),
     confirmPassword: req.body.confirmPassword,
-    role: req.body.role,
+    role: req.body.role || "user",
+    isVerified: false,
+    verificationToken: hashedToken,
+    verificationExpires: Date.now() + 24 * 60 * 60 * 1000,
   });
 
-  const token = signToken(newUser._id);
+  const frontendURL = process.env.FRONTEND_URL || "http://localhost:5175";
+  const verifyURL = `${frontendURL}/verify-email/${verificationToken}`;
+
+  console.log("-----------------------------------------");
+  console.log("📨 VERIFICATION LINK FOR NEW SIGNUP:");
+  console.log(verifyURL);
+  console.log("-----------------------------------------");
+
+  try {
+    const sendEmail = require("../utils/email");
+    await sendEmail({
+      email: newUser.email,
+      subject: "Verify your email address",
+      message: `Welcome to Punto! Please verify your email by clicking on this link: ${verifyURL}\n\nThis link is valid for 24 hours.`,
+    });
+  } catch (err) {
+    console.error("❌ Failed to send verification email:", err.message);
+  }
+
 
   res.status(201).json({
     status: "success",
-    token,
+    message: "Verification email sent! Please check your inbox to verify your account.",
     data: {
-      user: newUser,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        isVerified: false,
+      },
     },
   });
 });
@@ -53,7 +86,9 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // 4) check if verified
   if (user.isVerified === false) {
-    return next(new AppError("Please verify your email address before logging in.", 401));
+    return next(
+      new AppError("Please verify your email address before logging in.", 401),
+    );
   }
 
   // 5) send token
@@ -115,18 +150,34 @@ exports.protect = catchAsync(async (req, res, next) => {
   // (e.g. profileRouter mounted at /api/v1/users/me sees req.path as "/")
   const cleanPath = req.originalUrl.split("?")[0];
   if (currentUser.isVerified === false && cleanPath !== "/api/v1/users/me") {
-    return next(new AppError("Please verify your email address to access this resource.", 401));
+    return next(
+      new AppError(
+        "Please verify your email address to access this resource.",
+        401,
+      ),
+    );
   }
 
   // 6) grant access
   req.user = currentUser;
+
+  // console.log("=============================");
+  // console.log("USER:", req.user);
+  // console.log("ROLE:", req.user?.role);
+  // console.log("COMPANY:", req.user?.company_id);
+  // console.log("=============================");
 
   // 6) Verify company membership (Extra Security)
   if (currentUser.company_id) {
     const Company = require("../models/companyModel");
     const company = await Company.findById(currentUser.company_id);
     if (company && !company.company_users.includes(currentUser._id)) {
-      return next(new AppError("Security alert: You are not officially registered in this company's user list.", 403));
+      return next(
+        new AppError(
+          "Security alert: You are not officially registered in this company's user list.",
+          403,
+        ),
+      );
     }
   }
 
@@ -187,8 +238,6 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
     message: "Token sent to email!",
   });
 });
-
-const crypto = require("crypto");
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
   // 1) Hash token from params
@@ -264,15 +313,13 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
   });
 });
 
-
 exports.getMe = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
   res.status(200).json({
     status: "success",
-    data: { user }
+    data: { user },
   });
 });
-
 
 //update-pass
 exports.updateMe = catchAsync(async (req, res, next) => {
@@ -288,38 +335,40 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     if (req.body[field] !== undefined) filteredBody[field] = req.body[field];
   });
 
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user.id,
-    filteredBody,
-    { new: true, runValidators: true }
-  );
+  const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
+    new: true,
+    runValidators: true,
+  });
 
   res.status(200).json({
     status: "success",
-    data: { user: updatedUser }
+    data: { user: updatedUser },
   });
 });
 exports.checkFeature = (featureName) => {
   return async (req, res, next) => {
     const user = await User.findById(req.user.id).populate({
-      path: 'company_id',
-      populate: { path: 'plan_id' }
+      path: "company_id",
+      populate: { path: "plan_id" },
     });
 
     if (!user) {
-      return res.status(401).json({ status: "fail", message: "User not found" });
+      return res
+        .status(401)
+        .json({ status: "fail", message: "User not found" });
     }
 
     // 1) Check direct user features
     const hasFeature = user.features.includes(featureName);
-    
+
     // 2) Check company plan features
-    const hasPlanFeature = user.company_id?.plan_id?.features?.includes(featureName);
+    const hasPlanFeature =
+      user.company_id?.plan_id?.features?.includes(featureName);
 
     if (!hasFeature && !hasPlanFeature) {
       return res.status(403).json({
         status: "fail",
-        message: `You did not purchase this feature: ${featureName}`
+        message: `You did not purchase this feature: ${featureName}`,
       });
     }
 
