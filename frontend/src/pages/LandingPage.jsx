@@ -100,11 +100,16 @@ import "./LandingPage.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) {
+export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user, setUser }) {
   const containerRef = useRef(null);
   const visualRef = useRef(null);
   const panelsRef = useRef(null);
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    setUser(null);
+    navigate("/login");
+  };
 
   // Redirect if already in a company
   useEffect(() => {
@@ -635,8 +640,15 @@ export default function LandingPage({ isDarkMode, setIsDarkMode, theme, user }) 
                 </svg>
                 Hi, {user.name?.split(" ")[0]}
               </span>
+              <button
+                onClick={handleLogout}
+                className="btn-sm-outline flex items-center justify-center"
+              >
+                Log Out
+              </button>
               <Link
-                to="/create-company"
+                to="/setup"
+                state={{ forceWizard: true }}
                 className="btn-sm-primary flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">

@@ -4,8 +4,18 @@ import { Mail, ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DarkLogo, LightLogo } from "../components/logo";
 
-export default function VerificationSent({ isDarkMode, theme }) {
+export default function VerificationSent({ isDarkMode, theme, user }) {
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (user) {
+      if (user.company_id) {
+        navigate(user.role === "manager" || user.role === "admin" ? "/control-panel" : "/tickets");
+      } else {
+        navigate("/setup");
+      }
+    }
+  }, [user, navigate]);
 
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-all duration-500 ${theme.bg}`}>
@@ -44,7 +54,7 @@ export default function VerificationSent({ isDarkMode, theme }) {
 
           <div className="space-y-4">
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => navigate("/login")}
               className={`w-full py-4 rounded-xl text-white font-bold text-[15px] bg-gradient-to-r ${theme.btn} shadow-lg hover:scale-[1.02] transition-transform`}
             >
               I've verified my email

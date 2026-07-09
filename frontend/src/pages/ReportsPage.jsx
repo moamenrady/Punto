@@ -1163,6 +1163,7 @@ function TabSprints({ t }) {
             </ResponsiveContainer>
           </GC>
         </div>
+      )}
 
       {/* Sprint Status Table */}
       <div>
