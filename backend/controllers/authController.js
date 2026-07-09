@@ -104,6 +104,10 @@ exports.login = catchAsync(async (req, res, next) => {
         email: user.email,
         role: user.role,
         company_id: user.company_id,
+        photo: user.photo,
+        phone: user.phone,
+        dept: user.dept,
+        location: user.location,
       },
     },
   });
@@ -308,6 +312,10 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
         email: user.email,
         role: user.role,
         company_id: user.company_id,
+        photo: user.photo,
+        phone: user.phone,
+        dept: user.dept,
+        location: user.location,
       },
     },
   });
