@@ -8,20 +8,6 @@ import ViewTaskModal from './ViewTaskModal';
 import StockUsageConfirmModal from './StockUsageConfirmModal';
 import Toast, { useToast } from './Toast';
 import { SystemAdmin } from '../services/aiOpsService';
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import "../dashboard.css";
-import { projectService } from "../services/projectService";
-import {
-  DndContext,
-  DragOverlay,
-  rectIntersection,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import ViewTaskModal from "./ViewTaskModal";
 
 // ─── Shift config ──────────────────────────────────────────────────────────────
 const SHIFT_CFG = {
@@ -506,8 +492,6 @@ const UserDashboard = ({ user }) => {
   const [stockPrompt,     setStockPrompt]     = useState(null); // { taskName, items } | null
 
   const { toasts, close: closeToast, success: toastSuccess, info: toastInfo, error: toastError } = useToast();
-  const [viewTask, setViewTask] = useState(null);
-  const [activeDragId, setActiveDragId] = useState(null);
 
   const weekStart = useMemo(() => {
     const base = getSundayOfWeek();
@@ -743,23 +727,14 @@ const UserDashboard = ({ user }) => {
             }}
           >
             <div>
-              <h1
-                style={{
-                  margin: "0 0 4px",
-                  fontSize: "1.15rem",
-                  fontWeight: 800,
-                  color: "#111827",
-                }}
-              >
-<h1 style={{ margin:'0 0 4px', fontSize:'1.15rem', fontWeight:800, color:'#111827', display:'flex', alignItems:'center', gap:6 }}>
-  Welcome, {user?.name?.split(' ')[0]}{' '}
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>
-    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-    <line x1="9" y1="9" x2="9.01" y2="9"/>
-    <line x1="15" y1="9" x2="15.01" y2="9"/>
-  </svg>
-</h1>
+              <h1 style={{ margin:'0 0 4px', fontSize:'1.15rem', fontWeight:800, color:'#111827', display:'flex', alignItems:'center', gap:6 }}>
+                Welcome, {user?.name?.split(' ')[0]}{' '}
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                  <line x1="9" y1="9" x2="9.01" y2="9"/>
+                  <line x1="15" y1="9" x2="15.01" y2="9"/>
+                </svg>
               </h1>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "#9CA3AF" }}>
                 {activeSprint

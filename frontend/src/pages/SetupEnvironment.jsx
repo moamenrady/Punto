@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import {
   Building2,
@@ -29,6 +29,10 @@ import {
 
 export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, user, setUser }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [forceShowWizard, setForceShowWizard] = useState(
+    () => location.state?.forceWizard || false
+  );
   const [step, setStep] = useState(1);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [plans, setPlans] = useState([]);
@@ -86,7 +90,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
   const [joinError, setJoinError] = useState("");
   const [listLoading, setListLoading] = useState(false);
 
-  const isManager = user?.role === "manager" || user?.role === "admin";
+  const isManager = user?.role === "manager" || user?.role === "admin" || forceShowWizard;
 
   // Fetch plans (for managers) and companies (for users)
   useEffect(() => {
@@ -419,6 +423,11 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
   // REGULAR USER VIEW (Join Company)
   // ─────────────────────────────────────────────
   if (!isManager) {
+    const handleLogout = () => {
+      setUser(null);
+      navigate("/login");
+    };
+
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-all duration-500 ${theme.bg}`}>
         <button
@@ -431,25 +440,47 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
         <div className="w-full max-w-[480px]">
           <div className={`p-8 rounded-[32px] border shadow-2xl text-center flex flex-col items-center justify-center ${isDarkMode ? "bg-[#1E1B3A] border-[#2E2B5A]" : "bg-white border-[#DDD9FF]"}`}>
             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${isDarkMode ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" : "bg-purple-50 text-purple-600 border border-purple-100"}`}>
-              <Clock size={32} className="animate-pulse" />
+              <Building2 size={32} className="animate-pulse" />
             </div>
 
             <h1 className="text-2xl font-bold mb-3" style={{ color: isDarkMode ? "#E2E0FF" : "#1E1B3A" }}>
-              Waiting for Approval
+              Not in a Company Yet
             </h1>
             
             <p className={`text-sm mb-8 leading-relaxed px-2 ${theme.textM}`}>
-              Your account has been verified! Please wait until your company manager adds you to their organization to access the workspace.
+              You are not associated with any company workspace yet. Please ask your administrator to add you to their company organization to access the dashboard.
             </p>
 
-            <motion.button
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/landing")}
-              className={`w-full py-3.5 rounded-xl text-white font-bold text-[14px] bg-gradient-to-r ${theme.btn} shadow-lg flex items-center justify-center gap-2`}
-            >
-              Go to Landing Page
-            </motion.button>
+            <div className="w-full space-y-3">
+              <motion.button
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setForceShowWizard(true)}
+                className={`w-full py-3.5 rounded-xl text-white font-bold text-[14px] bg-gradient-to-r ${theme.btn} shadow-lg flex items-center justify-center gap-2`}
+              >
+                Create a New Company
+              </motion.button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <motion.button
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => navigate("/landing")}
+                  className={`py-3 rounded-xl font-bold text-[13px] border ${isDarkMode ? "border-[#2E2B5A] text-[#E2E0FF] hover:bg-[#2E2B5A]/30" : "border-[#DDD9FF] text-[#534AB7] hover:bg-[#DDD9FF]/20"} transition-all flex items-center justify-center gap-1.5`}
+                >
+                  Landing Page
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleLogout}
+                  className={`py-3 rounded-xl font-bold text-[13px] border ${isDarkMode ? "border-[#2E2B5A] text-[#E2E0FF] hover:bg-[#2E2B5A]/30" : "border-[#DDD9FF] text-[#534AB7] hover:bg-[#DDD9FF]/20"} transition-all flex items-center justify-center gap-1.5`}
+                >
+                  Log Out
+                </motion.button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
