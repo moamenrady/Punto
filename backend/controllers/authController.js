@@ -153,7 +153,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   // req.path is NOT reliable here because it's relative to the router mount point
   // (e.g. profileRouter mounted at /api/v1/users/me sees req.path as "/")
   const cleanPath = req.originalUrl.split("?")[0];
-  if (currentUser.isVerified === false && cleanPath !== "/api/v1/users/me") {
+  if (currentUser.isVerified === false && !cleanPath.startsWith("/api/v1/users/me")) {
     return next(
       new AppError(
         "Please verify your email address to access this resource.",
