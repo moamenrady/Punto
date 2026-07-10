@@ -35,6 +35,31 @@ Router.post("/forgotPassword", authController.forgetPassword);
 Router.patch("/resetPassword/:token", authController.resetPassword);
 Router.get("/verifyEmail/:token", authController.verifyEmail);
 
+Router.get("/test-email", async (req, res) => {
+  try {
+    const sendEmail = require("../utils/email");
+    const testEmail = req.query.email || "mon0995020@gmail.com";
+    console.log(`🧪 Running test-email endpoint for: ${testEmail}`);
+    await sendEmail({
+      email: testEmail,
+      subject: "Test Email from Punto",
+      message: "If you receive this, it means your SMTP configuration is working perfectly on Railway!",
+    });
+    res.json({ status: "success", message: `Test email sent successfully to ${testEmail}!` });
+  } catch (err) {
+    console.error("🧪 test-email failed:", err);
+    res.status(500).json({ 
+      status: "error", 
+      message: err.message, 
+      stack: err.stack,
+      env: {
+        EMAIL_USERNAME: process.env.EMAIL_USERNAME ? "configured" : "missing",
+        EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? "configured" : "missing"
+      }
+    });
+  }
+});
+
 // Google Login
 Router.get(
   "/google",
