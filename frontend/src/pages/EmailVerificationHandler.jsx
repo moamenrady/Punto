@@ -19,7 +19,7 @@ export default function EmailVerificationHandler({ setUser, theme }) {
 
     const verify = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/v1/users/verifyEmail/${token}`);
+        const response = await axios.get(`https://punto-production-21ed.up.railway.app/api/v1/users/verifyEmail/${token}`);
 
         if (response.data.status === "success") {
           const { token: jwtToken, data } = response.data;

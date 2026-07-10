@@ -103,7 +103,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
     if (isManager) {
       setLoadingPlans(true);
       axios
-        .get("http://localhost:5000/api/v1/plans", {
+        .get("https://punto-production-21ed.up.railway.app/api/v1/plans", {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then((res) => {
@@ -119,7 +119,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
     } else {
       setListLoading(true);
       axios
-        .get("http://localhost:5000/api/v1/companies/list", {
+        .get("https://punto-production-21ed.up.railway.app/api/v1/companies/list", {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then((res) => {
@@ -170,7 +170,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
         try {
           // 1. Call verification endpoint
           const res = await axios.post(
-            "http://localhost:5000/api/v1/payments/verify-status",
+            "https://punto-production-21ed.up.railway.app/api/v1/payments/verify-status",
             { paymentId },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -190,7 +190,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
 
             // 3. Create the company workspace
             const companyRes = await axios.post(
-              "http://localhost:5000/api/v1/companies",
+              "https://punto-production-21ed.up.railway.app/api/v1/companies",
               {
                 name,
                 industry: ind,
@@ -208,7 +208,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
               localStorage.removeItem("pending_company_features");
 
               // 4. Update user object
-              const userRes = await axios.get("http://localhost:5000/api/v1/users/me", {
+              const userRes = await axios.get("https://punto-production-21ed.up.railway.app/api/v1/users/me", {
                 headers: { Authorization: `Bearer ${token}` },
               });
 
@@ -318,7 +318,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
 
       // 1. Submit checkout request to backend API
       const checkoutRes = await axios.post(
-        "http://localhost:5000/api/v1/payments/checkout",
+        "https://punto-production-21ed.up.railway.app/api/v1/payments/checkout",
         {
           features: selectedPlan.features,
           paymentMethod: paymentMethod,
@@ -352,7 +352,7 @@ export default function SetupEnvironment({ isDarkMode, setIsDarkMode, theme, use
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/v1/companies/join",
+        "https://punto-production-21ed.up.railway.app/api/v1/companies/join",
         { companyId: selectedCompany._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );

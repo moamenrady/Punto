@@ -7,7 +7,7 @@ import { AddAssetModal, EditAssetModal } from "../components/AssetFormModal";
 import Toast, { useToast } from "../components/Toast";
 import StockPredictionsPanel from "../components/StockPredictionsPanel";
 
-const API_BASE = "http://127.0.0.1:5000/api/v1/stock";
+const API_BASE = "https://punto-production-21ed.up.railway.app/api/v1/stock";
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
@@ -198,7 +198,7 @@ const StockManagementPage = ({ currentUserRole }) => {
     try {
       // 2. بنبعت الريكويست للباك إند (تأكد إن البورت 5000 والمسار صح بتاعك)
       const response = await fetch(
-        "http://localhost:5000/api/v1/stock/upload",
+        "https://punto-production-21ed.up.railway.app/api/v1/stock/upload",
         {
           method: "POST",
           headers: {

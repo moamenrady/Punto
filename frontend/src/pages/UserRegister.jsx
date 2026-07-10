@@ -50,7 +50,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
       };
 
       const response = await axios.post(
-        "http://localhost:5000/api/v1/users/signup",
+        "https://punto-production-21ed.up.railway.app/api/v1/users/signup",
         payload,
       );
 
@@ -122,7 +122,7 @@ export default function UserRegister({ isDarkMode, setIsDarkMode, theme }) {
                 : "0px 8px 20px rgba(127, 119, 221, 0.12)",
             }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => window.location.href = "http://localhost:5000/api/v1/users/google"}
+            onClick={() => window.location.href = "https://punto-production-21ed.up.railway.app/api/v1/users/google"}
             className={`w-full flex items-center justify-center gap-2.5 py-3.5 border rounded-xl transition-all ${theme.border} ${theme.textP} ${theme.input} shadow-sm`}
           >
             <svg width="18" height="18" viewBox="0 0 24 24">

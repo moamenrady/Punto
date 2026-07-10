@@ -124,7 +124,7 @@ export default function SignUpRole({ isDarkMode, setIsDarkMode, theme }) {
                 : "0px 8px 20px rgba(127, 119, 221, 0.15)",
             }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => window.location.href = "http://localhost:5000/api/v1/users/google"}
+            onClick={() => window.location.href = "https://punto-production-21ed.up.railway.app/api/v1/users/google"}
             className={`w-full flex items-center justify-center gap-2.5 py-3.5 border rounded-xl mb-8 transition-all ${theme.border} ${isDarkMode ? "text-[#E2E0FF] bg-[#1E1B3A]" : "text-[#1E1B3A] bg-white"} shadow-sm`}
           >
             <svg width="18" height="18" viewBox="0 0 24 24">

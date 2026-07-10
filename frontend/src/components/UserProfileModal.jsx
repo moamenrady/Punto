@@ -119,7 +119,7 @@ export default function UserProfileModal({
   const handleSaveInfo = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/users/me/profile`, {
+      const res = await fetch(`https://punto-production-21ed.up.railway.app/api/v1/users/me/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -175,7 +175,7 @@ export default function UserProfileModal({
     try {
       // 1. المسار الجديد
       const res = await fetch(
-        `http://localhost:5000/api/v1/users/me/profile/avatar`,
+        `https://punto-production-21ed.up.railway.app/api/v1/users/me/profile/avatar`,
         {
           method: "PATCH",
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -328,7 +328,7 @@ export default function UserProfileModal({
                           >
                             {formData.photo ? (
                               <img
-                                src={`http://localhost:5000${formData.photo}`}
+                                src={`https://punto-production-21ed.up.railway.app${formData.photo}`}
                                 style={{
                                   width: "100%",
                                   height: "100%",
@@ -869,7 +869,7 @@ export default function UserProfileModal({
             >
               {formData.photo ? (
                 <img
-                  src={`http://localhost:5000${formData.photo}`}
+                  src={`https://punto-production-21ed.up.railway.app${formData.photo}`}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   alt=""
                 />

@@ -1,4 +1,4 @@
-const BASE = 'http://127.0.0.1:5000/api/v1';
+const BASE = 'https://punto-production-21ed.up.railway.app/api/v1';
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',

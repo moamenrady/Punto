@@ -19,7 +19,7 @@ export default function CompanyControlPanel({ theme, company: initialCompany }) 
       setFetchingCompany(true);
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/v1/companies/me", {
+        const res = await axios.get("https://punto-production-21ed.up.railway.app/api/v1/companies/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.status === "success") {
@@ -44,7 +44,7 @@ export default function CompanyControlPanel({ theme, company: initialCompany }) 
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:5000/api/v1/companies/add-user",
+        "https://punto-production-21ed.up.railway.app/api/v1/companies/add-user",
         { email: newUserEmail },
         { headers: { Authorization: `Bearer ${token}` } }
       );

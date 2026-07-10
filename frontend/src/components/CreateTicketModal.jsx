@@ -62,7 +62,7 @@ export default function CreateTicketModal({ onClose, onSubmit, user }) {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/v1/tickets", {
+      const response = await fetch("https://punto-production-21ed.up.railway.app/api/v1/tickets", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
