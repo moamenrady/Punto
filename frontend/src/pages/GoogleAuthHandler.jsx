@@ -33,7 +33,7 @@ export default function GoogleAuthHandler({ setUser, theme }) {
 
         // Fetch user data — add cache-busting param to avoid 304 responses
         const response = await axios.get(
-          `http://localhost:5000/api/v1/users/me/profile?_t=${Date.now()}`,
+          `https://punto-production-21ed.up.railway.app/api/v1/users/me/profile?_t=${Date.now()}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

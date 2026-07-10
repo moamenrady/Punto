@@ -8,7 +8,7 @@ const Avatar = ({ photo, name = '?', size = 26, className = '', style = {} }) =>
     const isTeam = name.startsWith('Team+');
 
     if (photo) {
-        src = photo.startsWith('http') || photo.startsWith('data:') ? photo : `http://localhost:5000${photo}`;
+        src = photo.startsWith('http') || photo.startsWith('data:') ? photo : `https://punto-production-21ed.up.railway.app${photo}`;
     } else {
         src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&size=${size * 2}`;
     }

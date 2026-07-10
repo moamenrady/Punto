@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 const token = () => localStorage.getItem("token");
-const API = "http://localhost:5000/api/v1";
+const API = "https://punto-production-21ed.up.railway.app/api/v1";
 
 // Mutable module-level theme — updated at top of Settings render
 // so all sub-component closures see the current palette.
@@ -498,7 +498,7 @@ function PageProfile({ refreshUser }) {
         >
           {form.photo ? (
             <img
-              src={`http://localhost:5000${form.photo}`}
+              src={`https://punto-production-21ed.up.railway.app${form.photo}`}
               alt="avatar"
               style={{
                 width: 72,

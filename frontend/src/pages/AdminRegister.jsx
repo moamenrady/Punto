@@ -57,7 +57,7 @@ export default function AdminRegister({ isDarkMode, setIsDarkMode, theme }) {
       };
 
       const response = await axios.post(
-        "http://localhost:5000/api/v1/users/signup",
+        "https://punto-production-21ed.up.railway.app/api/v1/users/signup",
         payload
       );
 

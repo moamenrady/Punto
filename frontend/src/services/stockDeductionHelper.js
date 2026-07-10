@@ -5,7 +5,7 @@
 // knows stock items by _id. Mirrors the same GET-all / PATCH-quantity
 // pattern already used in StockManagementPage.jsx.
 
-const STOCK_API_BASE = 'http://127.0.0.1:5000/api/v1/stock';
+const STOCK_API_BASE = 'https://punto-production-21ed.up.railway.app/api/v1/stock';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',

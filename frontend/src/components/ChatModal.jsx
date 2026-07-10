@@ -5,7 +5,7 @@ import { Send, MoreVertical, Phone, Video, Paperclip, Smile, X, Check, Mic, Sear
 import Avatar from './Avatar';
 import { AiFeatures } from '../services/aiOpsService';
 
-const socket = io('http://127.0.0.1:5000');
+const socket = io('https://punto-production-21ed.up.railway.app');
 
 const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onStartDM }) => {
     const [messages, setMessages] = useState([]);
@@ -57,7 +57,7 @@ const ChatModal = ({ chatType, chatId, team, contact, user, theme, onClose, onSt
 
         socket.emit('join_chat', chatId);
 
-        axios.get(`http://127.0.0.1:5000/api/v1/messages/${chatId}`)
+        axios.get(`https://punto-production-21ed.up.railway.app/api/v1/messages/${chatId}`)
              .then(res => setMessages(res.data))
              .catch(err => console.error("Error fetching messages:", err));
 

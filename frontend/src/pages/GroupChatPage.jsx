@@ -41,7 +41,7 @@ const GroupChatPage = ({ user, theme, onProfileClick }) => {
                 
                 // Fetch Team
                 try {
-                    const teamRes = await axios.get(`http://127.0.0.1:5000/api/v1/teams/user/${user._id}`, { headers });
+                    const teamRes = await axios.get(`https://punto-production-21ed.up.railway.app/api/v1/teams/user/${user._id}`, { headers });
                     setMyTeam(teamRes.data);
                 } catch (err) {
                     if (err.response?.status === 404) {
@@ -53,7 +53,7 @@ const GroupChatPage = ({ user, theme, onProfileClick }) => {
 
                 // Fetch Active DMs
                 try {
-                    const dmRes = await axios.get(`http://127.0.0.1:5000/api/v1/messages/dms/user/${user._id}`, { headers });
+                    const dmRes = await axios.get(`https://punto-production-21ed.up.railway.app/api/v1/messages/dms/user/${user._id}`, { headers });
                     setActiveDMs(dmRes.data);
                 } catch (err) {
                     console.error("Error fetching DMs:", err.message);

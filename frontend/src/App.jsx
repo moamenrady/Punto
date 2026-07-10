@@ -40,13 +40,13 @@ function MainApp({ themeObj, theme, setTheme, isDarkMode, setIsDarkMode, user, s
   const isAdmin = user?.role === "admin" || user?.role === "manager";
   const isManager = user?.role === "manager";
 
-  const API_URL = "http://127.0.0.1:5000/api/v1/tickets";
+  const API_URL = "https://punto-production-21ed.up.railway.app/api/v1/tickets";
 
   useEffect(() => {
     const fetchCompany = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:5000/api/v1/companies/me", {
+        const response = await axios.get("https://punto-production-21ed.up.railway.app/api/v1/companies/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.status === "success") {
