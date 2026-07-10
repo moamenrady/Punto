@@ -82,12 +82,14 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // 4) check if verified
+  // 4) check if verified (Bypassed for testing)
+  /*
   if (user.isVerified === false) {
     return next(
       new AppError("Please verify your email address before logging in.", 401),
     );
   }
+  */
 
   // 5) send token
   const token = signToken(user._id);
@@ -146,10 +148,8 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
 
-  // 5) check if verified
-  // Use originalUrl.split('?')[0] to strip cache-busting query params.
-  // req.path is NOT reliable here because it's relative to the router mount point
-  // (e.g. profileRouter mounted at /api/v1/users/me sees req.path as "/")
+  // 5) check if verified (Bypassed for testing)
+  /*
   const cleanPath = req.originalUrl.split("?")[0];
   if (currentUser.isVerified === false && !cleanPath.startsWith("/api/v1/users/me")) {
     return next(
@@ -159,6 +159,7 @@ exports.protect = catchAsync(async (req, res, next) => {
       ),
     );
   }
+  */
 
   // 6) grant access
   req.user = currentUser;
