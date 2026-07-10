@@ -38,16 +38,14 @@ exports.signup = catchAsync(async (req, res, next) => {
   console.log(verifyURL);
   console.log("-----------------------------------------");
 
-  try {
-    const sendEmail = require("../utils/email");
-    await sendEmail({
-      email: newUser.email,
-      subject: "Verify your email address",
-      message: `Welcome to Punto! Please verify your email by clicking on this link: ${verifyURL}\n\nThis link is valid for 24 hours.`,
-    });
-  } catch (err) {
-    console.error("❌ Failed to send verification email:", err.message);
-  }
+  const sendEmail = require("../utils/email");
+  sendEmail({
+    email: newUser.email,
+    subject: "Verify your email address",
+    message: `Welcome to Punto! Please verify your email by clicking on this link: ${verifyURL}\n\nThis link is valid for 24 hours.`,
+  }).catch((err) => {
+    console.error("❌ Failed to send verification email (background):", err.message);
+  });
 
 
   res.status(201).json({

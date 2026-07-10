@@ -44,20 +44,18 @@ passport.use(
           // Send verification email (Wrapped in its own try/catch to prevent crashes)
           const verificationURL = `${process.env.FRONTEND_URL || "http://localhost:5175"}/verify-email/${verificationToken}`;
 
-          try {
-            await sendEmail({
-              email: user.email,
-              subject: "Verify your Punto account",
-              message: `Welcome to Punto, ${profile.displayName}!\n\nPlease verify your email by clicking the link below:\n\n${verificationURL}\n\nThis link expires in 24 hours.`,
+          sendEmail({
+            email: user.email,
+            subject: "Verify your Punto account",
+            message: `Welcome to Punto, ${profile.displayName}!\n\nPlease verify your email by clicking the link below:\n\n${verificationURL}\n\nThis link expires in 24 hours.`,
+          })
+            .then(() => console.log("📨 Verification email sent to:", email))
+            .catch((emailErr) => {
+              console.error(
+                "⚠️ Failed to send verification email (background), but user was created:",
+                emailErr.message,
+              );
             });
-            console.log("📨 Verification email sent to:", email);
-          } catch (emailErr) {
-            // لو الإيميل متبعتش، هنطبع الإيرور هنا بس مش هنوقف اللوجين!
-            console.error(
-              "⚠️ Failed to send verification email, but user was created:",
-              emailErr.message,
-            );
-          }
         } else if (!user.isVerified) {
           // Existing unverified user returning via Google — auto-verify them
           user.isVerified = true;
