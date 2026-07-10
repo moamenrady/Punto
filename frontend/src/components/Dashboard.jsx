@@ -12,6 +12,7 @@ import DeleteSprintModal   from './DeleteSprintModal';
 import ViewTaskModal       from './ViewTaskModal';
 import CreateSprintModal   from './CreateSprintModal';
 import CreateBacklogModal  from './CreateBacklogModal';
+import EditBacklogModal    from './EditBacklogModal';
 import CreateTaskModal     from './CreateTaskModal';
 import AddMemberModal      from './AddMemberModal';
 import ConfirmModal        from './ConfirmModal';
@@ -985,6 +986,24 @@ const Dashboard = ({ user }) => {
         }
       },
     });
+  };
+
+  const handleEditBacklog = async (formData) => {
+    const backlog = modal?.data;
+    if (!backlog) return;
+    try {
+      await projectService.updateBacklog(selectedProjId, backlog._id, {
+        name: formData.name,
+        backlog_goal: formData.goal,
+        start_date: formData.startDate || undefined,
+        end_date: formData.endDate || undefined,
+      });
+      await refreshProjectData();
+      closeModal();
+      toastSuccess("Backlog Updated", `"${formData.name}" saved.`);
+    } catch (e) {
+      toastError("Failed", e.message);
+    }
   };
 
   const handleCreateTask = async (formData) => {
@@ -2731,6 +2750,33 @@ const Dashboard = ({ user }) => {
                       onClick={() => setModal({ type: "createTask", data: { backlogId: bl._id } })}
                     >
                       + Task
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      style={{ ...iconBtn, color: "#4F46E5" }}
+                      title="Edit backlog"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#EEF2FF";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "";
+                      }}
+                      onClick={() => setModal({ type: "editBacklog", data: bl })}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
                     </button>
                   )}
                   {isAdmin && (
@@ -4612,6 +4658,12 @@ const PROJECT_TABS = [
         isOpen={modal?.type === "createBacklog"}
         onClose={closeModal}
         onSubmit={handleCreateBacklog}
+      />
+      <EditBacklogModal
+        backlog={modal?.type === "editBacklog" ? modal.data : null}
+        isOpen={modal?.type === "editBacklog"}
+        onClose={closeModal}
+        onSubmit={handleEditBacklog}
       />
       <AIBreakdownModal
         isOpen={modal?.type === 'aiBreakdown'}

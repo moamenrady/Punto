@@ -48,6 +48,7 @@ export const projectService = {
   // ── Backlogs (nested under project) ─────────────────────────────────────────
   getBacklogs:   (pid)           => request('GET',    `/projects/${pid}/backlogs`).then(parseBacklogs),
   createBacklog: (pid, data)     => request('POST',   `/projects/${pid}/backlogs`, data).then(j => j?.data?.doc ?? j?.data?.backlog ?? j?.data),
+  updateBacklog: (pid, bid, data) => request('PATCH',  `/projects/${pid}/backlogs/${bid}`, data).then(j => j?.data?.doc ?? j?.data?.backlog ?? j?.data),
   deleteBacklog: (pid, bid)      => request('DELETE', `/projects/${pid}/backlogs/${bid}`),
 
   // ── Tasks (nested under backlog) ─────────────────────────────────────────────
