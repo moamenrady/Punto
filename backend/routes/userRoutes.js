@@ -60,6 +60,18 @@ Router.get("/test-email", async (req, res) => {
   }
 });
 
+Router.get("/debug-env", (req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV || "not set",
+    PORT: process.env.PORT || "not set",
+    FRONTEND_URL: process.env.FRONTEND_URL || "not set",
+    EMAIL_USERNAME: process.env.EMAIL_USERNAME || "not set",
+    HAS_EMAIL_PASSWORD: !!process.env.EMAIL_PASSWORD,
+    HAS_BREVO_API_KEY: !!process.env.BREVO_API_KEY,
+    BREVO_API_KEY_PREFIX: process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.substring(0, 15) : "none"
+  });
+});
+
 // Google Login
 Router.get(
   "/google",
