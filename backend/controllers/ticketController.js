@@ -4,7 +4,38 @@ const AppError = require("../utils/appError");
 const factory = require("./handlerFactory");
 
 exports.createTicket = factory.createOne(Ticket);
-exports.getAllTickets = factory.getAll(Ticket);
+exports.getAllTickets = catchAsync(async (req, res, next) => {
+  const filter = {};
+  if (req.user?.company_id) filter.company_id = req.user.company_id;
+
+  const role = req.user?.role;
+  const dept = req.user?.dept?.toUpperCase();
+
+  const isAuthorized =
+    role === "admin" ||
+    role === "manager" ||
+    (role === "user" && dept === "IT");
+
+  if (!isAuthorized) {
+    return res.status(200).json({
+      status: "success",
+      results: 0,
+      data: {
+        data: [],
+      },
+    });
+  }
+
+  const tickets = await Ticket.find(filter);
+
+  res.status(200).json({
+    status: "success",
+    results: tickets.length,
+    data: {
+      data: tickets,
+    },
+  });
+});
 exports.getTicket = factory.getOne(Ticket);
 exports.updateTicket = factory.updateOne(Ticket);
 exports.deleteTicket = factory.deleteOne(Ticket);
