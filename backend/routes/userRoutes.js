@@ -9,16 +9,8 @@ const path = require("path");
 
 // const upload = multer({ storage: multer.memoryStorage() });
 
-const storage = multer.diskStorage({
-  destination: "uploads/avatars/",
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `admin_upload_${Date.now()}${ext}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     ["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)
@@ -48,9 +40,9 @@ Router.get("/test-email", async (req, res) => {
     res.json({ status: "success", message: `Test email sent successfully to ${testEmail}!` });
   } catch (err) {
     console.error("🧪 test-email failed:", err);
-    res.status(500).json({ 
-      status: "error", 
-      message: err.message, 
+    res.status(500).json({
+      status: "error",
+      message: err.message,
       stack: err.stack,
       env: {
         EMAIL_USERNAME: process.env.EMAIL_USERNAME ? "configured" : "missing",

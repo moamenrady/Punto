@@ -83,8 +83,8 @@ teamSchema.pre("save", async function () {
 // 🔥 POPULATE
 // ===============================
 teamSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role")
-    .populate("members.user", "name email role");
+  this.populate("created_by", "name email role photo")
+    .populate("members.user", "name email role photo");
 });
 
 module.exports = mongoose.model("Team", teamSchema);

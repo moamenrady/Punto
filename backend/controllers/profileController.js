@@ -41,16 +41,24 @@ exports.uploadAvatar = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "مفيش صورة" });
 
-    const photoUrl = `/uploads/avatars/${req.file.filename}`;
+    const path = require("path");
+    const ext = path.extname(req.file.originalname);
+    const filename = `avatar_${req.user.id}_${Date.now()}${ext}`;
 
-    // شيلنا الـ select("photo") عشان يرجع اليوزر بكل بياناته للفرونت إند
+    const Avatar = require("../models/avatarModel");
+    await Avatar.findOneAndUpdate(
+      { filename },
+      { data: req.file.buffer, contentType: req.file.mimetype },
+      { upsert: true, new: true }
+    );
+
+    const photoUrl = `/uploads/avatars/${filename}`;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { photo: photoUrl },
-      { new: true, runValidators: true }, // new: true بترجع اليوزر بعد التحديث
+      { new: true, runValidators: true }
     );
-
-    // رجعنا اليوزر كامل جوه الـ data
 
     res.status(200).json({ status: "success", data: { user, doc: user } });
   } catch (err) {
@@ -62,6 +70,13 @@ exports.uploadAvatar = async (req, res) => {
 // DELETE — مسح الصورة
 exports.removeAvatar = async (req, res) => {
   try {
+    const user = await User.findById(req.user.id);
+    if (user && user.photo) {
+      const filename = user.photo.split("/").pop();
+      const Avatar = require("../models/avatarModel");
+      await Avatar.deleteOne({ filename });
+    }
+
     await User.findByIdAndUpdate(req.user.id, { photo: "" });
     res.json({ status: "success" });
   } catch (err) {

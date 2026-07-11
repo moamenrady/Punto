@@ -215,9 +215,9 @@ ticketSchema.pre("findOneAndUpdate", async function () {
 // 🔥 POPULATE
 // ===============================
 ticketSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role")
-    .populate("assign_to", "name email role")
-    .populate("history.changed_by", "name email role");
+  this.populate("created_by", "name email role photo")
+    .populate("assign_to", "name email role photo")
+    .populate("history.changed_by", "name email role photo");
 });
 
 module.exports = mongoose.model("Ticket", ticketSchema);

@@ -76,7 +76,6 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
   }
 
   const users = await User.find(filter)
-    .select("-photo")
     .populate("company_id")
     .populate("team_id");
 
@@ -97,7 +96,6 @@ exports.getUser = catchAsync(async (req, res, next) => {
   if (req.user?.company_id) filter.company_id = req.user.company_id;
 
   const user = await User.findOne(filter)
-    .select("-photo")
     .populate("company_id")
     .populate("team_id");
 
@@ -140,12 +138,22 @@ exports.createUser = catchAsync(async (req, res, next) => {
     userData.company_id = req.user.company_id;
   }
 
-  // التعديل هنا: بنحفظ المسار كـ String زي ما عملنا في البروفايل بالظبط
+  const newUser = new User(userData);
+
   if (req.file) {
-    userData.photo = `/uploads/avatars/${req.file.filename}`;
+    const path = require("path");
+    const ext = path.extname(req.file.originalname);
+    const filename = `avatar_${newUser._id}_${Date.now()}${ext}`;
+    const Avatar = require("../models/avatarModel");
+    await Avatar.findOneAndUpdate(
+      { filename },
+      { data: req.file.buffer, contentType: req.file.mimetype },
+      { upsert: true, new: true }
+    );
+    newUser.photo = `/uploads/avatars/${filename}`;
   }
 
-  const newUser = await User.create(userData);
+  await newUser.save();
 
   res.status(201).json({
     status: "success",
@@ -161,22 +169,42 @@ exports.createUser = catchAsync(async (req, res, next) => {
 exports.updateUser = catchAsync(async (req, res, next) => {
   const updateData = { ...req.body };
 
-  // التعديل هنا: بنحفظ المسار كـ String عشان الداتابيز متضربش إيرور
-  if (req.file) {
-    updateData.photo = `/uploads/avatars/${req.file.filename}`;
-  }
-
   const filter = { _id: req.params.id };
   if (req.user?.company_id) filter.company_id = req.user.company_id;
 
-  const user = await User.findOneAndUpdate(filter, updateData, {
-    new: true,
-    runValidators: true,
-  });
+  const user = await User.findOne(filter);
 
   if (!user) {
     return next(new AppError("User not found in your company", 404));
   }
+
+  if (req.file) {
+    if (user.photo) {
+      const oldFilename = user.photo.split("/").pop();
+      const Avatar = require("../models/avatarModel");
+      await Avatar.deleteOne({ filename: oldFilename });
+    }
+
+    const path = require("path");
+    const ext = path.extname(req.file.originalname);
+    const filename = `avatar_${user._id}_${Date.now()}${ext}`;
+    const Avatar = require("../models/avatarModel");
+    await Avatar.findOneAndUpdate(
+      { filename },
+      { data: req.file.buffer, contentType: req.file.mimetype },
+      { upsert: true, new: true }
+    );
+    user.photo = `/uploads/avatars/${filename}`;
+  }
+
+  // Update rest of the fields manually
+  Object.keys(updateData).forEach((key) => {
+    if (key !== "photo" && key !== "avatar_data" && key !== "avatar_contentType") {
+      user[key] = updateData[key];
+    }
+  });
+
+  await user.save({ validateBeforeSave: false });
 
   res.status(200).json({
     status: "success",

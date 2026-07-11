@@ -62,7 +62,7 @@ backlogSchema.pre("save", async function () {
 // ===============================
 backlogSchema.pre(/^find/, function () {
   this.populate("project_id", "name")
-    .populate("created_by", "name email role");
+    .populate("created_by", "name email role photo");
 });
 
 module.exports = mongoose.model("Backlog", backlogSchema);

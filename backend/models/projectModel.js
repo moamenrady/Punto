@@ -68,8 +68,8 @@ projectSchema.pre("save", async function () {
 // 🔥 POPULATE
 // ===============================
 projectSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role")
-    .populate("members", "name email role");
+  this.populate("created_by", "name email role photo")
+    .populate("members", "name email role photo");
 });
 
 module.exports = mongoose.model("Project", projectSchema);

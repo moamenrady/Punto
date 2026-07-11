@@ -42,6 +42,22 @@ const companyRoutes = require("./routes/companyRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 // Middleware
 app.use(express.json());
+
+// Serve avatars from MongoDB persistently
+app.get("/uploads/avatars/:filename", async (req, res, next) => {
+  try {
+    const Avatar = require("./models/avatarModel");
+    const avatar = await Avatar.findOne({ filename: req.params.filename });
+    if (avatar) {
+      res.set("Content-Type", avatar.contentType || "image/png");
+      return res.send(avatar.data);
+    }
+  } catch (err) {
+    console.error("Error serving avatar from MongoDB:", err);
+  }
+  next();
+});
+
 app.use("/uploads", express.static("uploads"));
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 app.use(

@@ -154,11 +154,11 @@ taskSchema.pre("findOneAndUpdate", async function () {
 taskSchema.pre(/^find/, function () {
   this.populate("backlog_id", "name")
     .populate("sprint_id", "name status")
-    .populate("assigned_to", "name email role");
+    .populate("assigned_to", "name email role photo");
 });
 
 taskSchema.pre(/^find/, function () {
-  this.populate("created_by", "name email role");
+  this.populate("created_by", "name email role photo");
 });
 
 module.exports = mongoose.model("Task", taskSchema);
