@@ -185,3 +185,109 @@ exports.joinCompany = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+// ADD DEPARTMENT
+exports.addDepartment = catchAsync(async (req, res, next) => {
+  const { name } = req.body;
+  const companyId = req.user.company_id;
+
+  if (!name) return next(new AppError("Please provide a department name", 400));
+
+  const company = await Company.findById(companyId);
+  if (!company) return next(new AppError("Company not found", 404));
+
+  const exists = company.departments.some(
+    (d) => d.name.toLowerCase() === name.trim().toLowerCase()
+  );
+  if (exists) return next(new AppError("Department name already exists", 400));
+
+  company.departments.push({ name: name.trim(), users: [] });
+  await company.save();
+
+  res.status(200).json({
+    status: "success",
+    data: { company },
+  });
+});
+
+// REMOVE DEPARTMENT
+exports.removeDepartment = catchAsync(async (req, res, next) => {
+  const { deptId } = req.params;
+  const companyId = req.user.company_id;
+
+  const company = await Company.findById(companyId);
+  if (!company) return next(new AppError("Company not found", 404));
+
+  company.departments = company.departments.filter(
+    (d) => !d._id.equals(deptId)
+  );
+  await company.save();
+
+  res.status(200).json({
+    status: "success",
+    data: { company },
+  });
+});
+
+// ADD USER TO DEPARTMENT
+exports.addUserToDepartment = catchAsync(async (req, res, next) => {
+  const { deptId } = req.params;
+  const { userId } = req.body;
+  const companyId = req.user.company_id;
+
+  if (!userId) return next(new AppError("Please provide a user ID", 400));
+
+  const company = await Company.findById(companyId);
+  if (!company) return next(new AppError("Company not found", 404));
+
+  const dept = company.departments.id(deptId);
+  if (!dept) return next(new AppError("Department not found", 404));
+
+  const isUserInCompany = company.company_users.some((uId) =>
+    uId.equals(userId)
+  );
+  if (!isUserInCompany) {
+    return next(new AppError("User does not belong to this company", 400));
+  }
+
+  if (!dept.users.some((uId) => uId.equals(userId))) {
+    dept.users.push(userId);
+    await company.save();
+
+    await User.findByIdAndUpdate(userId, { dept: dept.name });
+  }
+
+  const updatedCompany = await Company.findById(companyId);
+
+  res.status(200).json({
+    status: "success",
+    data: { company: updatedCompany },
+  });
+});
+
+// REMOVE USER FROM DEPARTMENT
+exports.removeUserFromDepartment = catchAsync(async (req, res, next) => {
+  const { deptId, userId } = req.params;
+  const companyId = req.user.company_id;
+
+  const company = await Company.findById(companyId);
+  if (!company) return next(new AppError("Company not found", 404));
+
+  const dept = company.departments.id(deptId);
+  if (!dept) return next(new AppError("Department not found", 404));
+
+  dept.users = dept.users.filter((uId) => !uId.equals(userId));
+  await company.save();
+
+  const user = await User.findById(userId);
+  if (user && user.dept === dept.name) {
+    await User.findByIdAndUpdate(userId, { dept: "" });
+  }
+
+  const updatedCompany = await Company.findById(companyId);
+
+  res.status(200).json({
+    status: "success",
+    data: { company: updatedCompany },
+  });
+});

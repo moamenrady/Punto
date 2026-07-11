@@ -38,9 +38,33 @@ const companySchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    departments: [
+      {
+        name: {
+          type: String,
+          required: [true, "A department must have a name"],
+          trim: true,
+        },
+        users: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+        ],
+      },
+    ],
   },
   { timestamps: true }
 );
+
+// Populate departments.users automatically
+companySchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "departments.users",
+    select: "name email role photo dept",
+  });
+  next();
+});
 
 // Auto-generate custom_id
 companySchema.pre("save", async function () {
