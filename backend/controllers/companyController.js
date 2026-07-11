@@ -232,10 +232,12 @@ exports.removeDepartment = catchAsync(async (req, res, next) => {
 // ADD USER TO DEPARTMENT
 exports.addUserToDepartment = catchAsync(async (req, res, next) => {
   const { deptId } = req.params;
-  const { userId } = req.body;
+  const { userId, email } = req.body;
   const companyId = req.user.company_id;
 
-  if (!userId) return next(new AppError("Please provide a user ID", 400));
+  if (!userId && !email) {
+    return next(new AppError("Please provide a user ID or email", 400));
+  }
 
   const company = await Company.findById(companyId);
   if (!company) return next(new AppError("Company not found", 404));
@@ -243,18 +245,29 @@ exports.addUserToDepartment = catchAsync(async (req, res, next) => {
   const dept = company.departments.id(deptId);
   if (!dept) return next(new AppError("Department not found", 404));
 
+  let user;
+  if (userId) {
+    user = await User.findById(userId);
+  } else if (email) {
+    user = await User.findOne({ email: email.toLowerCase().trim() });
+  }
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
   const isUserInCompany = company.company_users.some((uId) =>
-    uId.equals(userId)
+    uId.equals(user._id)
   );
   if (!isUserInCompany) {
     return next(new AppError("User does not belong to this company", 400));
   }
 
-  if (!dept.users.some((uId) => uId.equals(userId))) {
-    dept.users.push(userId);
+  if (!dept.users.some((uId) => uId.equals(user._id))) {
+    dept.users.push(user._id);
     await company.save();
 
-    await User.findByIdAndUpdate(userId, { dept: dept.name });
+    await User.findByIdAndUpdate(user._id, { dept: dept.name });
   }
 
   const updatedCompany = await Company.findById(companyId);
