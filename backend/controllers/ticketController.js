@@ -17,13 +17,7 @@ exports.getAllTickets = catchAsync(async (req, res, next) => {
     (role === "user" && dept === "IT");
 
   if (!isAuthorized) {
-    return res.status(200).json({
-      status: "success",
-      results: 0,
-      data: {
-        data: [],
-      },
-    });
+    return next(new AppError("You do not have permission to access support tickets.", 403));
   }
 
   const tickets = await Ticket.find(filter);
