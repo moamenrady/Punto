@@ -58,12 +58,11 @@ const companySchema = new mongoose.Schema(
 );
 
 // Populate departments.users automatically
-companySchema.pre(/^find/, function (next) {
+companySchema.pre(/^find/, function () {
   this.populate({
     path: "departments.users",
     select: "name email role photo dept",
   });
-  next();
 });
 
 // Auto-generate custom_id
