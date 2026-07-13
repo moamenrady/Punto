@@ -33,6 +33,11 @@ const ticketSchema = new mongoose.Schema(
       required: [true, "A ticket must have a description"],
     },
 
+    resolution: {
+      type: String,
+      default: null,
+    },
+
     priority: {
       type: String,
       enum: ["low", "medium", "high", "critical"],
