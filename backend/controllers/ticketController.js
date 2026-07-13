@@ -17,7 +17,8 @@ exports.getAllTickets = catchAsync(async (req, res, next) => {
     (role === "user" && dept === "IT");
 
   if (!isAuthorized) {
-    return next(new AppError("You do not have permission to access support tickets.", 403));
+    // If not authorized to see system-wide tickets, only return tickets created by the user
+    filter.created_by = req.user._id;
   }
 
   const tickets = await Ticket.find(filter);
