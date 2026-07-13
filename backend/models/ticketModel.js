@@ -90,6 +90,13 @@ const ticketSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Chat",
     },
+    // ===============================
+    // 🔥 SOLUTION
+    // ===============================
+    solution: {
+      type: String,
+      default: "",
+    },
 
     // ===============================
     // 🔥 ATTACHMENTS
