@@ -263,12 +263,15 @@ exports.addUserToDepartment = catchAsync(async (req, res, next) => {
     return next(new AppError("User does not belong to this company", 400));
   }
 
-  if (!dept.users.some((uId) => uId.equals(user._id))) {
-    dept.users.push(user._id);
-    await company.save();
+  // Remove user from all other departments first to prevent duplicates
+  company.departments.forEach((d) => {
+    d.users = d.users.filter((uId) => !uId.equals(user._id));
+  });
 
-    await User.findByIdAndUpdate(user._id, { dept: dept.name });
-  }
+  dept.users.push(user._id);
+  await company.save();
+
+  await User.findByIdAndUpdate(user._id, { dept: dept.name });
 
   const updatedCompany = await Company.findById(companyId);
 
