@@ -165,7 +165,7 @@ exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
     { $match: matchFilter },
     {
       $facet: {
-        openTickets: [
+        activeTickets: [
           { $match: { status: { $in: ["open", "in_progress"] } } },
           { $count: "total" },
         ],
@@ -186,7 +186,7 @@ exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: {
-      openTickets: result[0].openTickets[0]?.total || 0,
+      activeTickets: result[0].activeTickets[0]?.total || 0,
       criticalTickets: result[0].criticalTickets[0]?.total || 0,
       statusDistribution: result[0].statusDistribution,
       priorityBreakdown: result[0].priorityBreakdown,
