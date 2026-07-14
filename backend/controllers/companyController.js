@@ -318,6 +318,10 @@ exports.getAuthorizationCheck = catchAsync(async (req, res, next) => {
   const ChatMember = require("../models/ChatMember");
   const Table = require("../models/tableModel");
 
+  // Fetch company plan features to check active systems
+  const company = await Company.findById(companyId).populate("plan_id");
+  const activeFeatures = company?.plan_id?.features || [];
+
   // Fetch all users in the company
   const users = await User.find({ company_id: companyId }).select("name email role photo dept");
 
@@ -384,6 +388,77 @@ exports.getAuthorizationCheck = catchAsync(async (req, res, next) => {
       .filter(Boolean);
   };
 
+  const getAuthUsersForSystem = (systemId) => {
+    return users
+      .map(user => {
+        const isAdminOrManager = user.role === "admin" || user.role === "manager";
+        const isITDept = user.dept?.toLowerCase() === "it" || user.dept?.toLowerCase() === "it department";
+        
+        let accessType = "";
+        let reason = "";
+
+        if (systemId === "ticketing") {
+          if (isAdminOrManager || isITDept) {
+            accessType = "IT Agent Access";
+            reason = isAdminOrManager ? "Admin/Manager Role" : "IT Department Member";
+          } else {
+            accessType = "Normal User Access";
+            reason = "Company Member";
+          }
+        } else if (systemId === "stock") {
+          if (isAdminOrManager) {
+            accessType = "Admin/Manager Access (Full)";
+            reason = "Admin/Manager Role";
+          } else if (isITDept) {
+            accessType = "IT User Access (View/Reduce)";
+            reason = "IT Department Member";
+          } else {
+            return null;
+          }
+        } else if (systemId === "project") {
+          if (isAdminOrManager) {
+            accessType = "Full Manager Access";
+            reason = "Admin/Manager Role";
+          } else {
+            const isProjMember = projects.some(p => 
+              Array.isArray(p.members) && p.members.some(m => {
+                const mId = m?._id || m;
+                return mId.toString() === user._id.toString();
+              })
+            );
+            if (isProjMember) {
+              accessType = "Collaborator Access";
+              reason = "Assigned Project Member";
+            } else {
+              return null;
+            }
+          }
+        } else if (systemId === "chat") {
+          if (isAdminOrManager) {
+            accessType = "Admin Access (Full)";
+            reason = "Admin/Manager Role";
+          } else {
+            accessType = "Standard Chat Access";
+            reason = "Company Member";
+          }
+        }
+
+        if (accessType) {
+          return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            photo: user.photo,
+            dept: user.dept,
+            reasons: [accessType + " (" + reason + ")"]
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
   const responseProjects = projects.map(p => ({
     _id: p._id,
     name: p.name,
@@ -416,6 +491,41 @@ exports.getAuthorizationCheck = catchAsync(async (req, res, next) => {
     authorizedUsers: getAuthUsers(tbl, "table")
   }));
 
+  // Build active systems mapping
+  const responseSystems = [];
+  if (activeFeatures.includes("Ticketing System")) {
+    responseSystems.push({
+      _id: "ticketing",
+      name: "Ticketing System",
+      description: "Support ticket workspace with IT support agent and user portals.",
+      authorizedUsers: getAuthUsersForSystem("ticketing")
+    });
+  }
+  if (activeFeatures.includes("Stock Management")) {
+    responseSystems.push({
+      _id: "stock",
+      name: "Stock Management",
+      description: "Inventory tracking, AI usage predictions, and CSV imports.",
+      authorizedUsers: getAuthUsersForSystem("stock")
+    });
+  }
+  if (activeFeatures.includes("Project Management")) {
+    responseSystems.push({
+      _id: "project",
+      name: "Project Management",
+      description: "Agile project workflows with backlog, sprints, and tasks.",
+      authorizedUsers: getAuthUsersForSystem("project")
+    });
+  }
+  if (activeFeatures.includes("Chat System")) {
+    responseSystems.push({
+      _id: "chat",
+      name: "Chat System",
+      description: "Team channels, private direct messages, and AI assistant.",
+      authorizedUsers: getAuthUsersForSystem("chat")
+    });
+  }
+
   res.status(200).json({
     status: "success",
     data: {
@@ -423,7 +533,8 @@ exports.getAuthorizationCheck = catchAsync(async (req, res, next) => {
       teams: responseTeams,
       chats: responseChats,
       groupChats: responseGroupChats,
-      pages: responsePages
+      pages: responsePages,
+      systems: responseSystems
     }
   });
 });
