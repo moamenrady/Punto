@@ -170,7 +170,7 @@ exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
           { $count: "total" },
         ],
         criticalTickets: [
-          { $match: { priority: "critical" } },
+          { $match: { priority: "high" } },
           { $count: "total" },
         ],
         statusDistribution: [
