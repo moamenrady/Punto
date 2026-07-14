@@ -161,13 +161,14 @@ exports.getSprintVelocityAndCompletion = catchAsync(async (req, res, next) => {
 
 exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
   const mongoose = require("mongoose");
+  const projectId = req.query.projectId;
 
   const matchFilter = {};
   if (req.user?.company_id) {
     matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
   }
 
-  const overview = await Task.aggregate([
+  const pipeline = [
     { $match: matchFilter },
     {
       $lookup: {
@@ -178,6 +179,15 @@ exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
       },
     },
     { $unwind: "$sprintInfo" },
+  ];
+
+  if (projectId) {
+    pipeline.push({
+      $match: { "sprintInfo.project_id": new mongoose.Types.ObjectId(projectId) }
+    });
+  }
+
+  pipeline.push(
     {
       $group: {
         _id: {
@@ -209,7 +219,9 @@ exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
       },
     },
     { $sort: { sprintName: 1 } },
-  ]);
+  );
+
+  const overview = await Task.aggregate(pipeline);
 
   res.status(200).json({
     status: "success",
@@ -219,24 +231,43 @@ exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
 
 exports.getFinalGlobalKPIs = catchAsync(async (req, res, next) => {
   const mongoose = require("mongoose");
+  const projectId = req.query.projectId;
+  
   const queryFilter = {};
   if (req.user?.company_id) {
     queryFilter.company_id = req.user.company_id;
   }
+  if (projectId) {
+    queryFilter.project_id = projectId;
+  }
 
   const activeSprintsCount = await Sprint.countDocuments({ status: "active", ...queryFilter });
 
-  const backlogTasksCount = await Task.countDocuments({
-    sprint_id: { $exists: false },
-    ...queryFilter,
-  });
+  let backlogTasksCount = 0;
+  if (projectId) {
+    const Backlog = require("../models/backlogModel");
+    const backlogs = await Backlog.find({ project_id: projectId });
+    const backlogIds = backlogs.map(b => b._id);
+    
+    const backlogQuery = {
+      sprint_id: { $exists: false },
+      backlog_id: { $in: backlogIds }
+    };
+    if (req.user?.company_id) backlogQuery.company_id = req.user.company_id;
+    backlogTasksCount = await Task.countDocuments(backlogQuery);
+  } else {
+    backlogTasksCount = await Task.countDocuments({
+      sprint_id: { $exists: false },
+      ...queryFilter,
+    });
+  }
 
   const aggregateMatch = {};
   if (req.user?.company_id) {
     aggregateMatch.company_id = new mongoose.Types.ObjectId(req.user.company_id);
   }
 
-  const stats = await Task.aggregate([
+  const pipeline = [
     { $match: aggregateMatch },
     {
       $lookup: {
@@ -246,41 +277,52 @@ exports.getFinalGlobalKPIs = catchAsync(async (req, res, next) => {
         as: "sprint",
       },
     },
-    { $unwind: "$sprint" },
-    {
-      $group: {
-        _id: null,
-        totalPlanned: { $sum: 1 },
-        totalDone: {
-          $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
-        },
-        doneInFinishedSprints: {
-          $sum: {
-            $cond: [
-              {
-                $and: [
-                  { $eq: ["$sprint.status", "completed"] },
-                  { $eq: ["$status", "completed"] },
-                ],
-              },
-              1,
-              0,
-            ],
-          },
+    { $unwind: "$sprint" }
+  ];
+
+  if (projectId) {
+    pipeline.push({
+      $match: { "sprint.project_id": new mongoose.Types.ObjectId(projectId) }
+    });
+  }
+
+  pipeline.push({
+    $group: {
+      _id: null,
+      totalPlanned: { $sum: 1 },
+      totalDone: {
+        $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+      },
+      doneInFinishedSprints: {
+        $sum: {
+          $cond: [
+            {
+              $and: [
+                { $eq: ["$sprint.status", "completed"] },
+                { $eq: ["$status", "completed"] },
+              ],
+            },
+            1,
+            0,
+          ],
         },
       },
     },
-  ]);
+  });
+
+  const stats = await Task.aggregate(pipeline);
 
   const data = stats[0] || {
     totalPlanned: 0,
     totalDone: 0,
     doneInFinishedSprints: 0,
   };
-  const finishedSprintsCount = await Sprint.countDocuments({
-    status: "completed",
-    ...queryFilter,
-  });
+  
+  const finishedSprintFilter = { status: "completed" };
+  if (req.user?.company_id) finishedSprintFilter.company_id = req.user.company_id;
+  if (projectId) finishedSprintFilter.project_id = projectId;
+  
+  const finishedSprintsCount = await Sprint.countDocuments(finishedSprintFilter);
 
   const avgVelocity =
     finishedSprintsCount > 0
