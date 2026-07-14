@@ -161,7 +161,7 @@ exports.getSprintVelocityAndCompletion = catchAsync(async (req, res, next) => {
 
 exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
   const mongoose = require("mongoose");
-  const projectId = req.query.projectId;
+  const projectId = req.query.projectId || req.params.projectId;
 
   const matchFilter = {};
   if (req.user?.company_id) {
@@ -231,7 +231,7 @@ exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
 
 exports.getFinalGlobalKPIs = catchAsync(async (req, res, next) => {
   const mongoose = require("mongoose");
-  const projectId = req.query.projectId;
+  const projectId = req.query.projectId || req.params.projectId;
   
   const queryFilter = {};
   if (req.user?.company_id) {
