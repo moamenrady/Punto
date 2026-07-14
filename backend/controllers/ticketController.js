@@ -109,7 +109,14 @@ exports.assignTicket = catchAsync(async (req, res, next) => {
 // ===============================
 
 exports.getWeeklyTrends = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const trends = await Ticket.aggregate([
+    { $match: matchFilter },
     {
       $facet: {
         openedPerWeek: [
@@ -148,7 +155,14 @@ exports.getWeeklyTrends = catchAsync(async (req, res, next) => {
 });
 
 exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const result = await Ticket.aggregate([
+    { $match: matchFilter },
     {
       $facet: {
         openTickets: [
@@ -181,7 +195,14 @@ exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
 });
 
 exports.getTicketsByCategory = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const categories = await Ticket.aggregate([
+    { $match: matchFilter },
     { $group: { _id: "$category", count: { $sum: 1 } } },
     { $project: { category: "$_id", count: 1, _id: 0 } },
     { $sort: { count: -1 } },
@@ -194,13 +215,17 @@ exports.getTicketsByCategory = catchAsync(async (req, res, next) => {
 });
 
 exports.getResolutionAnalytics = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {
+    status: { $in: ["resolved", "closed"] },
+    status_changed_at: { $ne: null },
+  };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const resolutionData = await Ticket.aggregate([
-    {
-      $match: {
-        status: { $in: ["resolved", "closed"] },
-        status_changed_at: { $ne: null },
-      },
-    },
+    { $match: matchFilter },
     {
       $project: {
         priority: 1,

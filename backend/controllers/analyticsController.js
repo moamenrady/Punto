@@ -7,8 +7,14 @@ const catchAsync = require("../utils/catchAsync");
 // ===============================
 
 exports.getActivityHeatmapFromWork = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = { start_date: { $ne: null } };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const activityData = await WorkingTask.aggregate([
-    { $match: { start_date: { $ne: null } } },
+    { $match: matchFilter },
     {
       $project: {
         hourOfDay: { $hour: "$start_date" },
@@ -36,8 +42,14 @@ exports.getActivityHeatmapFromWork = catchAsync(async (req, res, next) => {
 });
 
 exports.getTeamOutputComparison = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = { end_date: { $ne: null }, start_date: { $ne: null } };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const outputData = await WorkingTask.aggregate([
-    { $match: { end_date: { $ne: null }, start_date: { $ne: null } } },
+    { $match: matchFilter },
     {
       $group: {
         _id: "$team_id",
@@ -75,9 +87,14 @@ exports.getTeamOutputComparison = catchAsync(async (req, res, next) => {
 
 exports.getMemberWorkload = catchAsync(async (req, res, next) => {
   const BASE_WEEKLY_HOURS = 40;
+  const mongoose = require("mongoose");
+  const matchFilter = { end_date: { $ne: null }, start_date: { $ne: null } };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
 
   const memberData = await WorkingTask.aggregate([
-    { $match: { end_date: { $ne: null }, start_date: { $ne: null } } },
+    { $match: matchFilter },
     {
       $group: {
         _id: "$user_id",
@@ -150,7 +167,14 @@ exports.getMemberWorkload = catchAsync(async (req, res, next) => {
 // ===============================
 
 exports.getWeeklyAttendanceTrend = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const trend = await WeeklyShift.aggregate([
+    { $match: matchFilter },
     { $unwind: "$members" },
     {
       $project: {
@@ -200,9 +224,15 @@ exports.getWeeklyAttendanceTrend = catchAsync(async (req, res, next) => {
 
 exports.getShiftAnalytics = catchAsync(async (req, res, next) => {
   const weekStart = req.query.weekStart;
+  const mongoose = require("mongoose");
+
+  const matchFilter = { week_start: new Date(weekStart) };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
 
   const shiftData = await WeeklyShift.aggregate([
-    { $match: { week_start: new Date(weekStart) } },
+    { $match: matchFilter },
     { $unwind: "$members" },
     { $project: { shiftsArray: { $objectToArray: "$members.shifts" } } },
     { $unwind: "$shiftsArray" },

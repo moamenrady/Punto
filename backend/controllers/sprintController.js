@@ -39,7 +39,10 @@ exports.getAllSprints = catchAsync(async (req, res, next) => {
 // ===============================
 
 exports.getActiveSprintBurndown = catchAsync(async (req, res, next) => {
-  const sprint = await Sprint.findById(req.params.sprintId);
+  const queryObj = { _id: req.params.sprintId };
+  if (req.user?.company_id) queryObj.company_id = req.user.company_id;
+
+  const sprint = await Sprint.findOne(queryObj);
   if (!sprint || sprint.status !== "active") {
     return res.status(200).json({
       status: "success",
@@ -99,8 +102,15 @@ exports.getActiveSprintBurndown = catchAsync(async (req, res, next) => {
 
 exports.getSprintVelocityAndCompletion = catchAsync(async (req, res, next) => {
   const projectId = req.params.projectId;
+  const mongoose = require("mongoose");
+
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
 
   const velocity = await Task.aggregate([
+    { $match: matchFilter },
     {
       $lookup: {
         from: "sprints",
@@ -110,7 +120,7 @@ exports.getSprintVelocityAndCompletion = catchAsync(async (req, res, next) => {
       },
     },
     { $unwind: "$sprint" },
-    { $match: { "sprint.project_id": require("mongoose").Types.ObjectId(projectId) } },
+    { $match: { "sprint.project_id": new mongoose.Types.ObjectId(projectId) } },
     {
       $group: {
         _id: "$sprint.name",
@@ -150,7 +160,15 @@ exports.getSprintVelocityAndCompletion = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const overview = await Task.aggregate([
+    { $match: matchFilter },
     {
       $lookup: {
         from: "sprints",
@@ -200,13 +218,26 @@ exports.getAllSprintsStatusOverview = catchAsync(async (req, res, next) => {
 });
 
 exports.getFinalGlobalKPIs = catchAsync(async (req, res, next) => {
-  const activeSprintsCount = await Sprint.countDocuments({ status: "active" });
+  const mongoose = require("mongoose");
+  const queryFilter = {};
+  if (req.user?.company_id) {
+    queryFilter.company_id = req.user.company_id;
+  }
+
+  const activeSprintsCount = await Sprint.countDocuments({ status: "active", ...queryFilter });
 
   const backlogTasksCount = await Task.countDocuments({
     sprint_id: { $exists: false },
+    ...queryFilter,
   });
 
+  const aggregateMatch = {};
+  if (req.user?.company_id) {
+    aggregateMatch.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const stats = await Task.aggregate([
+    { $match: aggregateMatch },
     {
       $lookup: {
         from: "sprints",
@@ -248,6 +279,7 @@ exports.getFinalGlobalKPIs = catchAsync(async (req, res, next) => {
   };
   const finishedSprintsCount = await Sprint.countDocuments({
     status: "completed",
+    ...queryFilter,
   });
 
   const avgVelocity =

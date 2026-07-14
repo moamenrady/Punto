@@ -237,7 +237,14 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
 // ===============================
 
 exports.getUserDemographics = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const demographics = await User.aggregate([
+    { $match: matchFilter },
     {
       $facet: {
         totalUsers: [{ $count: "count" }],
@@ -267,7 +274,7 @@ exports.getUserDemographics = catchAsync(async (req, res, next) => {
   const rolePercentages = roles.map((r) => ({
     role: r.role,
     count: r.count,
-    percentage: Math.round((r.count / total) * 100),
+    percentage: total > 0 ? Math.round((r.count / total) * 100) : 0,
   }));
 
   res.status(200).json({
@@ -280,7 +287,14 @@ exports.getUserDemographics = catchAsync(async (req, res, next) => {
 });
 
 exports.getUserGrowthTrend = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const growth = await User.aggregate([
+    { $match: matchFilter },
     {
       $group: {
         _id: {
@@ -320,9 +334,15 @@ exports.getUserGrowthTrend = catchAsync(async (req, res, next) => {
 
 exports.getChurnRiskList = catchAsync(async (req, res, next) => {
   const churnThreshold = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const mongoose = require("mongoose");
+
+  const matchFilter = { updatedAt: { $lt: churnThreshold }, active: true };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
 
   const atRiskUsers = await User.aggregate([
-    { $match: { updatedAt: { $lt: churnThreshold }, active: true } },
+    { $match: matchFilter },
     {
       $lookup: {
         from: "tasks",
