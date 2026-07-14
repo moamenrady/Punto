@@ -2,7 +2,9 @@ const express = require("express");
 const ticketController = require("../controllers/ticketController");
 const authController = require("../controllers/authController");
 const baseController = require("../controllers/baseController");
+const multer = require("multer");
 
+const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
 // PROTECT ALL ROUTES
@@ -12,7 +14,13 @@ router.use(authController.checkFeature("Ticketing System"));
 router
   .route("/")
   .get(ticketController.getAllTickets)
-  .post(baseController.setCreatedBy, ticketController.createTicket);
+  .post(
+    upload.single("file"),
+    baseController.setCreatedBy,
+    ticketController.createTicket
+  );
+
+router.get("/:id/attachments/:index", ticketController.getTicketAttachment);
 
 router
   .route("/:id")

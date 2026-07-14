@@ -307,3 +307,234 @@ exports.removeUserFromDepartment = catchAsync(async (req, res, next) => {
     data: { company: updatedCompany },
   });
 });
+
+exports.getAuthorizationCheck = catchAsync(async (req, res, next) => {
+  const companyId = req.user.company_id;
+  if (!companyId) return next(new AppError("You are not associated with a company", 400));
+
+  const Project = require("../models/projectModel");
+  const Team = require("../models/teamModel");
+  const Chat = require("../models/chatModel");
+  const ChatMember = require("../models/ChatMember");
+  const Table = require("../models/tableModel");
+
+  // Fetch company plan features to check active systems
+  const company = await Company.findById(companyId).populate("plan_id");
+  const activeFeatures = company?.plan_id?.features || [];
+
+  // Fetch all users in the company
+  const users = await User.find({ company_id: companyId }).select("name email role photo dept");
+
+  // Fetch all resources in the company
+  const projects = await Project.find({ company_id: companyId });
+  const teams = await Team.find({ company_id: companyId });
+  const chats = await Chat.find({ company_id: companyId });
+  const tables = await Table.find({ company_id: companyId });
+  const chatMembers = await ChatMember.find({ company_id: companyId });
+
+  const getAuthUsers = (item, type) => {
+    return users
+      .map(user => {
+        const userIdStr = user._id.toString();
+        const reasons = [];
+
+        const isAdminOrManager = user.role === "admin" || user.role === "manager";
+        const isITDept = user.dept?.toLowerCase() === "it" || user.dept?.toLowerCase() === "it department";
+
+        if (isAdminOrManager) reasons.push("Admin/Manager");
+        if (isITDept) reasons.push("IT Department");
+
+        if (type === "project") {
+          const isCreator = item.created_by?.toString() === userIdStr;
+          const isMember = Array.isArray(item.members) && item.members.some(m => {
+            const mId = m?._id || m;
+            return mId.toString() === userIdStr;
+          });
+          if (isCreator) reasons.push("Creator");
+          if (isMember) reasons.push("Member");
+        } else if (type === "team") {
+          const isCreator = item.created_by?.toString() === userIdStr;
+          const isMember = Array.isArray(item.members) && item.members.some(m => {
+            const mId = m.user?._id || m.user || m;
+            return mId.toString() === userIdStr;
+          });
+          if (isCreator) reasons.push("Creator");
+          if (isMember) reasons.push("Member");
+        } else if (type === "chat") {
+          const isCreator = item.created_by?.toString() === userIdStr;
+          const isMember = chatMembers.some(cm => {
+            return cm.chat?.toString() === item._id.toString() && cm.user?.toString() === userIdStr && !cm.left_at;
+          });
+          if (isCreator) reasons.push("Creator");
+          if (isMember) reasons.push("Chat Member");
+        } else if (type === "table") {
+          const isCreator = item.user_id?.toString() === userIdStr;
+          if (isCreator) reasons.push("Creator");
+        }
+
+        if (reasons.length > 0) {
+          return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            photo: user.photo,
+            dept: user.dept,
+            reasons: [...new Set(reasons)]
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  const getAuthUsersForSystem = (systemId) => {
+    return users
+      .map(user => {
+        const isAdminOrManager = user.role === "admin" || user.role === "manager";
+        const isITDept = user.dept?.toLowerCase() === "it" || user.dept?.toLowerCase() === "it department";
+        
+        let accessType = "";
+        let reason = "";
+
+        if (systemId === "ticketing") {
+          if (isAdminOrManager || isITDept) {
+            accessType = "IT Agent Access";
+            reason = isAdminOrManager ? "Admin/Manager Role" : "IT Department Member";
+          } else {
+            accessType = "Normal User Access";
+            reason = "Company Member";
+          }
+        } else if (systemId === "stock") {
+          if (isAdminOrManager) {
+            accessType = "Admin/Manager Access (Full)";
+            reason = "Admin/Manager Role";
+          } else if (isITDept) {
+            accessType = "IT User Access (View/Reduce)";
+            reason = "IT Department Member";
+          } else {
+            return null;
+          }
+        } else if (systemId === "project") {
+          if (isAdminOrManager) {
+            accessType = "Full Manager Access";
+            reason = "Admin/Manager Role";
+          } else {
+            const isProjMember = projects.some(p => 
+              Array.isArray(p.members) && p.members.some(m => {
+                const mId = m?._id || m;
+                return mId.toString() === user._id.toString();
+              })
+            );
+            if (isProjMember) {
+              accessType = "Collaborator Access";
+              reason = "Assigned Project Member";
+            } else {
+              return null;
+            }
+          }
+        } else if (systemId === "chat") {
+          if (isAdminOrManager) {
+            accessType = "Admin Access (Full)";
+            reason = "Admin/Manager Role";
+          } else {
+            accessType = "Standard Chat Access";
+            reason = "Company Member";
+          }
+        }
+
+        if (accessType) {
+          return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            photo: user.photo,
+            dept: user.dept,
+            reasons: [accessType + " (" + reason + ")"]
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  const responseProjects = projects.map(p => ({
+    _id: p._id,
+    name: p.name,
+    description: p.description || "",
+    authorizedUsers: getAuthUsers(p, "project")
+  }));
+
+  const responseTeams = teams.map(t => ({
+    _id: t._id,
+    name: t.name,
+    description: t.description || "",
+    authorizedUsers: getAuthUsers(t, "team")
+  }));
+
+  const allChats = chats.map(c => ({
+    _id: c._id,
+    name: c.name || (c.type === "private" ? "Direct Message" : "Unnamed Group"),
+    description: c.description || "",
+    type: c.type,
+    authorizedUsers: getAuthUsers(c, "chat")
+  }));
+
+  const responseGroupChats = allChats.filter(c => c.type === "group");
+  const responseChats = allChats.filter(c => c.type === "private");
+
+  const responsePages = tables.map(tbl => ({
+    _id: tbl._id,
+    name: tbl.filename || "Unnamed Page",
+    description: `Uploaded sheet with ${tbl.data?.length || 0} rows`,
+    authorizedUsers: getAuthUsers(tbl, "table")
+  }));
+
+  // Build active systems mapping
+  const responseSystems = [];
+  if (activeFeatures.includes("Ticketing System")) {
+    responseSystems.push({
+      _id: "ticketing",
+      name: "Ticketing System",
+      description: "Support ticket workspace with IT support agent and user portals.",
+      authorizedUsers: getAuthUsersForSystem("ticketing")
+    });
+  }
+  if (activeFeatures.includes("Stock Management")) {
+    responseSystems.push({
+      _id: "stock",
+      name: "Stock Management",
+      description: "Inventory tracking, AI usage predictions, and CSV imports.",
+      authorizedUsers: getAuthUsersForSystem("stock")
+    });
+  }
+  if (activeFeatures.includes("Project Management")) {
+    responseSystems.push({
+      _id: "project",
+      name: "Project Management",
+      description: "Agile project workflows with backlog, sprints, and tasks.",
+      authorizedUsers: getAuthUsersForSystem("project")
+    });
+  }
+  if (activeFeatures.includes("Chat System")) {
+    responseSystems.push({
+      _id: "chat",
+      name: "Chat System",
+      description: "Team channels, private direct messages, and AI assistant.",
+      authorizedUsers: getAuthUsersForSystem("chat")
+    });
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      projects: responseProjects,
+      teams: responseTeams,
+      chats: responseChats,
+      groupChats: responseGroupChats,
+      pages: responsePages,
+      systems: responseSystems
+    }
+  });
+});

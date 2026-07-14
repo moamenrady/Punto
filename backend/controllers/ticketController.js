@@ -3,7 +3,30 @@ const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const factory = require("./handlerFactory");
 
-exports.createTicket = factory.createOne(Ticket);
+exports.createTicket = catchAsync(async (req, res, next) => {
+  // If a file was uploaded, add it to req.body.attachments
+  if (req.file) {
+    req.body.attachments = [{
+      data: req.file.buffer,
+      contentType: req.file.mimetype,
+      filename: req.file.originalname
+    }];
+  }
+
+  // Set company_id from user
+  if (req.user?.company_id) {
+    req.body.company_id = req.user.company_id;
+  }
+
+  const newTicket = await Ticket.create(req.body);
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      data: newTicket
+    }
+  });
+});
 exports.getAllTickets = catchAsync(async (req, res, next) => {
   const filter = {};
   if (req.user?.company_id) filter.company_id = req.user.company_id;
@@ -17,7 +40,8 @@ exports.getAllTickets = catchAsync(async (req, res, next) => {
     (role === "user" && dept === "IT");
 
   if (!isAuthorized) {
-    return next(new AppError("You do not have permission to access support tickets.", 403));
+    // If not authorized to see system-wide tickets, only return tickets created by the user
+    filter.created_by = req.user._id;
   }
 
   const tickets = await Ticket.find(filter);
@@ -85,7 +109,14 @@ exports.assignTicket = catchAsync(async (req, res, next) => {
 // ===============================
 
 exports.getWeeklyTrends = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const trends = await Ticket.aggregate([
+    { $match: matchFilter },
     {
       $facet: {
         openedPerWeek: [
@@ -124,7 +155,14 @@ exports.getWeeklyTrends = catchAsync(async (req, res, next) => {
 });
 
 exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const result = await Ticket.aggregate([
+    { $match: matchFilter },
     {
       $facet: {
         openTickets: [
@@ -157,7 +195,14 @@ exports.getDashboardKPIs = catchAsync(async (req, res, next) => {
 });
 
 exports.getTicketsByCategory = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {};
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const categories = await Ticket.aggregate([
+    { $match: matchFilter },
     { $group: { _id: "$category", count: { $sum: 1 } } },
     { $project: { category: "$_id", count: 1, _id: 0 } },
     { $sort: { count: -1 } },
@@ -170,13 +215,17 @@ exports.getTicketsByCategory = catchAsync(async (req, res, next) => {
 });
 
 exports.getResolutionAnalytics = catchAsync(async (req, res, next) => {
+  const mongoose = require("mongoose");
+  const matchFilter = {
+    status: { $in: ["resolved", "closed"] },
+    status_changed_at: { $ne: null },
+  };
+  if (req.user?.company_id) {
+    matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
+  }
+
   const resolutionData = await Ticket.aggregate([
-    {
-      $match: {
-        status: { $in: ["resolved", "closed"] },
-        status_changed_at: { $ne: null },
-      },
-    },
+    { $match: matchFilter },
     {
       $project: {
         priority: 1,
@@ -224,4 +273,19 @@ exports.getResolutionAnalytics = catchAsync(async (req, res, next) => {
       breakdownByPriority: resolutionData,
     },
   });
+});
+
+// GET TICKET ATTACHMENT
+exports.getTicketAttachment = catchAsync(async (req, res, next) => {
+  const ticket = await Ticket.findById(req.params.id);
+  if (!ticket) return next(new AppError("Ticket not found", 404));
+
+  const index = parseInt(req.params.index, 10) || 0;
+  const attachment = ticket.attachments[index];
+  if (!attachment || !attachment.data) {
+    return next(new AppError("Attachment not found", 404));
+  }
+
+  res.set("Content-Type", attachment.contentType);
+  res.send(attachment.data);
 });

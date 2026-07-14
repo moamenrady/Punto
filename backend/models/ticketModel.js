@@ -33,6 +33,11 @@ const ticketSchema = new mongoose.Schema(
       required: [true, "A ticket must have a description"],
     },
 
+    resolution: {
+      type: String,
+      default: null,
+    },
+
     priority: {
       type: String,
       enum: ["low", "medium", "high", "critical"],
@@ -84,6 +89,13 @@ const ticketSchema = new mongoose.Schema(
     chat_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Chat",
+    },
+    // ===============================
+    // 🔥 SOLUTION
+    // ===============================
+    solution: {
+      type: String,
+      default: "",
     },
 
     // ===============================

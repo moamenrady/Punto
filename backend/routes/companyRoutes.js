@@ -20,6 +20,8 @@ router.post("/promote-manager", authController.restrictTo("admin", "manager"), c
 
 router.use(authController.restrictTo("admin", "manager"));
 
+router.get("/my-company/authorization-check", companyController.getAuthorizationCheck);
+
 router.post("/my-company/departments", companyController.addDepartment);
 router.delete("/my-company/departments/:deptId", companyController.removeDepartment);
 router.post("/my-company/departments/:deptId/users", companyController.addUserToDepartment);
