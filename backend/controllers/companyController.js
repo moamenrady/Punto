@@ -307,3 +307,123 @@ exports.removeUserFromDepartment = catchAsync(async (req, res, next) => {
     data: { company: updatedCompany },
   });
 });
+
+exports.getAuthorizationCheck = catchAsync(async (req, res, next) => {
+  const companyId = req.user.company_id;
+  if (!companyId) return next(new AppError("You are not associated with a company", 400));
+
+  const Project = require("../models/projectModel");
+  const Team = require("../models/teamModel");
+  const Chat = require("../models/chatModel");
+  const ChatMember = require("../models/ChatMember");
+  const Table = require("../models/tableModel");
+
+  // Fetch all users in the company
+  const users = await User.find({ company_id: companyId }).select("name email role photo dept");
+
+  // Fetch all resources in the company
+  const projects = await Project.find({ company_id: companyId });
+  const teams = await Team.find({ company_id: companyId });
+  const chats = await Chat.find({ company_id: companyId });
+  const tables = await Table.find({ company_id: companyId });
+  const chatMembers = await ChatMember.find({ company_id: companyId });
+
+  const getAuthUsers = (item, type) => {
+    return users
+      .map(user => {
+        const userIdStr = user._id.toString();
+        const reasons = [];
+
+        const isAdminOrManager = user.role === "admin" || user.role === "manager";
+        const isITDept = user.dept?.toLowerCase() === "it" || user.dept?.toLowerCase() === "it department";
+
+        if (isAdminOrManager) reasons.push("Admin/Manager");
+        if (isITDept) reasons.push("IT Department");
+
+        if (type === "project") {
+          const isCreator = item.created_by?.toString() === userIdStr;
+          const isMember = Array.isArray(item.members) && item.members.some(m => {
+            const mId = m?._id || m;
+            return mId.toString() === userIdStr;
+          });
+          if (isCreator) reasons.push("Creator");
+          if (isMember) reasons.push("Member");
+        } else if (type === "team") {
+          const isCreator = item.created_by?.toString() === userIdStr;
+          const isMember = Array.isArray(item.members) && item.members.some(m => {
+            const mId = m.user?._id || m.user || m;
+            return mId.toString() === userIdStr;
+          });
+          if (isCreator) reasons.push("Creator");
+          if (isMember) reasons.push("Member");
+        } else if (type === "chat") {
+          const isCreator = item.created_by?.toString() === userIdStr;
+          const isMember = chatMembers.some(cm => {
+            return cm.chat?.toString() === item._id.toString() && cm.user?.toString() === userIdStr && !cm.left_at;
+          });
+          if (isCreator) reasons.push("Creator");
+          if (isMember) reasons.push("Chat Member");
+        } else if (type === "table") {
+          const isCreator = item.user_id?.toString() === userIdStr;
+          if (isCreator) reasons.push("Creator");
+        }
+
+        if (reasons.length > 0) {
+          return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            photo: user.photo,
+            dept: user.dept,
+            reasons: [...new Set(reasons)]
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  const responseProjects = projects.map(p => ({
+    _id: p._id,
+    name: p.name,
+    description: p.description || "",
+    authorizedUsers: getAuthUsers(p, "project")
+  }));
+
+  const responseTeams = teams.map(t => ({
+    _id: t._id,
+    name: t.name,
+    description: t.description || "",
+    authorizedUsers: getAuthUsers(t, "team")
+  }));
+
+  const allChats = chats.map(c => ({
+    _id: c._id,
+    name: c.name || (c.type === "private" ? "Direct Message" : "Unnamed Group"),
+    description: c.description || "",
+    type: c.type,
+    authorizedUsers: getAuthUsers(c, "chat")
+  }));
+
+  const responseGroupChats = allChats.filter(c => c.type === "group");
+  const responseChats = allChats.filter(c => c.type === "private");
+
+  const responsePages = tables.map(tbl => ({
+    _id: tbl._id,
+    name: tbl.filename || "Unnamed Page",
+    description: `Uploaded sheet with ${tbl.data?.length || 0} rows`,
+    authorizedUsers: getAuthUsers(tbl, "table")
+  }));
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      projects: responseProjects,
+      teams: responseTeams,
+      chats: responseChats,
+      groupChats: responseGroupChats,
+      pages: responsePages
+    }
+  });
+});
