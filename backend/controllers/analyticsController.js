@@ -1,5 +1,7 @@
 const WorkingTask = require("../models/WorkingTask");
 const WeeklyShift = require("../models/scheduleModel");
+const User = require("../models/userModel");
+const Company = require("../models/companyModel");
 const catchAsync = require("../utils/catchAsync");
 
 // ===============================
@@ -43,7 +45,7 @@ exports.getActivityHeatmapFromWork = catchAsync(async (req, res, next) => {
 
 exports.getTeamOutputComparison = catchAsync(async (req, res, next) => {
   const mongoose = require("mongoose");
-  const matchFilter = { end_date: { $ne: null }, start_date: { $ne: null } };
+  const matchFilter = { start_date: { $ne: null } };
   if (req.user?.company_id) {
     matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
   }
@@ -54,7 +56,7 @@ exports.getTeamOutputComparison = catchAsync(async (req, res, next) => {
       $group: {
         _id: "$team_id",
         uniqueTasksCompleted: { $addToSet: "$task_id" },
-        totalTimeMs: { $sum: { $subtract: ["$end_date", "$start_date"] } },
+        totalTimeMs: { $sum: { $subtract: [{ $ifNull: ["$end_date", new Date()] }, "$start_date"] } },
       },
     },
     {
@@ -88,7 +90,7 @@ exports.getTeamOutputComparison = catchAsync(async (req, res, next) => {
 exports.getMemberWorkload = catchAsync(async (req, res, next) => {
   const BASE_WEEKLY_HOURS = 40;
   const mongoose = require("mongoose");
-  const matchFilter = { end_date: { $ne: null }, start_date: { $ne: null } };
+  const matchFilter = { start_date: { $ne: null } };
   if (req.user?.company_id) {
     matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
   }
@@ -99,7 +101,7 @@ exports.getMemberWorkload = catchAsync(async (req, res, next) => {
       $group: {
         _id: "$user_id",
         uniqueTasks: { $addToSet: "$task_id" },
-        totalTimeMs: { $sum: { $subtract: ["$end_date", "$start_date"] } },
+        totalTimeMs: { $sum: { $subtract: [{ $ifNull: ["$end_date", new Date()] }, "$start_date"] } },
       },
     },
     {
@@ -175,14 +177,7 @@ exports.getWeeklyAttendanceTrend = catchAsync(async (req, res, next) => {
 
   const trend = await WeeklyShift.aggregate([
     { $match: matchFilter },
-    { $unwind: "$members" },
-    {
-      $project: {
-        week_start: 1,
-        shiftsArray: { $objectToArray: "$members.shifts" },
-      },
-    },
-    { $unwind: "$shiftsArray" },
+    { $unwind: "$entries" },
     {
       $group: {
         _id: {
@@ -191,7 +186,11 @@ exports.getWeeklyAttendanceTrend = catchAsync(async (req, res, next) => {
         totalShiftDays: { $sum: 1 },
         presentDays: {
           $sum: {
-            $cond: [{ $ne: ["$shiftsArray.v", "Off"] }, 1, 0],
+            $cond: [
+              { $in: [{ $toLower: { $ifNull: ["$entries.shift_type", "off"] } }, ["morning", "afternoon", "night", "arrived", "timeout"]] },
+              1,
+              0
+            ],
           },
         },
       },
@@ -203,7 +202,7 @@ exports.getWeeklyAttendanceTrend = catchAsync(async (req, res, next) => {
           $round: [
             {
               $multiply: [
-                { $divide: ["$presentDays", "$totalShiftDays"] },
+                { $divide: ["$presentDays", { $cond: [{ $eq: ["$totalShiftDays", 0] }, 1, "$totalShiftDays"] }] },
                 100,
               ],
             },
@@ -226,19 +225,37 @@ exports.getShiftAnalytics = catchAsync(async (req, res, next) => {
   const weekStart = req.query.weekStart;
   const mongoose = require("mongoose");
 
-  const matchFilter = { week_start: new Date(weekStart) };
+  let matchFilter = {};
   if (req.user?.company_id) {
     matchFilter.company_id = new mongoose.Types.ObjectId(req.user.company_id);
   }
 
+  if (weekStart) {
+    const targetDate = new Date(weekStart);
+    const startOfDay = new Date(targetDate.setUTCHours(0,0,0,0));
+    const endOfDay = new Date(targetDate.setUTCHours(23,59,59,999));
+    
+    const dateExists = await WeeklyShift.findOne({ 
+      company_id: req.user?.company_id, 
+      week_start: { $gte: startOfDay, $lte: endOfDay } 
+    });
+    if (dateExists) {
+      matchFilter.week_start = { $gte: startOfDay, $lte: endOfDay };
+    } else {
+      const latestShift = await WeeklyShift.findOne({ company_id: req.user?.company_id }).sort({ week_start: -1 });
+      if (latestShift) matchFilter.week_start = latestShift.week_start;
+    }
+  } else {
+    const latestShift = await WeeklyShift.findOne({ company_id: req.user?.company_id }).sort({ week_start: -1 });
+    if (latestShift) matchFilter.week_start = latestShift.week_start;
+  }
+
   const shiftData = await WeeklyShift.aggregate([
     { $match: matchFilter },
-    { $unwind: "$members" },
-    { $project: { shiftsArray: { $objectToArray: "$members.shifts" } } },
-    { $unwind: "$shiftsArray" },
+    { $unwind: "$entries" },
     {
       $group: {
-        _id: "$shiftsArray.v",
+        _id: "$entries.shift_type",
         count: { $sum: 1 },
       },
     },
@@ -249,9 +266,11 @@ exports.getShiftAnalytics = catchAsync(async (req, res, next) => {
   const distribution = {};
 
   shiftData.forEach((shift) => {
-    distribution[shift._id] = shift.count;
+    const rawVal = shift._id || "off";
+    const label = rawVal.charAt(0).toUpperCase() + rawVal.slice(1).toLowerCase();
+    distribution[label] = shift.count;
     totalShifts += shift.count;
-    if (shift._id === "Night") nightShifts = shift.count;
+    if (label === "Night") nightShifts = shift.count;
   });
 
   const nightShiftLoad =
